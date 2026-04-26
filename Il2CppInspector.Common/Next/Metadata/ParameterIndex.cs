@@ -1,0 +1,40 @@
+﻿using VersionedSerialization;
+
+namespace Il2CppInspector.Next.Metadata;
+
+public struct ParameterIndex(int value) : IIndexType<ParameterIndex>, IReadable, IEquatable<ParameterIndex>
+{
+    public const string TagPrefix = nameof(ParameterIndex);
+
+    static string IIndexType<ParameterIndex>.TagPrefix => TagPrefix;
+
+    private int _value = value;
+
+    public static int Size(in StructVersion version = default, in ReaderConfig config = default) => IIndexType<ParameterIndex>.IndexSize(version, config);
+
+    public void Read<TReader>(ref Reader<TReader> reader, in StructVersion version = default)
+        where TReader : IReader, allows ref struct
+    {
+        _value = IIndexType<ParameterIndex>.ReadIndex(ref reader, in version);
+    }
+
+    #region Operators + ToString
+
+    public static implicit operator int(ParameterIndex idx) => idx._value;
+
+    public static implicit operator ParameterIndex(int idx) => new(idx);
+
+    public static bool operator ==(ParameterIndex left, ParameterIndex right) => left._value == right._value;
+
+    public static bool operator !=(ParameterIndex left, ParameterIndex right) => !(left == right);
+
+    public override readonly bool Equals(object obj) => obj is ParameterIndex other && Equals(other);
+
+    public readonly bool Equals(ParameterIndex other) => this == other;
+
+    public override readonly int GetHashCode() => HashCode.Combine(_value);
+
+    public override readonly string ToString() => _value.ToString();
+
+    #endregion
+}

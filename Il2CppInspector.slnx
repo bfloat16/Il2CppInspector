@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+  </Folder>
+  <Project Path="Bin2Object/Bin2Object.csproj" Id="82d6fb7e-0af2-4724-a937-3f59e9541e28" />
+  <Project Path="Il2CppInspector.CLI/Il2CppInspector.CLI.csproj" Id="00b38e4c-b0da-4a10-a090-ca619672ef32" />
+  <Project Path="Il2CppInspector.Common/Il2CppInspector.Common.csproj" />
+  <Project Path="VersionedSerialization.Generator/VersionedSerialization.Generator.csproj" />
+  <Project Path="VersionedSerialization/VersionedSerialization.csproj" Id="7460288e-63b2-493a-9cca-1cf6a3121d0d" />
+</Solution>

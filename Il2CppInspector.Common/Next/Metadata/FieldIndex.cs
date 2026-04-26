@@ -1,0 +1,40 @@
+﻿using VersionedSerialization;
+
+namespace Il2CppInspector.Next.Metadata;
+
+public struct FieldIndex(int value) : IIndexType<FieldIndex>, IReadable, IEquatable<FieldIndex>
+{
+    public const string TagPrefix = nameof(FieldIndex);
+
+    static string IIndexType<FieldIndex>.TagPrefix => TagPrefix;
+
+    private int _value = value;
+
+    public static int Size(in StructVersion version = default, in ReaderConfig config = default) => IIndexType<FieldIndex>.IndexSize(version, config);
+
+    public void Read<TReader>(ref Reader<TReader> reader, in StructVersion version = default)
+        where TReader : IReader, allows ref struct
+    {
+        _value = IIndexType<FieldIndex>.ReadIndex(ref reader, in version);
+    }
+
+    #region Operators + ToString
+
+    public static implicit operator int(FieldIndex idx) => idx._value;
+
+    public static implicit operator FieldIndex(int idx) => new(idx);
+
+    public static bool operator ==(FieldIndex left, FieldIndex right) => left._value == right._value;
+
+    public static bool operator !=(FieldIndex left, FieldIndex right) => !(left == right);
+
+    public override readonly bool Equals(object obj) => obj is FieldIndex other && Equals(other);
+
+    public readonly bool Equals(FieldIndex other) => this == other;
+
+    public override readonly int GetHashCode() => HashCode.Combine(_value);
+
+    public override readonly string ToString() => _value.ToString();
+
+    #endregion
+}
