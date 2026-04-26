@@ -554,10 +554,6 @@ Output structure:
                 );
                 ProgressBar.Done();
 
-                // C# stubs with spinner
-                string csOut = Path.Combine(output, "CS");
-                ProgressBar.RunWithSpinner($"Generating C# stubs -> {csOut}", () => new CSharpCodeStubs(model).WriteFilesByClassTree(csOut, false));
-
                 // Python script with spinner
                 if (options.ScriptTarget != null)
                 {

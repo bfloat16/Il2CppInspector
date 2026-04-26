@@ -23,4 +23,9 @@
     <EmbeddedResource Include="Outputs\ScriptResources\Targets\Ghidra.py" LogicalName="Il2CppInspector.Outputs.ScriptResources.Targets.Ghidra.py" />
     <EmbeddedResource Include="Outputs\ScriptResources\Targets\IDA.py" LogicalName="Il2CppInspector.Outputs.ScriptResources.Targets.IDA.py" />
   </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Cpp\UnityHeaders\*.h" LogicalName="Il2CppInspector.Cpp.UnityHeaders.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Cpp\Il2CppAPIHeaders\*.h" LogicalName="Il2CppInspector.Cpp.Il2CppAPIHeaders.%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>
