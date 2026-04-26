@@ -54,13 +54,13 @@ public static class BlobReader
                 break;
             case Il2CppTypeEnum.IL2CPP_TYPE_STRING:
                 var uiLen = ReadInt32();
-                if (uiLen != -1)
+                if (uiLen > 0 && uiLen < 10_000_000)
                     value = Encoding.UTF8.GetString(blob.ReadBytes(uiLen));
 
                 break;
             case Il2CppTypeEnum.IL2CPP_TYPE_SZARRAY:
                 var length = ReadInt32();
-                if (length == -1)
+                if (length <= 0 || length > 100_000)
                     break;
 
                 // This is only used in custom arguments.

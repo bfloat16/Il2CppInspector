@@ -1,0 +1,1 @@
+For iOS 5.0.0 [App Store](https://apps.apple.com/cn/app/%E6%81%8B%E4%B8%8E%E6%B7%B1%E7%A9%BA/id1618911882)

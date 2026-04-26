@@ -187,12 +187,22 @@ namespace Il2CppInspector
                 if (fdv.FieldIndex == -1 && fdv.TypeIndex == -1)
                     continue;
 
-                FieldDefaultValue.Add(fdv.FieldIndex, ((ulong, object))getDefaultValue(fdv.TypeIndex, fdv.DataIndex));
+                try
+                {
+                    FieldDefaultValue.TryAdd(fdv.FieldIndex, ((ulong, object))getDefaultValue(fdv.TypeIndex, fdv.DataIndex));
+                }
+                catch (Exception) { }
             }
 
             // Get all parameter default values
             foreach (var pdv in Metadata.ParameterDefaultValues)
-                ParameterDefaultValue.Add(pdv.ParameterIndex, ((ulong, object))getDefaultValue(pdv.TypeIndex, pdv.DataIndex));
+            {
+                try
+                {
+                    ParameterDefaultValue.TryAdd(pdv.ParameterIndex, ((ulong, object))getDefaultValue(pdv.TypeIndex, pdv.DataIndex));
+                }
+                catch (Exception) { }
+            }
 
             // Get all field offsets
             if (Binary.FieldOffsets != null)
@@ -403,16 +413,8 @@ namespace Il2CppInspector
 
             // Load the metadata file
             Metadata metadata;
-            try
-            {
-                metadata = Metadata.FromStream(metadataStream, statusCallback);
-            }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine(ex.Message);
-                Console.SetOut(stdout);
-                return null;
-            }
+
+            metadata = Metadata.FromStream(metadataStream, statusCallback);
 
             Console.WriteLine("Detected metadata version " + metadata.Version);
 

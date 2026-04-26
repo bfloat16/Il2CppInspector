@@ -187,6 +187,17 @@ namespace Il2CppInspector
             Image.Version = metadataVersion;
 
             StatusUpdate("Searching for binary metadata");
+            // Hardcoded registration addresses for obfuscated binary (恋与深空 5.0.0 iOS)
+            // IL2CPP runtime is v29 (0x1D) despite Unity 2019.4.25f1 shell
+            ulong hardcodedCode = 0xAC34950;
+            ulong hardcodedMeta = 0xAD845C8;
+            if (Image.TryMapVATR(hardcodedCode, out _) && Image.TryMapVATR(hardcodedMeta, out _))
+            {
+                Image.Version = MetadataVersions.V290;
+                Console.WriteLine("Using hardcoded registration addresses (v29.0)");
+                TryPrepareMetadata(hardcodedCode, hardcodedMeta);
+                return true;
+            }
             if (!((FindMetadataFromSymbols() ?? FindMetadataFromData() ?? FindMetadataFromCode()) is (ulong code, ulong meta)))
                 return false;
 

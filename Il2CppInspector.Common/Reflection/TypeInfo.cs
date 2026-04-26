@@ -1201,19 +1201,20 @@ namespace Il2CppInspector.Reflection
             refs.UnionWith(ImplementedInterfaces);
 
             // Repeatedly replace arrays, pointers and references with their element types
+            refs.Remove(null);
             while (refs.Any(r => r.HasElementType))
-                refs = refs.Select(r => r.HasElementType ? r.ElementType : r).ToHashSet();
+                refs = refs.Select(r => r.HasElementType ? r.ElementType : r).Where(r => r != null).ToHashSet();
 
             // Type arguments in generic types that may have been a field, method parameter etc.
             IEnumerable<TypeInfo> genericArguments = refs.ToList();
             do
             {
-                genericArguments = genericArguments.SelectMany(r => r.GetGenericArguments());
-                refs.UnionWith(genericArguments);
+                genericArguments = genericArguments.Where(r => r != null).SelectMany(r => r.GetGenericArguments());
+                refs.UnionWith(genericArguments.Where(r => r != null));
             } while (genericArguments.Any());
 
             // Remove anonymous types
-            refs.RemoveWhere(r => string.IsNullOrEmpty(r.FullName));
+            refs.RemoveWhere(r => r == null || string.IsNullOrEmpty(r.FullName));
 
             IEnumerable<TypeInfo> refList = refs;
 

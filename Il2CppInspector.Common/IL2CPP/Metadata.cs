@@ -70,6 +70,13 @@ namespace Il2CppInspector
             stream.Position = 0;
             stream.CopyTo(metadata);
             metadata.Position = 0;
+
+            if (MetadataDecryption.TryDecrypt(metadata))
+            {
+                metadata.IsModified = true;
+                metadata.StatusUpdate("Decrypted obfuscated metadata");
+            }
+
             metadata.Initialize();
             return metadata;
         }

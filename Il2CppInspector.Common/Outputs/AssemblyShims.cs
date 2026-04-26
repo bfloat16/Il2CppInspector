@@ -561,6 +561,14 @@ namespace Il2CppInspector.Outputs
             if (cad.CtorInfo == null)
                 return def.AddAttribute(module, attrTypeDef);
 
+            // Skip attributes with unresolved argument types
+            if (
+                cad.CtorInfo.Arguments.Any(a => a.Type == null)
+                || cad.CtorInfo.Fields.Any(f => f.Type == null || f.Field == null)
+                || cad.CtorInfo.Properties.Any(p => p.Type == null || p.Property == null)
+            )
+                return def.AddAttribute(module, attrTypeDef);
+
             var ctorInfo = cad.CtorInfo;
 
             var attRef = module.Import(attrTypeDef);

@@ -293,7 +293,7 @@ namespace Il2CppInspector.Reflection
                 _ => (int)t >= Il2CppConstants.FullNameTypeString.Count ? null : Il2CppConstants.FullNameTypeString[(int)t],
             };
 
-            return fqn == null ? null : TypesByFullName[fqn];
+            return fqn == null ? null : TypesByFullName.GetValueOrDefault(fqn);
         }
 
         // Get a TypeRef by its virtual address
