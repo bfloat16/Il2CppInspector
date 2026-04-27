@@ -70,6 +70,17 @@ namespace Il2CppInspector
             stream.Position = 0;
             stream.CopyTo(metadata);
             metadata.Position = 0;
+
+            var buffer = metadata.GetBuffer().AsSpan(0, (int)metadata.Length);
+            if (MetadataDecryptor.IsEncrypted(buffer))
+            {
+                metadata.StatusUpdate("Decrypting encrypted metadata");
+                if (!MetadataDecryptor.TryDecrypt(buffer))
+                    throw new InvalidOperationException("Failed to decrypt encrypted metadata.");
+                metadata.IsModified = true;
+                metadata.Position = 0;
+            }
+
             metadata.Initialize();
             return metadata;
         }
