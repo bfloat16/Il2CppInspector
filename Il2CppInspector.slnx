@@ -8,6 +8,7 @@
   <Folder Name="/Plugins/">
     <Project Path="Il2CppInspector.Plugin/ZZZ/Il2CppInspector.Plugin.ZZZ.csproj" />
   </Folder>
+  <Project Path="Il2CppInspector.Tests/Il2CppInspector.Tests.csproj" />
   <Project Path="VersionedSerialization.Generator/VersionedSerialization.Generator.csproj" />
   <Project Path="VersionedSerialization/VersionedSerialization.csproj" Id="7460288e-63b2-493a-9cca-1cf6a3121d0d" />
 </Solution>
