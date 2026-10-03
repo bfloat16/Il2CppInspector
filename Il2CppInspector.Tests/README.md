@@ -26,6 +26,7 @@ Il2CppInspector.Tests/
 dotnet run --project Il2CppInspector.Tests -c Release -- --plugins
 dotnet run --project Il2CppInspector.Tests -c Release -- --stock '<Unity player directory>'
 dotnet run --project Il2CppInspector.Tests -c Release -- --plugin-cli '<CLI DLL>' '<isolated directory>'
+dotnet run --project Il2CppInspector.Tests -c Release -- --cli-targets '<CLI DLL>'
 dotnet run --project Il2CppInspector.Tests -c Release -- --pdb-fixture '<output directory>' llvm-pdbutil
 ```
 

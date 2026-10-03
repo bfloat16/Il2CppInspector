@@ -19,7 +19,7 @@ namespace Il2CppInspector.CLI
         public string StartupMetadataFile;
         public string Game;
         public string OutputDir = "output";
-        public string ScriptTarget;
+        public List<string> Targets = [];
         public string UnityVersion;
     }
 
@@ -295,7 +295,15 @@ namespace Il2CppInspector.CLI
                 return;
             }
 
-            Run(options);
+            try
+            {
+                Run(options);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine(ex.Message);
+                Environment.ExitCode = 1;
+            }
         }
 
         private static Options ParseArgs(string[] args)
@@ -308,9 +316,10 @@ namespace Il2CppInspector.CLI
 
                 bool NeedValue()
                 {
-                    if (i + 1 >= args.Length)
+                    if (i + 1 >= args.Length || args[i + 1].StartsWith('-'))
                     {
                         Console.Error.WriteLine($"Option {args[i]} requires a value.");
+                        Environment.ExitCode = 1;
                         return false;
                     }
 
@@ -357,13 +366,22 @@ namespace Il2CppInspector.CLI
 
                         opts.OutputDir = value;
                         break;
-                    case "-t" or "--script-target":
+                    case "-t" or "--target" or "--script-target":
                         if (!NeedValue())
                         {
                             return null;
                         }
 
-                        opts.ScriptTarget = value;
+                        var target = PythonScript.GetAvailableTargets().Append("PDB").FirstOrDefault(t => t.Equals(value, StringComparison.OrdinalIgnoreCase));
+                        if (target == null)
+                        {
+                            Console.Error.WriteLine($"Unknown output target: {value}");
+                            Console.Error.WriteLine($"Available targets: {string.Join(", ", PythonScript.GetAvailableTargets().Append("PDB"))}");
+                            Environment.ExitCode = 1;
+                            return null;
+                        }
+                        if (!opts.Targets.Contains(target))
+                            opts.Targets.Add(target);
                         break;
                     case "--unity-version":
                         if (!NeedValue())
@@ -386,6 +404,7 @@ namespace Il2CppInspector.CLI
                         return null;
                     default:
                         Console.Error.WriteLine($"Unknown option: {args[i]}");
+                        Environment.ExitCode = 1;
                         PrintHelp();
                         return null;
                 }
@@ -394,6 +413,7 @@ namespace Il2CppInspector.CLI
             if (string.IsNullOrEmpty(opts.BinaryFile) || string.IsNullOrEmpty(opts.MetadataFile))
             {
                 Console.Error.WriteLine("Both --bin and --metadata are required.");
+                Environment.ExitCode = 1;
                 PrintHelp();
                 return null;
             }
@@ -414,7 +434,9 @@ Options:
   -i, --bin <file>          IL2CPP binary file (required)
   -m, --metadata <file>     global-metadata.dat file (required)
   -o, --output <dir>        Output directory (default: output)
-  -t, --script-target <t>   Python script target: IDA, BinaryNinja, Ghidra
+  -t, --target <t>          Output target: IDA, BinaryNinja, Ghidra, PDB
+                            Repeat to select multiple targets: -t IDA -t PDB
+                            --script-target remains an alias; PDB requires x64 PE
       --startup-metadata <f> Plugin startup metadata (auto-detected beside metadata)
       --game <id>           Game plugin: NAME_REGION_VERSION (ZZZ_CN_3.2.0)
                             Auto-detect when omitted
@@ -425,9 +447,11 @@ Options:
 Output structure:
   <output>/DummyDll/        .NET assembly shim DLLs
   <output>/CS/              C# type definitions (tree layout)
-  <output>/il2cpp.py        Python script (if --script-target specified)
-  <output>/il2cpp.h         C++ type header (if --script-target specified)
-  <output>/il2cpp.json      JSON metadata (if --script-target specified)"
+  <output>/il2cpp.py        Python script (one script target)
+  <output>/il2cpp-<t>.py    Python scripts (multiple script targets)
+  <output>/il2cpp.h         Shared C++ type header for script targets
+  <output>/il2cpp.json      Shared JSON metadata for script targets
+  <output>/<binary>.pdb    Native PDB symbols and types (with -t PDB)"
             );
         }
 
@@ -494,24 +518,15 @@ Output structure:
             if (!File.Exists(options.BinaryFile))
             {
                 Console.Error.WriteLine($"Binary file not found: {options.BinaryFile}");
+                Environment.ExitCode = 1;
                 return;
             }
 
             if (!File.Exists(options.MetadataFile))
             {
                 Console.Error.WriteLine($"Metadata file not found: {options.MetadataFile}");
+                Environment.ExitCode = 1;
                 return;
-            }
-
-            if (options.ScriptTarget != null)
-            {
-                List<string> targets = PythonScript.GetAvailableTargets().ToList();
-                if (!targets.Contains(options.ScriptTarget))
-                {
-                    Console.Error.WriteLine($"Unknown script target: {options.ScriptTarget}");
-                    Console.Error.WriteLine($"Available targets: {string.Join(", ", targets)}");
-                    return;
-                }
             }
 
             LoadOptions loadOptions = new() { StartupMetadataPath = options.StartupMetadataFile, Game = options.Game };
@@ -559,6 +574,13 @@ Output structure:
 
             if (il2cppList == null || il2cppList.Count == 0)
             {
+                Environment.ExitCode = 1;
+                return;
+            }
+
+            if (options.Targets.Contains("PDB") && il2cppList.Any(i => !PdbOutput.Supports(i.BinaryImage)))
+            {
+                Console.Error.WriteLine("PDB output requires an x64 PE binary.");
                 Environment.ExitCode = 1;
                 return;
             }
@@ -611,20 +633,35 @@ Output structure:
                     ProgressBar.RunWithSpinner($"Generating C# stubs -> {csOut}", () => new CSharpCodeStubs(model).WriteFilesByClassTree(csOut, false));
                 }
 
-                // Python script with spinner
-                if (options.ScriptTarget != null || il2cpp.Metadata.GamePlugin?.StreamExports == true)
+                if (options.Targets.Count > 0 || il2cpp.Metadata.GamePlugin?.StreamExports == true)
                 {
                     AppModel appModel = null;
                     var targetUnity = unityVersion ?? il2cpp.Metadata.GamePlugin?.DefaultUnityVersion;
                     ProgressBar.RunWithSpinner("Building application model...", () => appModel = new AppModel(model, false).Build(targetUnity));
 
-                    string pyOut = Path.Combine(output, "il2cpp.py");
-                    if (options.ScriptTarget != null)
-                        ProgressBar.RunWithSpinner($"Generating {options.ScriptTarget} Python script -> {pyOut}", () => new PythonScript(appModel).WriteScriptToFile(pyOut, options.ScriptTarget));
-                    else
+                    var scriptTargets = options.Targets.Where(t => t != "PDB").ToArray();
+                    if (scriptTargets.Length > 0 || options.Targets.Count == 0)
                     {
-                        ProgressBar.RunWithSpinner("Generating C++ types...", () => new CppScaffolding(appModel, useBetterArraySize: true).WriteTypes(Path.Combine(output, "il2cpp.h")));
-                        ProgressBar.RunWithSpinner("Generating JSON metadata...", () => new JSONMetadata(appModel).Write(Path.Combine(output, "il2cpp.json")));
+                        var header = Path.Combine(output, "il2cpp.h");
+                        var json = Path.Combine(output, "il2cpp.json");
+                        ProgressBar.RunWithSpinner("Generating C++ types...", () => new CppScaffolding(appModel, useBetterArraySize: true).WriteTypes(header));
+                        ProgressBar.RunWithSpinner("Generating JSON metadata...", () => new JSONMetadata(appModel).Write(json));
+                        foreach (var target in scriptTargets)
+                        {
+                            var pyOut = Path.Combine(output, scriptTargets.Length == 1 ? "il2cpp.py" : $"il2cpp-{target}.py");
+                            ProgressBar.RunWithSpinner($"Generating {target} Python script -> {pyOut}", () => new PythonScript(appModel).WriteScriptToFile(pyOut, target, header, json));
+                        }
+                    }
+
+                    // PDB materializes native layouts; finish streaming script exports first.
+                    if (options.Targets.Contains("PDB"))
+                    {
+                        var pdbOut = Path.Combine(output, Path.GetFileNameWithoutExtension(options.BinaryFile) + ".pdb");
+                        PdbOutputResult pdb = null;
+                        ProgressBar.RunWithSpinner($"Generating PDB -> {pdbOut}", () => pdb = new PdbOutput(appModel).Write(pdbOut));
+                        Console.WriteLine($"PDB: {pdb.Functions} functions, {pdb.TypedFunctions} typed, {pdb.TypeRecords} type records.");
+                        if (!pdb.HasCodeView)
+                            Console.WriteLine("PE has no RSDS record; load the generated PDB manually in the debugger.");
                     }
                 }
 
