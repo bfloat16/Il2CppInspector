@@ -5,6 +5,7 @@ using System.Text;
 using Il2CppInspector.Cpp.UnityHeaders;
 using Il2CppInspector.Model;
 using Il2CppInspector.Outputs;
+using Il2CppInspector.Plugins;
 using Il2CppInspector.Reflection;
 using Inspector = Il2CppInspector.Il2CppInspector;
 
@@ -15,6 +16,8 @@ namespace Il2CppInspector.CLI
         public string BinaryFile;
         public string ImageBase;
         public string MetadataFile;
+        public string StartupMetadataFile;
+        public string Game;
         public string OutputDir = "output";
         public string ScriptTarget;
         public string UnityVersion;
@@ -333,6 +336,19 @@ namespace Il2CppInspector.CLI
 
                         opts.MetadataFile = value;
                         break;
+                    case "--startup-metadata":
+                        if (!NeedValue())
+                        {
+                            return null;
+                        }
+
+                        opts.StartupMetadataFile = value;
+                        break;
+                    case "--game":
+                        if (!NeedValue())
+                            return null;
+                        opts.Game = value;
+                        break;
                     case "-o" or "--output":
                         if (!NeedValue())
                         {
@@ -399,6 +415,9 @@ Options:
   -m, --metadata <file>     global-metadata.dat file (required)
   -o, --output <dir>        Output directory (default: output)
   -t, --script-target <t>   Python script target: IDA, BinaryNinja, Ghidra
+      --startup-metadata <f> Plugin startup metadata (auto-detected beside metadata)
+      --game <id>           Game plugin: NAME_REGION_VERSION (ZZZ_CN_3.2.0)
+                            Auto-detect when omitted
       --unity-version <v>   Unity version override (e.g. 2021.3.0f1)
       --image-base <hex>    Image base address for ELF memory dumps (hex)
   -h, --help                Show this help
@@ -461,6 +480,17 @@ Output structure:
 
         private static void Run(Options options)
         {
+            try
+            {
+                if (options.Game != null)
+                    GamePlugins.Get(options.Game);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine(ex.Message);
+                Environment.ExitCode = 1;
+                return;
+            }
             if (!File.Exists(options.BinaryFile))
             {
                 Console.Error.WriteLine($"Binary file not found: {options.BinaryFile}");
@@ -484,7 +514,7 @@ Output structure:
                 }
             }
 
-            LoadOptions loadOptions = new();
+            LoadOptions loadOptions = new() { StartupMetadataPath = options.StartupMetadataFile, Game = options.Game };
 
             if (!string.IsNullOrEmpty(options.ImageBase))
             {
@@ -516,7 +546,22 @@ Output structure:
             Console.WriteLine("Loading IL2CPP data...");
 
             List<Inspector> il2cppList;
-            il2cppList = Inspector.LoadFromFile(options.BinaryFile, options.MetadataFile, loadOptions, (_, msg) => Console.WriteLine($"  {msg}"));
+            try
+            {
+                il2cppList = Inspector.LoadFromFile(options.BinaryFile, options.MetadataFile, loadOptions, (_, msg) => Console.WriteLine($"  {msg}"));
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine(ex.Message);
+                Environment.ExitCode = 1;
+                return;
+            }
+
+            if (il2cppList == null || il2cppList.Count == 0)
+            {
+                Environment.ExitCode = 1;
+                return;
+            }
 
             Console.WriteLine($"Loaded {il2cppList.Count} image(s).");
             Console.WriteLine();
@@ -555,17 +600,32 @@ Output structure:
                 ProgressBar.Done();
 
                 // C# stubs with spinner
-                string csOut = Path.Combine(output, "CS");
-                ProgressBar.RunWithSpinner($"Generating C# stubs -> {csOut}", () => new CSharpCodeStubs(model).WriteFilesByClassTree(csOut, false));
+                if (il2cpp.Metadata.GamePlugin?.StreamExports == true)
+                {
+                    string csOut = Path.Combine(output, "dump.cs");
+                    ProgressBar.RunWithSpinner($"Generating C# stubs -> {csOut}", () => new CSharpCodeStubs(model).WriteSingleFile(csOut));
+                }
+                else
+                {
+                    string csOut = Path.Combine(output, "CS");
+                    ProgressBar.RunWithSpinner($"Generating C# stubs -> {csOut}", () => new CSharpCodeStubs(model).WriteFilesByClassTree(csOut, false));
+                }
 
                 // Python script with spinner
-                if (options.ScriptTarget != null)
+                if (options.ScriptTarget != null || il2cpp.Metadata.GamePlugin?.StreamExports == true)
                 {
                     AppModel appModel = null;
-                    ProgressBar.RunWithSpinner("Building application model...", () => appModel = new AppModel(model, false).Build(unityVersion));
+                    var targetUnity = unityVersion ?? il2cpp.Metadata.GamePlugin?.DefaultUnityVersion;
+                    ProgressBar.RunWithSpinner("Building application model...", () => appModel = new AppModel(model, false).Build(targetUnity));
 
                     string pyOut = Path.Combine(output, "il2cpp.py");
-                    ProgressBar.RunWithSpinner($"Generating {options.ScriptTarget} Python script -> {pyOut}", () => new PythonScript(appModel).WriteScriptToFile(pyOut, options.ScriptTarget));
+                    if (options.ScriptTarget != null)
+                        ProgressBar.RunWithSpinner($"Generating {options.ScriptTarget} Python script -> {pyOut}", () => new PythonScript(appModel).WriteScriptToFile(pyOut, options.ScriptTarget));
+                    else
+                    {
+                        ProgressBar.RunWithSpinner("Generating C++ types...", () => new CppScaffolding(appModel, useBetterArraySize: true).WriteTypes(Path.Combine(output, "il2cpp.h")));
+                        ProgressBar.RunWithSpinner("Generating JSON metadata...", () => new JSONMetadata(appModel).Write(Path.Combine(output, "il2cpp.json")));
+                    }
                 }
 
                 Console.WriteLine();

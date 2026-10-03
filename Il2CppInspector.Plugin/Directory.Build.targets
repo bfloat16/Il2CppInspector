@@ -1,0 +1,10 @@
+<Project>
+  <Target Name="GetGamePluginOutput" Returns="@(GamePluginOutput)">
+    <ItemGroup>
+      <GamePluginOutput Include="$(TargetDir)**/*">
+        <PluginDirectory>$([System.IO.Path]::GetFileName('$(MSBuildProjectDirectory)'))</PluginDirectory>
+        <PluginSubdirectory>%(RecursiveDir)</PluginSubdirectory>
+      </GamePluginOutput>
+    </ItemGroup>
+  </Target>
+</Project>

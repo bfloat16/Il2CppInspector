@@ -10,5 +10,18 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Il2CppInspector.Common\Il2CppInspector.Common.csproj" />
+    <GamePluginProjects Include="../Il2CppInspector.Plugin/*/*.csproj" />
+    <ProjectReference Include="@(GamePluginProjects)" ReferenceOutputAssembly="false" />
   </ItemGroup>
+  <Target Name="CollectGamePluginFiles">
+    <MSBuild Projects="@(GamePluginProjects)" Targets="GetGamePluginOutput" Properties="Configuration=$(Configuration)" BuildInParallel="true">
+      <Output TaskParameter="TargetOutputs" ItemName="GamePluginFiles" />
+    </MSBuild>
+  </Target>
+  <Target Name="CopyGamePlugins" AfterTargets="Build" DependsOnTargets="CollectGamePluginFiles">
+    <Copy SourceFiles="@(GamePluginFiles)" DestinationFiles="@(GamePluginFiles->'$(OutDir)plugins/%(PluginDirectory)/%(PluginSubdirectory)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="PublishGamePlugins" AfterTargets="Publish" DependsOnTargets="CollectGamePluginFiles">
+    <Copy SourceFiles="@(GamePluginFiles)" DestinationFiles="@(GamePluginFiles->'$(PublishDir)plugins/%(PluginDirectory)/%(PluginSubdirectory)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
 </Project>
