@@ -489,12 +489,12 @@ namespace Il2CppInspector.Outputs
                 }
 
                 var a = package.Assemblies[package.Images[index].AssemblyIndex].Aname;
-                ReadOnlySpan<byte> token = a.PublicKeyToken;
                 var handle = metadata.AddAssemblyReference(
                     String(Name(a.NameIndex)),
                     new(a.Major, a.Minor, a.Build, a.Revision),
                     String(Name(a.CultureIndex)),
-                    metadata.GetOrAddBlob(token.ToArray()),
+                    // Match the unsigned assembly definitions emitted by this writer.
+                    default,
                     0,
                     default
                 );

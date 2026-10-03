@@ -1,7 +1,48 @@
+using Cecil = Mono.Cecil;
+
 namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
 {
     internal static class ZzzAssemblyWriterTests
     {
+        internal static void VerifyAssemblyResolution(string directory)
+        {
+            using var resolver = new RegisteredAssemblyResolver();
+            var parameters = new Cecil.ReaderParameters { AssemblyResolver = resolver };
+            var assemblies = new Dictionary<string, Cecil.AssemblyDefinition>(StringComparer.Ordinal);
+            foreach (var file in Directory.GetFiles(directory, "*.dll"))
+            {
+                var assembly = Cecil.AssemblyDefinition.ReadAssembly(file, parameters);
+                resolver.Register(assembly);
+                assemblies.Add(assembly.Name.Name, assembly);
+            }
+
+            var references = 0;
+            foreach (var assembly in assemblies.Values)
+            {
+                foreach (var reference in assembly.MainModule.AssemblyReferences)
+                {
+                    if (!assemblies.TryGetValue(reference.Name, out var target) || reference.FullName != target.Name.FullName)
+                        throw new InvalidOperationException($"Assembly reference identity mismatch in {assembly.Name.Name}: {reference.FullName}; target: {target?.Name.FullName}");
+                    if (!ReferenceEquals(resolver.Resolve(reference), target))
+                        throw new InvalidOperationException($"Assembly reference bypassed the preloaded DLL cache: {reference.FullName}");
+                    references++;
+                }
+            }
+            Check(references > 0, $"All {references} DLL references match and resolve to preloaded assembly identities without search directories");
+
+            var behaviour = assemblies["Assembly-CSharp"].MainModule.GetTypeReferences().First(t => t.FullName == "UnityEngine.MonoBehaviour");
+            var resolved = behaviour.Resolve();
+            Check(
+                resolved?.FullName == behaviour.FullName && ReferenceEquals(resolved.Module.Assembly, assemblies["UnityEngine.CoreModule"]),
+                "Mono.Cecil resolves UnityEngine.MonoBehaviour through the preloaded CoreModule DLL"
+            );
+        }
+
+        private sealed class RegisteredAssemblyResolver : Cecil.DefaultAssemblyResolver
+        {
+            internal void Register(Cecil.AssemblyDefinition assembly) => RegisterAssembly(assembly);
+        }
+
         internal static void VerifyNameTranslation(ZzzTestContext context, string[] args)
         {
             var model = context.Model;
@@ -34,6 +75,7 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
         {
             var model = context.Model;
             new AssemblyShims(model) { SuppressMetadata = true }.Write(Path.Combine(output, "SuppressedDll"));
+            VerifyAssemblyResolution(Path.Combine(output, "SuppressedDll"));
             using var suppressed = ModuleDefMD.Load(Path.Combine(output, "SuppressedDll", "mscorlib.dll"));
             Check(
                 suppressed.GetTypes().SelectMany(t => t.CustomAttributes.Concat(t.Methods.SelectMany(m => m.CustomAttributes))).Any(a => a.AttributeType.FullName == "System.FlagsAttribute")
@@ -44,6 +86,7 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
 
         internal static void VerifyAssemblies(ZzzTestContext context, string output)
         {
+            VerifyAssemblyResolution(Path.Combine(output, "DummyDll"));
             var input = context.Input;
             var model = context.Model;
             var rawOffsets = context.RawOffsets;

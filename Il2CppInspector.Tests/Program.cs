@@ -11,7 +11,8 @@ namespace Il2CppInspector.Tests
                 throw new ArgumentException(
                     "Usage: dotnet run --project Il2CppInspector.Tests -c Release -- "
                         + "<ZZZ Native directory> [output directory] [options], --plugins, "
-                        + "--plugin-cli <CLI DLL> <isolated directory>, or --stock <Unity player directory>."
+                        + "--plugin-cli <CLI DLL> <isolated directory>, --assembly-resolution <ZZZ DummyDll directory>, "
+                        + "or --stock <Unity player directory>."
                 );
             }
 
@@ -27,6 +28,10 @@ namespace Il2CppInspector.Tests
                 case "--stock":
                     RequireArguments(args, 2);
                     Common.StockTests.Run(args);
+                    break;
+                case "--assembly-resolution":
+                    RequireArguments(args, 2);
+                    Plugin.ZZZ.Outputs.ZzzAssemblyWriterTests.VerifyAssemblyResolution(args[1]);
                     break;
                 default:
                     ZzzTestRunner.Run(args);
