@@ -187,7 +187,9 @@ namespace Il2CppInspector
             var exportDirectoryTable = ReadObject<PEExportDirectory>(MapVATR(exportTableStart));
             var exportCount = (int)exportDirectoryTable.NumberOfFunctions;
             var exportAddresses = ReadArray<uint>(MapVATR(exportDirectoryTable.AddressOfFunctions + pe.ImageBase), exportCount);
-            var exports = exportAddresses.Select((a, i) => new Export { Ordinal = (int)(exportDirectoryTable.Base + i), VirtualAddress = GlobalOffset + a }).ToDictionary(x => x.Ordinal, x => x);
+            // AddressOfFunctions contains RVAs, not file offsets. GlobalOffset also
+            // includes the first code section's RVA/raw-file displacement.
+            var exports = exportAddresses.Select((a, i) => new Export { Ordinal = (int)(exportDirectoryTable.Base + i), VirtualAddress = pe.ImageBase + a }).ToDictionary(x => x.Ordinal, x => x);
 
             // Get export names
             var nameCount = (int)exportDirectoryTable.NumberOfNames;
