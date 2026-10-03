@@ -9,12 +9,12 @@ using StringIndex = int;
 [VersionedStruct]
 public partial record struct Il2CppGenericParameter
 {
-    public GenericContainerIndex OwnerIndex { get; private set; }
-    public StringIndex NameIndex { get; private set; }
-    public GenericParameterConstraintIndex ConstraintsStart { get; private set; }
-    public short ConstraintsCount { get; private set; }
-    public ushort Num { get; private set; }
-    public ushort Flags { get; private set; }
+    public GenericContainerIndex OwnerIndex { get; internal set; }
+    public StringIndex NameIndex { get; internal set; }
+    public GenericParameterConstraintIndex ConstraintsStart { get; internal set; }
+    public short ConstraintsCount { get; internal set; }
+    public ushort Num { get; internal set; }
+    public ushort Flags { get; internal set; }
 
     public readonly GenericParameterAttributes Attributes => (GenericParameterAttributes)Flags;
 }

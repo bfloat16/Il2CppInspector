@@ -15,6 +15,11 @@ namespace Il2CppInspector
         public static string GetText(string resourceName)
         {
             Assembly assembly = Assembly.GetCallingAssembly();
+            return GetText(assembly, resourceName);
+        }
+
+        public static string GetText(Assembly assembly, string resourceName)
+        {
             using Stream stream = assembly.GetManifestResourceStream(resourceName);
             if (stream == null)
             {

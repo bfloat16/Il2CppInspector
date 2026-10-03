@@ -37,7 +37,8 @@ public class CppDeclarationGenerator
         this.appModel = appModel;
 
         InitializeNaming();
-        InitializeConcreteImplementations();
+        if (model.Package.Metadata.GamePlugin?.StreamExports != true)
+            InitializeConcreteImplementations();
 
         // Configure inheritance style based on binary type; this can be overridden by setting InheritanceStyle in the object initializer
         InheritanceStyle = CppCompiler.GuessFromImage(model.Package.BinaryImage);

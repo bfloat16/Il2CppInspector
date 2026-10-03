@@ -15,6 +15,7 @@ namespace Il2CppInspector.Reflection
     public class TypeModel
     {
         public Il2CppInspector Package { get; }
+        internal Plugins.IGameTypeLayouts GameLayouts { get; private set; }
         public List<Assembly> Assemblies { get; } = [];
 
         // List of all namespaces defined by the application
@@ -30,7 +31,22 @@ namespace Il2CppInspector.Reflection
         public TypeInfo[] GenericParameterTypes { get; }
 
         // List of all methods from MethodSpecs (closed generic methods that can be called; does not need to be in a generic class)
-        public Dictionary<Il2CppMethodSpec, MethodBase> GenericMethods { get; } = [];
+        private readonly Dictionary<Il2CppMethodSpec, MethodBase> genericMethods = [];
+        private bool genericMethodsMaterialized;
+        internal Dictionary<Il2CppMethodSpec, MethodBase> ResolvedGenericMethods => genericMethods;
+        public Dictionary<Il2CppMethodSpec, MethodBase> GenericMethods
+        {
+            get
+            {
+                if (Package.Metadata.GamePlugin?.StreamExports == true && !genericMethodsMaterialized)
+                {
+                    foreach (var spec in Package.MethodSpecs)
+                        GetGenericMethod(spec);
+                    genericMethodsMaterialized = true;
+                }
+                return genericMethods;
+            }
+        }
 
         // List of all type definitions by fully qualified name (TypeDefs only)
         public Dictionary<string, TypeInfo> TypesByFullName { get; } = [];
@@ -51,7 +67,22 @@ namespace Il2CppInspector.Reflection
         public MethodBase[] MethodsByDefinitionIndex { get; }
 
         // List of all Method.Invoke functions by invoker index
-        public MethodInvoker[] MethodInvokers { get; }
+        private readonly MethodInvoker[] methodInvokers;
+        private bool invokersMaterialized;
+        public MethodInvoker[] MethodInvokers
+        {
+            get
+            {
+                if (Package.Metadata.GamePlugin?.StreamExports == true && !invokersMaterialized)
+                {
+                    foreach (var (spec, index) in Package.GenericMethodInvokerIndices)
+                        if (index >= 0 && methodInvokers[index] == null)
+                            GetGenericMethod(spec);
+                    invokersMaterialized = true;
+                }
+                return methodInvokers;
+            }
+        }
 
         // List of all generated CustomAttributeData objects by their instanceIndex into AttributeTypeIndices
         public ConcurrentDictionary<int, CustomAttributeData> AttributesByIndices { get; } = new ConcurrentDictionary<int, CustomAttributeData>();
@@ -72,11 +103,19 @@ namespace Il2CppInspector.Reflection
         public TypeInfo GetType(string fullName) => Types.FirstOrDefault(t => fullName == t.Namespace + (!string.IsNullOrEmpty(t.Namespace) ? "." : "") + t.Name);
 
         // Get a concrete instantiation of a generic method from its fully qualified name and type arguments
-        public MethodBase GetGenericMethod(string fullName, params TypeInfo[] typeArguments) =>
-            GenericMethods.Values.First(m =>
-                fullName == m.DeclaringType.Namespace + (!string.IsNullOrEmpty(m.DeclaringType.Namespace) ? "." : "") + m.DeclaringType.Name + "." + m.Name
-                && m.GetGenericArguments().SequenceEqual(typeArguments)
-            );
+        public MethodBase GetGenericMethod(string fullName, params TypeInfo[] typeArguments)
+        {
+            bool Matches(MethodBase method) => fullName == QualifiedName(method) && method.GetGenericArguments().SequenceEqual(typeArguments);
+            if (Package.Metadata.GamePlugin?.StreamExports != true)
+                return genericMethods.Values.First(Matches);
+            foreach (var spec in Package.MethodSpecs)
+                if (fullName == QualifiedName(MethodsByDefinitionIndex[spec.MethodDefinitionIndex]) && Matches(GetGenericMethod(spec)))
+                    return GetGenericMethod(spec);
+            throw new InvalidOperationException("Sequence contains no matching element");
+
+            static string QualifiedName(MethodBase method) =>
+                method.DeclaringType.Namespace + (string.IsNullOrEmpty(method.DeclaringType.Namespace) ? "" : ".") + method.DeclaringType.Name + "." + method.Name;
+        }
 
         // Create type model
         public TypeModel(Il2CppInspector package)
@@ -86,7 +125,7 @@ namespace Il2CppInspector.Reflection
             TypesByReferenceIndex = new TypeInfo[package.TypeReferences.Length];
             GenericParameterTypes = new TypeInfo[package.GenericParameters.Length];
             MethodsByDefinitionIndex = new MethodBase[package.Methods.Length];
-            MethodInvokers = new MethodInvoker[package.MethodInvokePointers.Length];
+            methodInvokers = new MethodInvoker[package.MethodInvokePointers.Length];
 
             // Recursively create hierarchy of assemblies and types from TypeDefs
             // No code that executes here can access any type through a TypeRef (ie. via TypesByReferenceIndex)
@@ -109,8 +148,11 @@ namespace Il2CppInspector.Reflection
                 TypesByReferenceIndex[typeRefIndex] = referencedType;
             }
 
+            if (package.Metadata.HasGameAdapter)
+                GameLayouts = package.Metadata.GamePlugin.CreateTypeLayouts(this);
+
             // Create types and methods from MethodSpec (which incorporates TypeSpec in IL2CPP)
-            foreach (var spec in Package.MethodSpecs)
+            foreach (var spec in package.Metadata.GamePlugin?.StreamExports == true ? [] : Package.MethodSpecs)
             {
                 var methodDefinition = MethodsByDefinitionIndex[spec.MethodDefinitionIndex];
                 var declaringType = methodDefinition.DeclaringType;
@@ -137,7 +179,7 @@ namespace Il2CppInspector.Reflection
                     method = method.MakeGenericMethod(genericArguments);
                 }
                 method.VirtualAddress = Package.GetGenericMethodPointer(spec);
-                GenericMethods[spec] = method;
+                genericMethods[spec] = method;
             }
 
             // Generate a list of all namespaces used
@@ -145,10 +187,11 @@ namespace Il2CppInspector.Reflection
 
             // Find all custom attribute generators (populate AttributesByIndices) (use ToList() to force evaluation)
             var allAssemblyAttributes = Assemblies.Select(a => a.CustomAttributes).ToList();
-            var allTypeAttributes = TypesByDefinitionIndex.Select(t => t.CustomAttributes).ToList();
-            var allEventAttributes = TypesByDefinitionIndex.SelectMany(t => t.DeclaredEvents).Select(e => e.CustomAttributes).ToList();
-            var allFieldAttributes = TypesByDefinitionIndex.SelectMany(t => t.DeclaredFields).Select(f => f.CustomAttributes).ToList();
-            var allPropertyAttributes = TypesByDefinitionIndex.SelectMany(t => t.DeclaredProperties).Select(p => p.CustomAttributes).ToList();
+            var definedTypes = TypesByDefinitionIndex.Where(t => t != null);
+            var allTypeAttributes = definedTypes.Select(t => t.CustomAttributes).ToList();
+            var allEventAttributes = definedTypes.SelectMany(t => t.DeclaredEvents).Select(e => e.CustomAttributes).ToList();
+            var allFieldAttributes = definedTypes.SelectMany(t => t.DeclaredFields).Select(f => f.CustomAttributes).ToList();
+            var allPropertyAttributes = definedTypes.SelectMany(t => t.DeclaredProperties).Select(p => p.CustomAttributes).ToList();
             var allMethodAttributes = MethodsByDefinitionIndex.Select(m => m.CustomAttributes).ToList();
             var allParameterAttributes = MethodsByDefinitionIndex.SelectMany(m => m.DeclaredParameters).Select(p => p.CustomAttributes).ToList();
 
@@ -167,20 +210,20 @@ namespace Il2CppInspector.Reflection
                 var index = package.GetInvokerIndex(method.DeclaringType.Assembly.ModuleDefinition, method.Definition);
                 if (index != -1)
                 {
-                    MethodInvokers[index] ??= new MethodInvoker(method, index);
-                    method.Invoker = MethodInvokers[index];
+                    methodInvokers[index] ??= new MethodInvoker(method, index);
+                    method.Invoker = methodInvokers[index];
                 }
             }
 
             // Create method invokers sourced from generic method invoker indices
-            foreach (var spec in GenericMethods.Keys)
+            foreach (var spec in genericMethods.Keys)
             {
                 if (package.GenericMethodInvokerIndices.TryGetValue(spec, out var index))
                 {
                     if (index != -1)
                     {
-                        MethodInvokers[index] ??= new MethodInvoker(GenericMethods[spec], index);
-                        GenericMethods[spec].Invoker = MethodInvokers[index];
+                        methodInvokers[index] ??= new MethodInvoker(genericMethods[spec], index);
+                        genericMethods[spec].Invoker = methodInvokers[index];
                     }
                 }
             }
@@ -190,6 +233,30 @@ namespace Il2CppInspector.Reflection
         {
             var lines = File.ReadAllLines(nameTranslationMapPath);
             ApplyNameTranslation(lines);
+        }
+
+        // Streaming DLL/stub writers only need definitions;
+        // materialize each constructed method when a vtable/usage or native output needs it.
+        internal MethodBase GetGenericMethod(Il2CppMethodSpec spec)
+        {
+            if (genericMethods.TryGetValue(spec, out var existing))
+                return existing;
+            var definition = MethodsByDefinitionIndex[spec.MethodDefinitionIndex];
+            var declaring = definition.DeclaringType;
+            if (spec.ClassIndexIndex != -1)
+                declaring = declaring.MakeGenericType(ResolveGenericArguments(Package.GenericInstances[spec.ClassIndexIndex]));
+            MethodBase method = definition is ConstructorInfo ctor ? declaring.GetConstructorByDefinition(ctor) : declaring.GetMethodByDefinition((MethodInfo)definition);
+            if (spec.MethodIndexIndex != -1)
+                method = method.MakeGenericMethod(ResolveGenericArguments(Package.GenericInstances[spec.MethodIndexIndex]));
+            method.VirtualAddress = Package.GetGenericMethodPointer(spec);
+            genericMethods.Add(spec, method);
+            if (Package.GenericMethodInvokerIndices.TryGetValue(spec, out var index) && index >= 0)
+            {
+                methodInvokers[index] ??= new MethodInvoker(method, index);
+                method.Invoker = methodInvokers[index];
+            }
+            types = null;
+            return method;
         }
 
         public void ApplyNameTranslation(ReadOnlySpan<string> nameTranslationLines)
@@ -225,6 +292,11 @@ namespace Il2CppInspector.Reflection
 
                 // Constructed types
                 case Il2CppTypeEnum.IL2CPP_TYPE_GENERICINST:
+                    if (Package.Metadata.HasGameAdapter)
+                    {
+                        underlyingType = Package.Metadata.GameAdapter.ResolveGenericType(this, typeRef);
+                        break;
+                    }
                     // TODO: Replace with array load from Il2CppMetadataRegistration.genericClasses
                     var generic = image.ReadMappedVersionedObject<Il2CppGenericClass>(typeRef.Data.GenericClass); // Il2CppGenericClass *
 
@@ -279,7 +351,7 @@ namespace Il2CppInspector.Reflection
             }
 
             // Create a reference type if necessary
-            return typeRef.ByRef ? underlyingType.MakeByRefType() : underlyingType;
+            return typeRef.ByRef ? underlyingType?.MakeByRefType() : underlyingType;
         }
 
         // Basic primitive types are specified via a flag value
@@ -401,7 +473,7 @@ namespace Il2CppInspector.Reflection
             usage.Type switch
             {
                 MetadataUsageType.MethodDef => MethodsByDefinitionIndex[usage.SourceIndex],
-                MetadataUsageType.MethodRef => GenericMethods[Package.MethodSpecs[usage.SourceIndex]],
+                MetadataUsageType.MethodRef => GetGenericMethod(Package.MethodSpecs[usage.SourceIndex]),
                 _ => throw new InvalidOperationException("Incorrect metadata usage type to retrieve referenced type"),
             };
     }

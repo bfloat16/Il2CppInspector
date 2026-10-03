@@ -12,67 +12,67 @@ public partial record struct Il2CppTypeDefinition
 {
     public static readonly TypeIndex InvalidTypeIndex = -1;
 
-    public StringIndex NameIndex { get; private set; }
-    public StringIndex NamespaceIndex { get; private set; }
+    public StringIndex NameIndex { get; internal set; }
+    public StringIndex NamespaceIndex { get; internal set; }
 
     [VersionCondition(LessThanOrEqual = "24.0")]
-    public int CustomAttributeIndex { get; private set; }
+    public int CustomAttributeIndex { get; internal set; }
 
-    public TypeIndex ByValTypeIndex { get; private set; }
+    public TypeIndex ByValTypeIndex { get; internal set; }
 
     [VersionCondition(LessThanOrEqual = "24.5")]
-    public TypeIndex ByRefTypeIndex { get; private set; }
+    public TypeIndex ByRefTypeIndex { get; internal set; }
 
-    public TypeIndex DeclaringTypeIndex { get; private set; }
-    public TypeIndex ParentIndex { get; private set; }
+    public TypeIndex DeclaringTypeIndex { get; internal set; }
+    public TypeIndex ParentIndex { get; internal set; }
 
     [VersionCondition(LessThanOrEqual = "31.0")]
-    public TypeIndex ElementTypeIndex { get; private set; }
+    public TypeIndex ElementTypeIndex { get; internal set; }
 
     [VersionCondition(LessThanOrEqual = "24.1")]
-    public int RgctxStartIndex { get; private set; }
+    public int RgctxStartIndex { get; internal set; }
 
     [VersionCondition(LessThanOrEqual = "24.1")]
-    public int RgctxCount { get; private set; }
+    public int RgctxCount { get; internal set; }
 
-    public GenericContainerIndex GenericContainerIndex { get; private set; }
-
-    [VersionCondition(LessThanOrEqual = "22.0")]
-    public int ReversePInvokeWrapperIndex { get; private set; }
+    public GenericContainerIndex GenericContainerIndex { get; internal set; }
 
     [VersionCondition(LessThanOrEqual = "22.0")]
-    public int MarshalingFunctionsIndex { get; private set; }
+    public int ReversePInvokeWrapperIndex { get; internal set; }
+
+    [VersionCondition(LessThanOrEqual = "22.0")]
+    public int MarshalingFunctionsIndex { get; internal set; }
 
     [VersionCondition(GreaterThanOrEqual = "21.0", LessThanOrEqual = "22.0")]
-    public int CcwFunctionIndex { get; private set; }
+    public int CcwFunctionIndex { get; internal set; }
 
     [VersionCondition(GreaterThanOrEqual = "21.0", LessThanOrEqual = "22.0")]
-    public int GuidIndex { get; private set; }
+    public int GuidIndex { get; internal set; }
 
-    public TypeAttributes Flags { get; private set; }
+    public TypeAttributes Flags { get; internal set; }
 
-    public FieldIndex FieldIndex { get; private set; }
-    public MethodIndex MethodIndex { get; private set; }
-    public EventIndex EventIndex { get; private set; }
-    public PropertyIndex PropertyIndex { get; private set; }
-    public NestedTypeIndex NestedTypeIndex { get; private set; }
-    public InterfacesIndex InterfacesIndex { get; private set; }
-    public VTableIndex VTableIndex { get; private set; }
-    public InterfacesIndex InterfaceOffsetsStart { get; private set; }
+    public FieldIndex FieldIndex { get; internal set; }
+    public MethodIndex MethodIndex { get; internal set; }
+    public EventIndex EventIndex { get; internal set; }
+    public PropertyIndex PropertyIndex { get; internal set; }
+    public NestedTypeIndex NestedTypeIndex { get; internal set; }
+    public InterfacesIndex InterfacesIndex { get; internal set; }
+    public VTableIndex VTableIndex { get; internal set; }
+    public InterfacesIndex InterfaceOffsetsStart { get; internal set; }
 
-    public ushort MethodCount { get; private set; }
-    public ushort PropertyCount { get; private set; }
-    public ushort FieldCount { get; private set; }
-    public ushort EventCount { get; private set; }
-    public ushort NestedTypeCount { get; private set; }
-    public ushort VTableCount { get; private set; }
-    public ushort InterfacesCount { get; private set; }
-    public ushort InterfaceOffsetsCount { get; private set; }
+    public ushort MethodCount { get; internal set; }
+    public ushort PropertyCount { get; internal set; }
+    public ushort FieldCount { get; internal set; }
+    public ushort EventCount { get; internal set; }
+    public ushort NestedTypeCount { get; internal set; }
+    public ushort VTableCount { get; internal set; }
+    public ushort InterfacesCount { get; internal set; }
+    public ushort InterfaceOffsetsCount { get; internal set; }
 
-    public Il2CppTypeDefinitionBitfield Bitfield { get; private set; }
+    public Il2CppTypeDefinitionBitfield Bitfield { get; internal set; }
 
     [VersionCondition(GreaterThanOrEqual = "19.0")]
-    public uint Token { get; private set; }
+    public uint Token { get; internal set; }
 
     public readonly bool IsValid => NameIndex != 0;
 

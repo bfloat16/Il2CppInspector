@@ -25,20 +25,27 @@ namespace Il2CppInspector.Cpp.UnityHeaders
         public UnityResource TypeHeaderResource { get; }
         public UnityResource APIHeaderResource { get; }
 
+        private readonly Func<string, string> transformTypes;
+
         // Initialize from a type header and an API header
-        private UnityHeaders(UnityResource typeHeaders, UnityResource apiHeaders)
+        private UnityHeaders(UnityResource typeHeaders, UnityResource apiHeaders, Func<string, string> transformTypes = null, UnityVersion version = null)
         {
             TypeHeaderResource = typeHeaders;
             APIHeaderResource = apiHeaders;
 
             VersionRange = typeHeaders.VersionRange.Intersect(apiHeaders.VersionRange);
             MetadataVersion = GetMetadataVersionFromFilename(typeHeaders.Name);
+            this.transformTypes = transformTypes;
+            if (version != null)
+                VersionRange = new(version, version);
         }
 
         // Return the contents of the type header file as a string
         public string GetTypeHeaderText(int WordSize)
         {
             var str = (WordSize == 32 ? "#define IS_32BIT\n" : "") + TypeHeaderResource.GetText();
+            if (transformTypes != null)
+                return transformTypes(str);
 
             // Versions 5.3.6-5.4.6 don't include a definition for VirtualInvokeData
             if (VersionRange.Min.CompareTo("5.3.6") >= 0 && VersionRange.Max?.CompareTo("5.4.6") <= 0)
@@ -95,6 +102,9 @@ namespace Il2CppInspector.Cpp.UnityHeaders
 
         // Get the headers which support the given version of Unity
         public static UnityHeaders GetHeadersForVersion(UnityVersion version) => new(GetTypeHeaderForVersion(version), GetAPIHeaderForVersion(version));
+
+        public static UnityHeaders ForPlugin(UnityVersion baseVersion, UnityVersion runtimeVersion, Func<string, string> transformTypes) =>
+            new(GetTypeHeaderForVersion(baseVersion), GetAPIHeaderForVersion(baseVersion), transformTypes, runtimeVersion);
 
         public static UnityResource GetTypeHeaderForVersion(UnityVersion version) => GetAllTypeHeaders().First(r => r.VersionRange.Contains(version));
 

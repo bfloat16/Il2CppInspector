@@ -22,19 +22,19 @@ namespace Il2CppInspector
         public IFileFormatStream Image { get; }
 
         // The metadata associed with this binary - this is optional and may be null. Contents should not be modified
-        public Metadata Metadata { get; private set; }
+        public Metadata Metadata { get; internal set; }
 
         // IL2CPP-only API exports with decrypted names
         public Dictionary<string, ulong> APIExports { get; } = [];
 
         // Binary metadata structures
-        public Il2CppCodeRegistration CodeRegistration { get; protected set; }
-        public Il2CppMetadataRegistration MetadataRegistration { get; protected set; }
+        public Il2CppCodeRegistration CodeRegistration { get; protected internal set; }
+        public Il2CppMetadataRegistration MetadataRegistration { get; protected internal set; }
 
         // Information for disassembly reverse engineering
-        public ulong CodeRegistrationPointer { get; private set; }
-        public ulong MetadataRegistrationPointer { get; private set; }
-        public ulong RegistrationFunctionPointer { get; private set; }
+        public ulong CodeRegistrationPointer { get; internal set; }
+        public ulong MetadataRegistrationPointer { get; internal set; }
+        public ulong RegistrationFunctionPointer { get; internal set; }
         public Dictionary<string, ulong> CodeGenModulePointers { get; } = [];
 
         // Only for <=v24.1
@@ -52,27 +52,27 @@ namespace Il2CppInspector
         // type index => RVA in image where the list of field offsets for the type start (4 bytes per field)
 
         // Negative field offsets from start of each function
-        public ImmutableArray<uint> FieldOffsets { get; private set; }
+        public ImmutableArray<uint> FieldOffsets { get; internal set; }
 
         // Pointers to field offsets
-        public long[] FieldOffsetPointers { get; private set; }
+        public long[] FieldOffsetPointers { get; internal set; }
 
         // Generated functions which call constructors on custom attributes
         // Only for < 27
-        public ulong[] CustomAttributeGenerators { get; private set; }
+        public ulong[] CustomAttributeGenerators { get; internal set; }
 
         // IL2CPP-generated functions which implement MethodBase.Invoke with a unique signature per invoker, defined in Il2CppInvokerTable.cpp
         // One invoker specifies a return type and argument list. Multiple methods with the same signature can be invoked with the same invoker
-        public ulong[] MethodInvokePointers { get; private set; }
+        public ulong[] MethodInvokePointers { get; internal set; }
 
         // Version 16 and below: method references for vtable
-        public ImmutableArray<uint> VTableMethodReferences { get; private set; }
+        public ImmutableArray<uint> VTableMethodReferences { get; internal set; }
 
         // Generic method specs for vtables
-        public ImmutableArray<Il2CppMethodSpec> MethodSpecs { get; private set; }
+        public ImmutableArray<Il2CppMethodSpec> MethodSpecs { get; internal set; }
 
         // List of run-time concrete generic class and method signatures
-        public ImmutableArray<Il2CppGenericInst> GenericInstances { get; private set; }
+        public ImmutableArray<Il2CppGenericInst> GenericInstances { get; internal set; }
 
         // List of constructed generic method function pointers corresponding to each possible method instantiation
         public Dictionary<Il2CppMethodSpec, ulong> GenericMethodPointers { get; } = [];
@@ -81,16 +81,16 @@ namespace Il2CppInspector
         public Dictionary<Il2CppMethodSpec, int> GenericMethodInvokerIndices { get; } = [];
 
         // Every type reference (TypeRef) sorted by index
-        public ImmutableArray<Il2CppType> TypeReferences { get; private set; }
+        public ImmutableArray<Il2CppType> TypeReferences { get; internal set; }
 
         // Every type reference index sorted by virtual address
-        public Dictionary<ulong, int> TypeReferenceIndicesByAddress { get; private set; }
+        public Dictionary<ulong, int> TypeReferenceIndicesByAddress { get; internal set; }
 
         // From v24.2 onwards, this structure is stored for each module (image)
         // One assembly may contain multiple modules
-        public Dictionary<string, Il2CppCodeGenModule> Modules { get; private set; }
+        public Dictionary<string, Il2CppCodeGenModule> Modules { get; internal set; }
 
-        public ImmutableArray<Il2CppTypeDefinitionSizes> TypeDefinitionSizes { get; private set; }
+        public ImmutableArray<Il2CppTypeDefinitionSizes> TypeDefinitionSizes { get; internal set; }
 
         // Status update callback
         private EventHandler<string> OnStatusUpdate { get; set; }

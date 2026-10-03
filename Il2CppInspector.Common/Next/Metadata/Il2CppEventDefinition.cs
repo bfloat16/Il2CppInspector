@@ -6,17 +6,17 @@ using StringIndex = int;
 [VersionedStruct]
 public partial record struct Il2CppEventDefinition
 {
-    public StringIndex NameIndex { get; private set; }
-    public TypeIndex TypeIndex { get; private set; }
-    public MethodIndex Add { get; private set; }
-    public MethodIndex Remove { get; private set; }
-    public MethodIndex Raise { get; private set; }
+    public StringIndex NameIndex { get; internal set; }
+    public TypeIndex TypeIndex { get; internal set; }
+    public MethodIndex Add { get; internal set; }
+    public MethodIndex Remove { get; internal set; }
+    public MethodIndex Raise { get; internal set; }
 
     [VersionCondition(LessThanOrEqual = "24.0")]
-    public int CustomAttributeIndex { get; private set; }
+    public int CustomAttributeIndex { get; internal set; }
 
     [VersionCondition(GreaterThanOrEqual = "19.0")]
-    public uint Token { get; private set; }
+    public uint Token { get; internal set; }
 
     public readonly bool IsValid => NameIndex != 0;
 }

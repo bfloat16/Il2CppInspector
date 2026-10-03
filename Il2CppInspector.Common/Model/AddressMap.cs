@@ -94,9 +94,15 @@ namespace Il2CppInspector.Model
                     TryAdd(method.MethodCodeAddress, method);
 
                 // Method reference (MethodInfo *)
-                if (method.HasMethodInfo)
+                if (method.HasMethodInfo && !Model.Package.Metadata.HasGameAdapter)
                     Add(method.MethodInfoPtrAddress, new AppMethodReference { Field = new CppField($"{method.CppFnPtrType.Name}__MethodInfo", methodInfoPtrType), Method = method });
             }
+            if (Model.Package.Metadata.HasGameAdapter)
+                foreach (var usage in Model.Package.MetadataUsages.Where(u => u.Type is MetadataUsageType.MethodDef or MetadataUsageType.MethodRef))
+                {
+                    var method = Model.Methods[Model.TypeModel.GetMetadataUsageMethod(usage)];
+                    Add(usage.VirtualAddress, new AppMethodReference { Field = new CppField($"{method.CppFnPtrType.Name}__MethodInfo_{usage.VirtualAddress:X}", methodInfoPtrType), Method = method });
+                }
 
             // Add all custom attributes generators
             // The compiler might perform ICF which will cause duplicates with the above
@@ -123,6 +129,19 @@ namespace Il2CppInspector.Model
                 if (type.TypeRefPtrAddress != 0xffffffff_ffffffff)
                     Add(type.TypeRefPtrAddress, new AppTypeReference { Field = new CppField($"{type.Name}__TypeRef", classRefPtrType), Type = type });
             }
+            if (Model.Package.Metadata.HasGameAdapter)
+                foreach (var usage in Model.Package.MetadataUsages.Where(u => u.Type is MetadataUsageType.TypeInfo or MetadataUsageType.Type))
+                {
+                    var type = Model.Types[Model.TypeModel.GetMetadataUsageType(usage)];
+                    TryAdd(
+                        usage.VirtualAddress,
+                        new AppTypeReference
+                        {
+                            Field = new CppField($"{type.Name}__{usage.Type}_{usage.VirtualAddress:X}", usage.Type == MetadataUsageType.TypeInfo ? classPtrType : classRefPtrType),
+                            Type = type,
+                        }
+                    );
+                }
 
             // Internal metadata
             var binary = Model.Package.Binary;
@@ -139,7 +158,9 @@ namespace Il2CppInspector.Model
             }
 
             if (binary.RegistrationFunctionPointer != 0)
-                if (Model.UnityVersion.CompareTo("5.3.5") >= 0)
+                if (Model.Package.Metadata.HasGameAdapter)
+                    Add(binary.RegistrationFunctionPointer, CppFnPtrType.FromSignature(cppTypes, Model.Package.Metadata.GamePlugin.RegistrationSignature));
+                else if (Model.UnityVersion.CompareTo("5.3.5") >= 0)
                     Add(
                         binary.RegistrationFunctionPointer,
                         CppFnPtrType.FromSignature(

@@ -6,8 +6,8 @@ namespace Il2CppInspector.Next.Metadata;
 public partial record struct Il2CppCustomAttributeTypeRange
 {
     [VersionCondition(GreaterThanOrEqual = "24.1")]
-    public uint Token { get; private set; }
+    public uint Token { get; internal set; }
 
-    public int Start { get; private set; }
-    public int Count { get; private set; }
+    public int Start { get; internal set; }
+    public int Count { get; internal set; }
 }

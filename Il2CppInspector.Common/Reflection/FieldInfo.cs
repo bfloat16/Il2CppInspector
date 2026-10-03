@@ -30,6 +30,10 @@ namespace Il2CppInspector.Reflection
 
         public bool IsThreadStatic { get; }
 
+        // Game adapters may select storage outside klass->static_fields.
+        public int ZzzStorageTag => StorageTag;
+        public int StorageTag => Assembly.Model.Package.Metadata.GameAdapter?.FieldStorageTag(this) ?? 0;
+
         // Custom attributes for this member
         public override IEnumerable<CustomAttributeData> CustomAttributes => CustomAttributeData.GetCustomAttributes(rootDefinition);
 
@@ -100,7 +104,7 @@ namespace Il2CppInspector.Reflection
             Name = pkg.Strings[Definition.NameIndex];
 
             rawOffset = pkg.FieldOffsets[fieldIndex];
-            if (0 > rawOffset)
+            if ((rawOffset & 0x80000000) != 0)
             {
                 IsThreadStatic = true;
                 rawOffset &= ~0x80000000;
@@ -129,9 +133,20 @@ namespace Il2CppInspector.Reflection
                 throw new ArgumentException("Argument must be a bare field definition");
 
             rootDefinition = fieldDef;
+            Index = fieldDef.Index;
+            rawOffset = declaringType.GameLayoutGroup is int group
+                ? Assembly.Model.Package.Metadata.GameAdapter.LayoutFieldOffset(group, Index - (int)declaringType.GetGenericTypeDefinition().Definition.FieldIndex)
+                : fieldDef.rawOffset;
 
             Name = fieldDef.Name;
             Attributes = fieldDef.Attributes;
+            IsThreadStatic = fieldDef.IsThreadStatic;
+            if (Assembly.Model.Package.Metadata.HasGameAdapter && declaringType.GameLayoutGroup.HasValue)
+            {
+                IsThreadStatic = (rawOffset & 0x80000000) != 0;
+                if (IsThreadStatic)
+                    rawOffset &= ~0x80000000;
+            }
             fieldTypeReference = TypeRef.FromTypeInfo(fieldDef.FieldType.SubstituteGenericArguments(declaringType.GetGenericArguments()));
 
             DefaultValue = fieldDef.DefaultValue;

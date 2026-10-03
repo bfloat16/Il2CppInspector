@@ -16,7 +16,7 @@ using VersionedSerialization;
 
 namespace Il2CppInspector
 {
-    public class Metadata : BinaryObjectStreamReader
+    public partial class Metadata : BinaryObjectStreamReader
     {
         public Il2CppGlobalMetadataHeader Header { get; set; }
 

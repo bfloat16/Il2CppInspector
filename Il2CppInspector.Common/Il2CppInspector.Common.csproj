@@ -7,17 +7,21 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="McMaster.NETCore.Plugins" Version="2.0.0" />
     <PackageReference Include="dnlib" Version="4.5.0" />
     <PackageReference Include="K4os.Compression.LZ4" Version="1.3.8" />
   </ItemGroup>
 
   <ItemGroup>
+    <GamePluginProject Include="../Il2CppInspector.Plugin/*/*.csproj" />
+    <InternalsVisibleTo Include="@(GamePluginProject->'%(Filename)')" />
     <ProjectReference Include="..\Bin2Object\Bin2Object.csproj" />
     <ProjectReference Include="..\VersionedSerialization.Generator\VersionedSerialization.Generator.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
     <ProjectReference Include="..\VersionedSerialization\VersionedSerialization.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx" LogicalName="Il2CppInspector.Properties.Resources.resources" />
     <EmbeddedResource Include="Outputs\ScriptResources\shared_base.py" LogicalName="Il2CppInspector.Outputs.ScriptResources.shared_base.py" />
     <EmbeddedResource Include="Outputs\ScriptResources\Targets\BinaryNinja.py" LogicalName="Il2CppInspector.Outputs.ScriptResources.Targets.BinaryNinja.py" />
     <EmbeddedResource Include="Outputs\ScriptResources\Targets\Ghidra.py" LogicalName="Il2CppInspector.Outputs.ScriptResources.Targets.Ghidra.py" />

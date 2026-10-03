@@ -30,20 +30,68 @@ namespace Il2CppInspector.Model
         // All of the C++ types used in the application including Unity internal types
         // NOTE: This is for querying individual types for static analysis
         // To generate code output, use DependencyOrderedCppTypes
-        public CppTypeCollection CppTypeCollection { get; private set; }
+        private CppTypeCollection cppTypeCollection;
+        internal CppTypeCollection RuntimeCppTypes => cppTypeCollection;
+        public CppTypeCollection CppTypeCollection
+        {
+            get
+            {
+                gameAnalysis?.BuildTypes();
+                return cppTypeCollection;
+            }
+            private set => cppTypeCollection = value;
+        }
 
         // All of the C++ types used in the application (.NET type translations only)
         // The types are ordered to enable the production of code output without forward dependencies
-        public List<CppType> DependencyOrderedCppTypes { get; private set; }
+        private List<CppType> dependencyOrderedCppTypes;
+        public List<CppType> DependencyOrderedCppTypes
+        {
+            get
+            {
+                gameAnalysis?.BuildOrderedTypes();
+                return dependencyOrderedCppTypes;
+            }
+            private set => dependencyOrderedCppTypes = value;
+        }
+        internal List<CppType> AnalysisOrderedTypes => dependencyOrderedCppTypes;
 
         // Required forward definition types for the C++ type definitions
-        public List<CppType> RequiredForwardDefinitions { get; private set; } = [];
+        private List<CppType> requiredForwardDefinitions = [];
+        public List<CppType> RequiredForwardDefinitions
+        {
+            get
+            {
+                gameAnalysis?.BuildOrderedTypes();
+                return requiredForwardDefinitions;
+            }
+            private set => requiredForwardDefinitions = value;
+        }
+        internal List<CppType> AnalysisForwardDefinitions => requiredForwardDefinitions;
 
         // Composite mapping of all the .NET methods in the IL2CPP binary
-        public MultiKeyDictionary<MethodBase, CppFnPtrType, AppMethod> Methods { get; } = new MultiKeyDictionary<MethodBase, CppFnPtrType, AppMethod>();
+        private readonly MultiKeyDictionary<MethodBase, CppFnPtrType, AppMethod> methods = new();
+        public MultiKeyDictionary<MethodBase, CppFnPtrType, AppMethod> Methods
+        {
+            get
+            {
+                gameAnalysis?.BuildMethods();
+                return methods;
+            }
+        }
+        internal MultiKeyDictionary<MethodBase, CppFnPtrType, AppMethod> AnalysisMethods => methods;
 
         // Composite mapping of all the .NET types in the IL2CPP binary
-        public MultiKeyDictionary<TypeInfo, CppComplexType, AppType> Types { get; } = new MultiKeyDictionary<TypeInfo, CppComplexType, AppType>();
+        private readonly MultiKeyDictionary<TypeInfo, CppComplexType, AppType> types = new();
+        public MultiKeyDictionary<TypeInfo, CppComplexType, AppType> Types
+        {
+            get
+            {
+                gameAnalysis?.BuildTypes();
+                return types;
+            }
+        }
+        internal MultiKeyDictionary<TypeInfo, CppComplexType, AppType> AnalysisTypes => types;
 
         // All of the string literals in the IL2CPP binary
         // Note: Does not include string literals from global-metadata.dat
@@ -58,6 +106,8 @@ namespace Il2CppInspector.Model
 
         // The .NET type model for the application
         public TypeModel TypeModel { get; }
+        internal Plugins.GameNativeModel GameNativeModel { get; private set; }
+        private Plugins.IGameAnalysisModel gameAnalysis;
 
         // All of the exports (including function exports) for the binary
         public List<Export> Exports { get; }
@@ -141,15 +191,24 @@ namespace Il2CppInspector.Model
                 Console.SetOut(new StreamWriter(Stream.Null));
 
             // Reset in case this is not the first build
-            Methods.Clear();
-            Types.Clear();
+            gameAnalysis = null;
+            GameNativeModel = null;
+            addressMap = null;
+            methods.Clear();
+            types.Clear();
             Strings.Clear();
+            Fields.Clear();
+            FieldRvas.Clear();
+            requiredForwardDefinitions.Clear();
 
             // Set target compiler
             TargetCompiler = targetCompiler;
 
             // Determine Unity version and get headers
-            UnityHeaders = unityVersion != null ? UnityHeaders.GetHeadersForVersion(unityVersion) : UnityHeaders.GuessHeadersForBinary(TypeModel.Package.Binary).Last();
+            UnityHeaders =
+                Package.Metadata.HasGameAdapter ? Package.Metadata.GamePlugin.GetHeaders()
+                : unityVersion != null ? UnityHeaders.GetHeadersForVersion(unityVersion)
+                : UnityHeaders.GuessHeadersForBinary(TypeModel.Package.Binary).Last();
             UnityVersion = unityVersion ?? UnityHeaders.VersionRange.Min;
 
             Console.WriteLine($"Selected Unity version(s) {UnityHeaders.VersionRange} (types: {UnityHeaders.TypeHeaderResource.VersionRange}, APIs: {UnityHeaders.APIHeaderResource.VersionRange})");
@@ -180,6 +239,14 @@ namespace Il2CppInspector.Model
 
             // Initialize ordered type list for code output
             DependencyOrderedCppTypes = [];
+
+            if (Package.Metadata.HasGameAdapter)
+            {
+                GameNativeModel = Package.Metadata.GamePlugin.CreateNativeModel(TypeModel);
+                gameAnalysis = Package.Metadata.GamePlugin.CreateAnalysisModel(this);
+                Console.SetOut(stdout);
+                return this;
+            }
 
             // Add method definitions and types used by them to C++ type model
             Group = "types_from_methods";
@@ -361,7 +428,7 @@ namespace Il2CppInspector.Model
         public AddressMap GetAddressMap() => addressMap ??= new AddressMap(this);
 
         // Get the byte offset in Il2CppClass for this app's Unity version to the vtable
-        public int GetVTableOffset() => CppTypeCollection.GetComplexType("Il2CppClass")["vtable"].OffsetBytes;
+        public int GetVTableOffset() => RuntimeCppTypes.GetComplexType("Il2CppClass")["vtable"].OffsetBytes;
 
         // Get the vtable method index from an offset from the start of the Il2CppClass
         // Unity 5.3.0-5.3.5 uses MethodInfo** - a pointer to a list of MethodInfo pointers
@@ -377,6 +444,13 @@ namespace Il2CppInspector.Model
             // Il2CppMethodPointer methodPtr;
             // const MethodInfo* method;
             var offsetIntoVTable = offset - GetVTableOffset();
+            // Game adapters supply their own callable-slot stride.
+            if (Package.Metadata.HasGameAdapter)
+            {
+                if (offsetIntoVTable < 0 || offsetIntoVTable % Package.Metadata.GameAdapter.VTableSlotSize != 0)
+                    throw new ArgumentOutOfRangeException(nameof(offset), "The offset must select a game vtable function-pointer slot.");
+                return offsetIntoVTable / Package.Metadata.GameAdapter.VTableSlotSize;
+            }
             var vidSize = WordSizeBits == 32 ? 8 : 16;
             return offsetIntoVTable / vidSize;
         }

@@ -7,6 +7,8 @@ public partial record struct Il2CppTypeDefinitionBitfield
 {
     private uint _value;
 
+    internal static Il2CppTypeDefinitionBitfield FromRawValue(uint value) => new() { _value = value };
+
     public bool ValueType => ((_value >> 0) & 1) == 1;
     public bool EnumType => ((_value >> 1) & 1) == 1;
     public bool HasFinalize => ((_value >> 2) & 1) == 1;

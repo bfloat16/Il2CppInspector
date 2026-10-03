@@ -284,7 +284,13 @@ namespace Il2CppInspector.Cpp
                             })
                             .ToDictionary(kv => kv.Key, kv => kv.Value);
 
-                        flattened = new SortedDictionary<int, List<CppField>>(flattened.Union(fields).ToDictionary(kv => kv.Key, kv => kv.Value));
+                        foreach (var entry in fields)
+                        {
+                            if (flattened.TryGetValue(entry.Key, out var existing))
+                                existing.AddRange(entry.Value);
+                            else
+                                flattened.Add(entry.Key, entry.Value);
+                        }
                     }
                     else
                     {
@@ -323,7 +329,7 @@ namespace Il2CppInspector.Cpp
 
         // Dictionary of byte offset in the type to each field
         // Unions and bitfields can have more than one field at the same offset
-        public SortedDictionary<int, List<CppField>> Fields { get; internal set; } = [];
+        public virtual SortedDictionary<int, List<CppField>> Fields { get; internal set; } = [];
 
         public CppComplexType(ComplexValueType complexValueType)
             : base("", 0)

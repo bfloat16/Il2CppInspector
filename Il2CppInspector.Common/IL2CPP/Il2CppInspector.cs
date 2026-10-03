@@ -74,6 +74,9 @@ namespace Il2CppInspector
 
         private (ulong MetadataAddress, object Value)? getDefaultValue(int typeIndex, int dataIndex)
         {
+            if (Metadata.HasGameAdapter)
+                return Metadata.GameAdapter.DecodeDefault(typeIndex, dataIndex, Binary);
+
             // No default
             if (dataIndex == -1)
                 return (0ul, null);
@@ -94,6 +97,9 @@ namespace Il2CppInspector
 
         private List<MetadataUsage> buildMetadataUsages()
         {
+            if (Metadata.HasGameAdapter)
+                return Metadata.GameAdapter.Usages;
+
             // No metadata usages for versions < 19
             if (Version < MetadataVersions.V190)
                 return null;
@@ -195,7 +201,7 @@ namespace Il2CppInspector
                 ParameterDefaultValue.Add(pdv.ParameterIndex, ((ulong, object))getDefaultValue(pdv.TypeIndex, pdv.DataIndex));
 
             // Get all field offsets
-            if (Binary.FieldOffsets != null)
+            if (!Binary.FieldOffsets.IsDefault)
             {
                 FieldOffsets = Binary.FieldOffsets.Select(x => (long)x).ToList();
             }
@@ -375,7 +381,7 @@ namespace Il2CppInspector
             {
                 var encodedIndex = VTableMethodIndices[definition.VTableIndex + i];
                 MetadataUsage usage = MetadataUsage.FromEncodedIndex(this, encodedIndex);
-                if (usage.SourceIndex != 0)
+                if (usage.IsValid)
                     res[i] = usage;
             }
             return res;
@@ -383,8 +389,22 @@ namespace Il2CppInspector
 
         #region Loaders
         // Load from a binary file and metadata file
-        public static List<Il2CppInspector> LoadFromFile(string binaryFile, string metadataFile, LoadOptions loadOptions = null, EventHandler<string> statusCallback = null, bool silent = false) =>
-            LoadFromStream(new FileStream(binaryFile, FileMode.Open, FileAccess.Read, FileShare.Read), new MemoryStream(File.ReadAllBytes(metadataFile)), loadOptions, statusCallback, silent);
+        public static List<Il2CppInspector> LoadFromFile(string binaryFile, string metadataFile, LoadOptions loadOptions = null, EventHandler<string> statusCallback = null, bool silent = false)
+        {
+            using var binary = File.OpenRead(binaryFile);
+            var metadataData = File.ReadAllBytes(metadataFile);
+            using var metadata = new MemoryStream(metadataData);
+            var selectedPlugin = Plugins.GamePlugins.Select(loadOptions?.Game, metadataData);
+            var startupPath = loadOptions?.StartupMetadataPath;
+            if (startupPath == null && selectedPlugin?.StartupMetadataFileName is { } startupFile)
+            {
+                var candidate = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(metadataFile)), startupFile);
+                if (File.Exists(candidate))
+                    startupPath = candidate;
+            }
+            using var startup = startupPath == null ? null : new MemoryStream(File.ReadAllBytes(startupPath));
+            return LoadFromStream(binary, metadata, loadOptions, statusCallback, silent, startup);
+        }
 
         // Load from a binary stream and metadata stream
         // Must be a seekable stream otherwise we catch a System.IO.NotSupportedException
@@ -393,13 +413,43 @@ namespace Il2CppInspector
             MemoryStream metadataStream,
             LoadOptions loadOptions = null,
             EventHandler<string> statusCallback = null,
-            bool silent = false
+            bool silent = false,
+            MemoryStream startupMetadataStream = null
         )
         {
             // Silent operation if requested
             var stdout = Console.Out;
             if (silent)
                 Console.SetOut(new StreamWriter(Stream.Null));
+
+            Plugins.GamePlugin selectedPlugin;
+            var metadataData = metadataStream.ToArray();
+            try
+            {
+                selectedPlugin = Plugins.GamePlugins.Select(loadOptions?.Game, metadataData);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine(ex.Message);
+                Console.SetOut(stdout);
+                return null;
+            }
+            if (selectedPlugin != null)
+            {
+                try
+                {
+                    return [selectedPlugin.Load(binaryStream, metadataData, startupMetadataStream?.ToArray(), loadOptions, statusCallback)];
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine(ex.Message);
+                    return null;
+                }
+                finally
+                {
+                    Console.SetOut(stdout);
+                }
+            }
 
             // Load the metadata file
             Metadata metadata;

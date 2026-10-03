@@ -9,11 +9,11 @@ using VersionedSerialization.Attributes;
 public partial record struct Il2CppGenericContainer
 {
     [field: FieldOffset(0)]
-    public int OwnerIndex { get; private set; }
+    public int OwnerIndex { get; internal set; }
 
     [VersionCondition(LessThan = "106.0")]
     [field: FieldOffset(4)]
-    public int TypeArgc { get; private set; }
+    public int TypeArgc { get; internal set; }
 
     [VersionCondition(GreaterThanOrEqual = "106.0")]
     [field: FieldOffset(4)]
@@ -21,12 +21,12 @@ public partial record struct Il2CppGenericContainer
 
     [VersionCondition(LessThan = "106.0")]
     [field: FieldOffset(8)]
-    public int IsMethod { get; private set; }
+    public int IsMethod { get; internal set; }
 
     [VersionCondition(GreaterThanOrEqual = "106.0")]
     [field: FieldOffset(8)]
     public byte _newIsMethod;
 
     [field: FieldOffset(12)]
-    public GenericParameterIndex GenericParameterStart { get; private set; }
+    public GenericParameterIndex GenericParameterStart { get; internal set; }
 }

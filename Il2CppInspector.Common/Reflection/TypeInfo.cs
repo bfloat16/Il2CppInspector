@@ -19,7 +19,52 @@ namespace Il2CppInspector.Reflection
     {
         // IL2CPP-specific data
         public Il2CppTypeDefinition Definition { get; }
-        public Il2CppTypeDefinitionSizes Sizes { get; }
+        private Il2CppTypeDefinitionSizes sizes;
+        private int? gameLayoutGroup;
+        private bool gameLayoutResolved;
+        public Il2CppTypeDefinitionSizes Sizes
+        {
+            get
+            {
+                ResolveGameLayout();
+                return sizes;
+            }
+            private set => sizes = value;
+        }
+        internal int? GameLayoutGroup
+        {
+            get
+            {
+                ResolveGameLayout();
+                return gameLayoutGroup;
+            }
+        }
+
+        private void ResolveGameLayout()
+        {
+            if (gameLayoutResolved || !IsGenericType || IsGenericTypeDefinition)
+                return;
+            if (Assembly.Model.GameLayouts is not { } layouts)
+                return;
+            gameLayoutResolved = true;
+            layouts.Bind(this);
+        }
+
+        internal void SetGameLayoutGroup(int group)
+        {
+            gameLayoutGroup = group;
+            sizes = Assembly.Model.Package.Metadata.GameAdapter.LayoutSizes(group);
+            gameLayoutResolved = true;
+        }
+
+        internal void SetRuntimeSizes(Il2CppTypeDefinitionSizes value) => sizes = value;
+
+        internal void ReleaseGeneratedFields()
+        {
+            if (genericTypeDefinition != null)
+                declaredFields = null;
+        }
+
         public int Index { get; } = -1;
 
         // This dictionary will cache all instantiated generic types out of this definition.
@@ -126,7 +171,7 @@ namespace Il2CppInspector.Reflection
                     return declaredConstructors.AsReadOnly();
                 if (genericTypeDefinition != null)
                 {
-                    var result = genericTypeDefinition.DeclaredConstructors.Select(c => new ConstructorInfo(c, this)).ToList();
+                    var result = genericTypeDefinition.DeclaredConstructors.Select(GetConstructorByDefinition).ToList();
                     declaredConstructors = result;
                     return result.AsReadOnly();
                 }
@@ -182,7 +227,7 @@ namespace Il2CppInspector.Reflection
                     return declaredMethods.AsReadOnly();
                 if (genericTypeDefinition != null)
                 {
-                    var result = genericTypeDefinition.DeclaredMethods.Select(c => new MethodInfo(c, this)).ToList();
+                    var result = genericTypeDefinition.DeclaredMethods.Select(GetMethodByDefinition).ToList();
                     declaredMethods = result;
                     return result.AsReadOnly();
                 }
@@ -245,16 +290,16 @@ namespace Il2CppInspector.Reflection
             throw new InvalidOperationException("This method can only be called on generic types");
         }
 
+        private Dictionary<MethodBase, MethodBase> constructedMembers;
+
         public ConstructorInfo GetConstructorByDefinition(ConstructorInfo definition)
         {
             if (genericTypeDefinition != null)
             {
-                var collection = genericTypeDefinition.DeclaredConstructors;
-                for (int i = 0; i < collection.Count; i++)
-                {
-                    if (collection[i].RootDefinition == definition.RootDefinition)
-                        return DeclaredConstructors[i];
-                }
+                constructedMembers ??= [];
+                if (!constructedMembers.TryGetValue(definition.RootDefinition, out var member))
+                    constructedMembers.Add(definition.RootDefinition, member = new ConstructorInfo((ConstructorInfo)definition.RootDefinition, this));
+                return (ConstructorInfo)member;
             }
             return definition;
         }
@@ -264,12 +309,12 @@ namespace Il2CppInspector.Reflection
         {
             if (genericTypeDefinition != null)
             {
-                var collection = genericTypeDefinition.DeclaredMethods;
-                for (int i = 0; i < collection.Count; i++)
-                {
-                    if (collection[i].RootDefinition == definition.RootDefinition)
-                        return DeclaredMethods[i];
-                }
+                constructedMembers ??= [];
+                if (!constructedMembers.TryGetValue(definition.RootDefinition, out var member))
+                    constructedMembers.Add(definition.RootDefinition, member = new MethodInfo((MethodInfo)definition.RootDefinition, this));
+                if (definition.IsGenericMethod && !definition.IsGenericMethodDefinition)
+                    return (MethodInfo)member.MakeGenericMethod(definition.GetGenericArguments().Select(t => t.SubstituteGenericArguments(genericArguments)).ToArray());
+                return (MethodInfo)member;
             }
             return definition;
         }
@@ -989,6 +1034,12 @@ namespace Il2CppInspector.Reflection
             IsGenericType = true;
 
             genericArguments = genericArgs;
+            // Nested enums in a generic declaring type inherit its generic
+            // context, but retain their scalar enum identity and storage type.
+            IsEnum = genericTypeDefinition.IsEnum;
+            enumUnderlyingTypeReference = genericTypeDefinition.enumUnderlyingTypeReference;
+            if (IsEnum)
+                sizes = genericTypeDefinition.Sizes;
         }
 
         // Substitutes the elements of an array of types for the type parameters of the current generic type definition
