@@ -12,6 +12,8 @@ from binaryninja import (
     get_qualified_name,
     SegmentFlag,
     SectionSemantics,
+    Symbol,
+    SymbolType,
 )
 from binaryninja.log import log_error
 
@@ -109,6 +111,9 @@ class BinaryNinjaDisassemblerInterface(BaseDisassemblerInterface):
             "little" if self._view.endianness == Endianness.LittleEndian else "big"
         )
 
+        if not self.apply_structures:
+            return
+
         self._status.update_step("Parsing header")
 
         with open(os.path.join(self.get_script_directory(), "il2cpp.h"), "r") as f:
@@ -178,14 +183,14 @@ class BinaryNinjaDisassemblerInterface(BaseDisassemblerInterface):
 
     def set_data_name(self, address: int, name: str):
         var = self._view.get_data_var_at(address)
-        if var is None:
-            return
-
         if name.startswith("_Z"):
             type, demangled = demangle_gnu3(self._view.arch, name, self._view)
-            var.name = get_qualified_name(demangled)
-        else:
+            name = get_qualified_name(demangled)
+
+        if var is not None:
             var.name = name
+        elif not self.apply_structures:
+            self._view.define_user_symbol(Symbol(SymbolType.DataSymbol, address, name))
 
     def set_function_name(self, address: int, name: str):
         function = self._view.get_function_at(address)

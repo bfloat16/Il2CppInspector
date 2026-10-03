@@ -28,6 +28,7 @@ dotnet run --project Il2CppInspector.Tests -c Release -- --stock '<Unity player 
 dotnet run --project Il2CppInspector.Tests -c Release -- --plugin-cli '<CLI DLL>' '<isolated directory>'
 dotnet run --project Il2CppInspector.Tests -c Release -- --cli-targets '<CLI DLL>'
 dotnet run --project Il2CppInspector.Tests -c Release -- --pdb-fixture '<output directory>' llvm-pdbutil
+python Il2CppInspector.Tests/Common/Outputs/ScriptResourcesTests.py
 ```
 
 Game-specific input arguments, modes and output options belong to the corresponding test runner. Keep their documentation alongside `Plugin/<game>/` rather than adding game-specific instructions to this README.

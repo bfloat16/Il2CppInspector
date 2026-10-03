@@ -88,37 +88,37 @@ class IDADisassemblerInterface(BaseDisassemblerInterface):
         self._cached_genflags = ida_ida.inf_get_genflags()
         ida_ida.inf_set_genflags(self._cached_genflags & ~ida_ida.INFFL_AUTO)
 
-        # Unload type libraries we know to cause issues - like the c++ linux one
-        PROBLEMATIC_LINUX_TYPELIBS = [f"gnulnx_{x}" for x in ["x86", "x64", "arm", "arm64"]]
-        PROBLEMATIC_WINDOWS_TYPELIBS = ["_".join(x) for x in itertools.product(["mssdk64", "mssdk"], ["2000", "nt", "vista", "win10", "win7", "win8", "win81", "ws03", "xp"])]
-        PROBLEMATIC_TYPELIBS = PROBLEMATIC_LINUX_TYPELIBS + PROBLEMATIC_WINDOWS_TYPELIBS
-
-        for lib in PROBLEMATIC_TYPELIBS:
-            ida_typeinf.del_til(lib)
-
         # Set name mangling to GCC 3.x and display demangled as default
         ida_ida.inf_set_demnames(ida_ida.DEMNAM_GCC3 | ida_ida.DEMNAM_NAME)
 
-        self._status.update_step("Processing Types")
+        if self.apply_structures:
+            # Unload type libraries we know to cause issues - like the c++ linux one
+            PROBLEMATIC_LINUX_TYPELIBS = [f"gnulnx_{x}" for x in ["x86", "x64", "arm", "arm64"]]
+            PROBLEMATIC_WINDOWS_TYPELIBS = ["_".join(x) for x in itertools.product(["mssdk64", "mssdk"], ["2000", "nt", "vista", "win10", "win7", "win8", "win81", "ws03", "xp"])]
+            PROBLEMATIC_TYPELIBS = PROBLEMATIC_LINUX_TYPELIBS + PROBLEMATIC_WINDOWS_TYPELIBS
 
-        if IDACLANG_AVAILABLE:
-            header_path = os.path.join(
-                self.get_script_directory(), "%TYPE_HEADER_RELATIVE_PATH%"
-            )
-            ida_srclang.set_parser_argv(
-                "clang", "-target %IDACLANG_TARGET% -x c++ -fms-extensions -D_IDACLANG_=1"
-            )  # -target required for 8.3+
-            ida_srclang.parse_decls_with_parser("clang", None, header_path, True)
-        else:
-            original_macros = ida_typeinf.get_c_macros()
-            ida_typeinf.set_c_macros(original_macros + ";_IDA_=1")
-            ida_typeinf.idc_parse_types(
-                os.path.join(
+            for lib in PROBLEMATIC_TYPELIBS:
+                ida_typeinf.del_til(lib)
+
+            self._status.update_step("Processing Types")
+            if IDACLANG_AVAILABLE:
+                header_path = os.path.join(
                     self.get_script_directory(), "%TYPE_HEADER_RELATIVE_PATH%"
-                ),
-                ida_typeinf.PT_FILE,
-            )
-            ida_typeinf.set_c_macros(original_macros)
+                )
+                ida_srclang.set_parser_argv(
+                    "clang", "-target %IDACLANG_TARGET% -x c++ -fms-extensions -D_IDACLANG_=1"
+                )  # -target required for 8.3+
+                ida_srclang.parse_decls_with_parser("clang", None, header_path, True)
+            else:
+                original_macros = ida_typeinf.get_c_macros()
+                ida_typeinf.set_c_macros(original_macros + ";_IDA_=1")
+                ida_typeinf.idc_parse_types(
+                    os.path.join(
+                        self.get_script_directory(), "%TYPE_HEADER_RELATIVE_PATH%"
+                    ),
+                    ida_typeinf.PT_FILE,
+                )
+                ida_typeinf.set_c_macros(original_macros)
 
         # Skip make_function on Windows GameAssembly.dll files due to them predefining all functions through pdata which makes the method very slow
         self._skip_function_creation = (

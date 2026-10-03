@@ -29,7 +29,8 @@ class BaseStatusHandler(abc.ABC):
 
 
 class BaseDisassemblerInterface(abc.ABC):
-    supports_fake_string_segment: bool = False
+    supports_fake_string_segment: bool = True
+    apply_structures: bool = True
 
     @abc.abstractmethod
     def get_script_directory(self) -> str:
@@ -120,14 +121,15 @@ class ScriptContext:
     def define_il_method(self, definition: dict):
         addr = self.parse_address(definition)
         self._backend.set_function_name(addr, definition["name"])
-        if definition.get("signatureComplete", True):
+        if self._backend.apply_structures and definition.get("signatureComplete", True):
             self._backend.set_function_type(addr, definition["signature"])
         self._backend.set_function_comment(addr, definition["dotNetSignature"])
         self._backend.add_function_to_group(addr, definition["group"])
 
     def define_il_method_info(self, definition: dict):
         addr = self.parse_address(definition)
-        self._backend.set_data_type(addr, r"struct MethodInfo *")
+        if self._backend.apply_structures:
+            self._backend.set_data_type(addr, r"struct MethodInfo *")
         self._backend.set_data_name(addr, definition["name"])
         self._backend.set_data_comment(addr, definition["dotNetSignature"])
         if "methodAddress" in definition:
@@ -137,11 +139,13 @@ class ScriptContext:
     def define_cpp_function(self, definition: dict):
         addr = self.parse_address(definition)
         self._backend.set_function_name(addr, definition["name"])
-        self._backend.set_function_type(addr, definition["signature"])
+        if self._backend.apply_structures:
+            self._backend.set_function_type(addr, definition["signature"])
 
     def define_string(self, definition: dict):
         addr = self.parse_address(definition)
-        self._backend.set_data_type(addr, r"struct Il2CppString *")
+        if self._backend.apply_structures:
+            self._backend.set_data_type(addr, r"struct Il2CppString *")
         self._backend.set_data_name(addr, definition["name"])
         self._backend.set_data_comment(addr, definition["string"])
 
@@ -149,7 +153,8 @@ class ScriptContext:
         self, addr: str, name: str, type: str, il_type: Union[str, None] = None
     ):
         address = self.from_hex(addr)
-        self._backend.set_data_type(address, type)
+        if self._backend.apply_structures:
+            self._backend.set_data_type(address, type)
         self._backend.set_data_name(address, name)
         if il_type is not None:
             self._backend.set_data_comment(address, il_type)
@@ -164,9 +169,10 @@ class ScriptContext:
 
     def define_array(self, definition: dict):
         addr = self.parse_address(definition)
-        self._backend.define_data_array(
-            addr, definition["type"], int(definition["count"])
-        )
+        if self._backend.apply_structures:
+            self._backend.define_data_array(
+                addr, definition["type"], int(definition["count"])
+            )
         self._backend.set_data_name(addr, definition["name"])
 
     def define_field_with_value(self, definition: dict):
@@ -196,9 +202,10 @@ class ScriptContext:
         self._status.update_step(
             "Processing method definitions", len(metadata["methodDefinitions"])
         )
-        self._backend.cache_function_types(
-            [x["signature"] for x in metadata["methodDefinitions"]]
-        )
+        if self._backend.apply_structures:
+            self._backend.cache_function_types(
+                [x["signature"] for x in metadata["methodDefinitions"]]
+            )
         for d in metadata["methodDefinitions"]:
             self.define_il_method(d)
             self._status.update_progress()
@@ -208,9 +215,10 @@ class ScriptContext:
             "Processing constructed generic methods",
             len(metadata["constructedGenericMethods"]),
         )
-        self._backend.cache_function_types(
-            [x["signature"] for x in metadata["constructedGenericMethods"]]
-        )
+        if self._backend.apply_structures:
+            self._backend.cache_function_types(
+                [x["signature"] for x in metadata["constructedGenericMethods"]]
+            )
         for d in metadata["constructedGenericMethods"]:
             self.define_il_method(d)
             self._status.update_progress()
@@ -220,9 +228,10 @@ class ScriptContext:
             "Processing custom attributes generators",
             len(metadata["customAttributesGenerators"]),
         )
-        self._backend.cache_function_types(
-            [x["signature"] for x in metadata["customAttributesGenerators"]]
-        )
+        if self._backend.apply_structures:
+            self._backend.cache_function_types(
+                [x["signature"] for x in metadata["customAttributesGenerators"]]
+            )
         for d in metadata["customAttributesGenerators"]:
             self.define_cpp_function(d)
             self._status.update_progress()
@@ -231,9 +240,10 @@ class ScriptContext:
         self._status.update_step(
             "Processing Method.Invoke thunks", len(metadata["methodInvokers"])
         )
-        self._backend.cache_function_types(
-            [x["signature"] for x in metadata["methodInvokers"]]
-        )
+        if self._backend.apply_structures:
+            self._backend.cache_function_types(
+                [x["signature"] for x in metadata["methodInvokers"]]
+            )
         for d in metadata["methodInvokers"]:
             self.define_cpp_function(d)
             self._status.update_progress()
@@ -269,7 +279,8 @@ class ScriptContext:
                         current_string_address, d["string"]
                     )
                     self._backend.write_address(ref_addr, current_string_address)
-                    self._backend.set_data_type(ref_addr, r"const char* const")
+                    if self._backend.apply_structures:
+                        self._backend.set_data_type(ref_addr, r"const char* const")
 
                     current_string_address += written_string_length
                     self._status.update_progress()
@@ -279,7 +290,7 @@ class ScriptContext:
                     self._status.update_progress()
 
         # String literals for version < 19
-        else:
+        elif self._backend.apply_structures:
             self._status.update_step("Processing string literals (pre-V19)")
             litDecl = "enum StringLiteralIndex {\n"
             for d in metadata["stringLiterals"]:
@@ -358,7 +369,8 @@ class ScriptContext:
         self._status.update_step(
             "Processing IL2CPP API functions", len(metadata["apis"])
         )
-        self._backend.cache_function_types([x["signature"] for x in metadata["apis"]])
+        if self._backend.apply_structures:
+            self._backend.cache_function_types([x["signature"] for x in metadata["apis"]])
         for d in metadata["apis"]:
             self.define_cpp_function(d)
 
