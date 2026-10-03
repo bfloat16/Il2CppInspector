@@ -102,6 +102,7 @@ namespace Il2CppInspector.Outputs
         // All modules (single-module assemblies)
         private Dictionary<Assembly, ModuleDef> modules = [];
         private Dictionary<ModuleDef, Dictionary<TypeInfo, TypeDefUser>> types = [];
+        private readonly Dictionary<ModuleDef, Dictionary<TypeInfo, TypeSig>> signatureCache = [];
 
         // Custom attributes we will apply directly instead of with a custom attribute function pointer
         private Dictionary<TypeInfo, TypeDef> directApplyAttributes;
@@ -142,6 +143,14 @@ namespace Il2CppInspector.Outputs
             addressAttribute.Fields.Add(new FieldDefUser("Slot", stringField, FieldAttributes.Public));
             addressAttribute.AddDefaultConstructor(attributeCtorRef);
 
+            if (model.Package.Metadata.HasGameAdapter)
+            {
+                var genericInstAddress = createAttribute("GenericInstAddressAttribute");
+                foreach (var field in new[] { "RVA", "Offset", "VA", "Spec" })
+                    genericInstAddress.Fields.Add(new FieldDefUser(field, stringField, FieldAttributes.Public));
+                genericInstAddress.AddDefaultConstructor(attributeCtorRef);
+            }
+
             fieldOffsetAttribute = createAttribute("FieldOffsetAttribute");
             fieldOffsetAttribute.Fields.Add(new FieldDefUser("Offset", stringField, FieldAttributes.Public));
             fieldOffsetAttribute.AddDefaultConstructor(attributeCtorRef);
@@ -149,6 +158,14 @@ namespace Il2CppInspector.Outputs
             staticFieldOffsetAttribute = createAttribute("StaticFieldOffsetAttribute");
             staticFieldOffsetAttribute.Fields.Add(new FieldDefUser("Offset", stringField, FieldAttributes.Public));
             staticFieldOffsetAttribute.Fields.Add(new FieldDefUser("ThreadStatic", boolField, FieldAttributes.Public));
+            if (model.Package.Metadata.HasGameAdapter)
+            {
+                staticFieldOffsetAttribute.Fields.Add(new FieldDefUser("StorageTag", stringField, FieldAttributes.Public));
+                staticFieldOffsetAttribute.Fields.Add(new FieldDefUser("StorageBase", stringField, FieldAttributes.Public));
+                var assemblyFlags = createAttribute("AssemblyFlagsAttribute");
+                assemblyFlags.Fields.Add(new FieldDefUser("Flags", stringField, FieldAttributes.Public));
+                assemblyFlags.AddDefaultConstructor(attributeCtorRef);
+            }
             staticFieldOffsetAttribute.AddDefaultConstructor(attributeCtorRef);
 
             attributeAttribute = createAttribute("AttributeAttribute");
@@ -210,7 +227,8 @@ namespace Il2CppInspector.Outputs
             }
 
             PublicKey? publicKey = null;
-            if (nameDefinition.Flags.HasFlag(AssemblyNameFlags.PublicKey))
+            var hasPublicKey = !model.Package.Metadata.HasGameAdapter && nameDefinition.Flags.HasFlag(AssemblyNameFlags.PublicKey);
+            if (hasPublicKey)
             {
                 publicKey = new PublicKey(model.Package.AssemblyPublicKeys[nameDefinition.PublicKeyIndex]);
             }
@@ -220,7 +238,7 @@ namespace Il2CppInspector.Outputs
                 PublicKey = publicKey,
                 Culture = model.Package.Strings[nameDefinition.CultureIndex],
                 HashAlgorithm = (AssemblyHashAlgorithm)nameDefinition.HashAlg,
-                HasPublicKey = nameDefinition.Flags.HasFlag(AssemblyNameFlags.PublicKey),
+                HasPublicKey = hasPublicKey,
             };
         }
 
@@ -616,7 +634,16 @@ namespace Il2CppInspector.Outputs
         private ITypeDefOrRef GetTypeRef(ModuleDef module, TypeInfo type) => GetTypeSig(module, type).ToTypeDefOrRef();
 
         // Convert Il2CppInspector TypeInfo into type signature and import to specified module
-        private TypeSig GetTypeSig(ModuleDef module, TypeInfo type) => module.Import(GetTypeSigImpl(module, type));
+        private TypeSig GetTypeSig(ModuleDef module, TypeInfo type)
+        {
+            if (type == null)
+                return null;
+            if (!signatureCache.TryGetValue(module, out var cache))
+                signatureCache.Add(module, cache = []);
+            if (!cache.TryGetValue(type, out var signature))
+                cache.Add(type, signature = module.Import(GetTypeSigImpl(module, type)));
+            return signature;
+        }
 
         // Convert Il2CppInspector TypeInfo into type signature
         private TypeSig GetTypeSigImpl(ModuleDef module, TypeInfo type)
@@ -659,7 +686,7 @@ namespace Il2CppInspector.Outputs
                 ns,
                 type.BaseName,
                 type.DeclaringType != null ? (IResolutionScope)GetTypeRef(module, type.DeclaringType).ScopeType : typeOwnerModuleRef
-            ).ToTypeSig();
+            ).ToTypeSig(type.IsValueType);
 
             // Non-generic type (CLASS / VALUETYPE)
             if (!type.GetGenericArguments().Any())
@@ -679,6 +706,19 @@ namespace Il2CppInspector.Outputs
         {
             // Create folder for DLLs
             Directory.CreateDirectory(outputPath);
+
+            if (model.Package.Metadata.HasGameAdapter)
+            {
+                // Game writers reuse the shared informational-attribute assembly.
+                modules = model.Assemblies.ToDictionary(a => a, a => (ModuleDef)CreateAssembly(a));
+                if (!SuppressMetadata)
+                {
+                    using var support = CreateBaseAssembly();
+                    support.Write(Path.Combine(outputPath, support.Name));
+                }
+                model.Package.Metadata.GamePlugin.WriteAssemblies(model, outputPath, SuppressMetadata, statusCallback);
+                return;
+            }
 
             if (model.Package.Version >= MetadataVersions.V290)
             {
@@ -757,7 +797,7 @@ namespace Il2CppInspector.Outputs
 
             return;
 
-            static bool IsAttributeType(TypeInfo type) => type.FullName == "System.Attribute" || (type.BaseType != null && IsAttributeType(type.BaseType));
+            static bool IsAttributeType(TypeInfo type) => type != null && (type.FullName == "System.Attribute" || (type.BaseType != null && IsAttributeType(type.BaseType)));
         }
     }
 }

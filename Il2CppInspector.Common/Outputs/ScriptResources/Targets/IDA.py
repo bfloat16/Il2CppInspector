@@ -106,7 +106,7 @@ class IDADisassemblerInterface(BaseDisassemblerInterface):
                 self.get_script_directory(), "%TYPE_HEADER_RELATIVE_PATH%"
             )
             ida_srclang.set_parser_argv(
-                "clang", "-target x86_64-pc-linux -x c++ -D_IDACLANG_=1"
+                "clang", "-target %IDACLANG_TARGET% -x c++ -fms-extensions -D_IDACLANG_=1"
             )  # -target required for 8.3+
             ida_srclang.parse_decls_with_parser("clang", None, header_path, True)
         else:

@@ -22,6 +22,11 @@ namespace Il2CppInspector.Outputs
         // Write JSON metadata to file
         public void Write(string outputFile)
         {
+            if (model.Package.Metadata.HasGameAdapter)
+            {
+                model.Package.Metadata.GamePlugin.WriteJson(model, outputFile, AllowComments);
+                return;
+            }
             using var fs = new FileStream(outputFile, FileMode.Create);
             writer = new Utf8JsonWriter(fs, options: new JsonWriterOptions { Indented = true });
             writer.WriteStartObject();

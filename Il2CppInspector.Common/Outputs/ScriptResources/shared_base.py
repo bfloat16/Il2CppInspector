@@ -120,7 +120,8 @@ class ScriptContext:
     def define_il_method(self, definition: dict):
         addr = self.parse_address(definition)
         self._backend.set_function_name(addr, definition["name"])
-        self._backend.set_function_type(addr, definition["signature"])
+        if definition.get("signatureComplete", True):
+            self._backend.set_function_type(addr, definition["signature"])
         self._backend.set_function_comment(addr, definition["dotNetSignature"])
         self._backend.add_function_to_group(addr, definition["group"])
 
@@ -140,7 +141,7 @@ class ScriptContext:
 
     def define_string(self, definition: dict):
         addr = self.parse_address(definition)
-        self._backend.set_data_type(addr, r"struct String *")
+        self._backend.set_data_type(addr, r"struct Il2CppString *")
         self._backend.set_data_name(addr, definition["name"])
         self._backend.set_data_comment(addr, definition["string"])
 
@@ -295,6 +296,8 @@ class ScriptContext:
         for d in metadata["typeInfoPointers"]:
             self.define_field_from_json(d)
             self._status.update_progress()
+
+        # %GAME_METADATA_PROCESSOR%
 
         # Il2CppType (TypeRef) pointers
         self._status.update_step(

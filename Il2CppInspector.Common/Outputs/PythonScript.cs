@@ -57,9 +57,28 @@ namespace Il2CppInspector.Outputs
                 .Replace("%SCRIPTFILENAME%", Path.GetFileName(outputFile))
                 .Replace("%TYPE_HEADER_RELATIVE_PATH%", typeHeaderRelativePath.ToEscapedString())
                 .Replace("%JSON_METADATA_RELATIVE_PATH%", jsonMetadataRelativePath.ToEscapedString())
-                .Replace("%TARGET_UNITY_VERSION%", model.UnityHeaders.ToString());
+                .Replace("%TARGET_UNITY_VERSION%", model.UnityHeaders.ToString())
+                .Replace("%IDACLANG_TARGET%", ClangTarget(model.Image.Format, model.Image.Arch));
+            script = script.Replace("        # %GAME_METADATA_PROCESSOR%", model.Package.Metadata.GamePlugin?.PythonMetadataProcessor ?? "");
 
             File.WriteAllText(outputFile, script);
+        }
+
+        private static string ClangTarget(string format, string arch)
+        {
+            var cpu = arch switch
+            {
+                "x64" => "x86_64",
+                "x86" => "i686",
+                "ARM64" => "aarch64",
+                "ARM" => "armv7",
+                _ => "x86_64",
+            };
+            var platform =
+                format.StartsWith("PE", StringComparison.Ordinal) ? "pc-windows-msvc"
+                : format.StartsWith("Mach-O", StringComparison.Ordinal) ? "apple-darwin"
+                : "pc-linux";
+            return cpu + "-" + platform;
         }
 
         private void writeTypes(string typeHeaderFile) => new CppScaffolding(model, useBetterArraySize: true).WriteTypes(typeHeaderFile);

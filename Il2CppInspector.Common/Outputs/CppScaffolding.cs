@@ -29,6 +29,11 @@ namespace Il2CppInspector.Outputs
         // This can be used by other output modules
         public void WriteTypes(string typeHeaderFile)
         {
+            if (_model.Package.Metadata.HasGameAdapter)
+            {
+                _model.Package.Metadata.GamePlugin.WriteHeader(_model, typeHeaderFile, _useBetterArraySize);
+                return;
+            }
             using var fs = new FileStream(typeHeaderFile, FileMode.Create);
             _writer = new StreamWriter(fs, Encoding.ASCII);
 
@@ -140,8 +145,12 @@ namespace Il2CppInspector.Outputs
             }
         }
 
-        public void Write(string projectPath)
+        public void Write(string projectPath) => WriteProject(projectPath, null);
+
+        internal void WriteProject(string projectPath, string existingTypeHeader)
         {
+            if (existingTypeHeader != null && !File.Exists(existingTypeHeader))
+                throw new FileNotFoundException("The existing type header was not found.", existingTypeHeader);
             // Ensure output directory exists and is not a file
             // A System.IOException will be thrown if it's a file'
             var srcUserPath = Path.Combine(projectPath, "user");
@@ -154,7 +163,11 @@ namespace Il2CppInspector.Outputs
             Directory.CreateDirectory(srcDataPath);
 
             // Write type definitions to il2cpp-types.h
-            WriteTypes(Path.Combine(srcDataPath, "il2cpp-types.h"));
+            var typeHeader = Path.Combine(srcDataPath, "il2cpp-types.h");
+            if (existingTypeHeader == null)
+                WriteTypes(typeHeader);
+            else if (!Path.GetFullPath(existingTypeHeader).Equals(Path.GetFullPath(typeHeader), StringComparison.OrdinalIgnoreCase))
+                File.Copy(existingTypeHeader, typeHeader, true);
 
             // Write selected Unity API function file to il2cpp-api-functions.h
             // (this is a copy of the header file from an actual Unity install)
@@ -198,7 +211,8 @@ namespace Il2CppInspector.Outputs
 
                 foreach (var export in exports)
                 {
-                    writeCode($"#define {export.Key}_ptr 0x{_model.Package.BinaryImage.MapVATR(export.Value):X8}");
+                    var offset = _model.Package.Metadata.HasGameAdapter ? export.Value - _model.Package.BinaryImage.ImageBase : _model.Package.BinaryImage.MapVATR(export.Value);
+                    writeCode($"#define {export.Key}_ptr 0x{offset:X8}");
                 }
             }
 
@@ -213,7 +227,7 @@ namespace Il2CppInspector.Outputs
                 writeHeader();
                 writeSectionHeader("IL2CPP application-specific type definition addresses");
 
-                foreach (var type in _model.Types.Values.Where(t => t.TypeClassAddress != 0xffffffff_ffffffff))
+                foreach (var type in (_model.Package.Metadata.HasGameAdapter ? Enumerable.Empty<AppType>() : _model.Types.Values).Where(t => t.TypeClassAddress != 0xffffffff_ffffffff))
                 {
                     writeCode($"DO_TYPEDEF(0x{type.TypeClassAddress - _model.Package.BinaryImage.ImageBase:X8}, {type.Name});");
                 }
@@ -233,7 +247,7 @@ namespace Il2CppInspector.Outputs
                 writeCode("using namespace app;");
                 writeLine("");
 
-                foreach (var method in _model.Methods.Values)
+                foreach (var method in _model.Package.Metadata.HasGameAdapter ? Enumerable.Empty<AppMethod>() : _model.Methods.Values)
                 {
                     if (method.HasCompiledCode)
                     {
@@ -251,6 +265,8 @@ namespace Il2CppInspector.Outputs
                     }
                 }
             }
+            if (_model.Package.Metadata.HasGameAdapter)
+                WriteGameApplicationPointers(srcDataPath);
 
             // Write metadata version
             var versionFile = Path.Combine(srcDataPath, "il2cpp-metadata-version.h");
@@ -261,7 +277,7 @@ namespace Il2CppInspector.Outputs
             using (_writer)
             {
                 writeHeader();
-                writeCode($"#define __IL2CPP_METADATA_VERSION {_model.Package.Version.Major * 10 + _model.Package.Version.Minor * 10:F0}");
+                writeCode($"#define __IL2CPP_METADATA_VERSION {_model.Package.Version.Major * 10 + _model.Package.Version.Minor}");
             }
 
             // Write boilerplate code
@@ -281,7 +297,10 @@ namespace Il2CppInspector.Outputs
                     File.WriteAllText(path, contents);
             }
 
-            WriteIfNotExists(Path.Combine(srcUserPath, "main.cpp"), Resources.Cpp_MainCpp);
+            var main = Resources.Cpp_MainCpp;
+            if (_model.Package.Metadata.HasGameAdapter && (!_model.AvailableAPIs.ContainsKey("il2cpp_thread_attach") || !_model.AvailableAPIs.ContainsKey("il2cpp_domain_get")))
+                main = main.Replace("il2cpp_thread_attach(il2cpp_domain_get());", "// Resolve thread attachment before invoking managed methods in this build.");
+            WriteIfNotExists(Path.Combine(srcUserPath, "main.cpp"), main);
             WriteIfNotExists(Path.Combine(srcUserPath, "main.h"), Resources.Cpp_MainH);
 
             // Write Visual Studio project and solution files
@@ -311,6 +330,8 @@ namespace Il2CppInspector.Outputs
 
             WriteIfNotExists(Path.Combine(projectPath, solutionFile), sln);
         }
+
+        internal void WriteGameApplicationPointers(string path) => _model.Package.Metadata.GamePlugin.WriteApplicationPointers(_model, path);
 
         private void writeHeader()
         {
