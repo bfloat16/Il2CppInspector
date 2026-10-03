@@ -179,6 +179,8 @@ namespace Il2CppInspector
             // Copy to memory-based stream
             var binaryObjectStream = new BinaryObjectStream();
             stream.Position = 0;
+            if (stream.CanSeek)
+                binaryObjectStream.Capacity = checked((int)stream.Length);
             stream.CopyTo(binaryObjectStream);
             binaryObjectStream.Position = 0;
 
@@ -257,7 +259,10 @@ namespace Il2CppInspector
         {
             var binary = Activator.CreateInstance<T>();
             if (stream.CanSeek)
+            {
                 stream.Position = 0;
+                binary.Capacity = checked((int)stream.Length);
+            }
             stream.CopyTo(binary);
             return binary.InitImpl(loadOptions, statusCallback) ? binary : null;
         }
