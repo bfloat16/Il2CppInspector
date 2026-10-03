@@ -17,7 +17,7 @@ namespace Il2CppInspector.Outputs
 
         private Il2CppInspector Package => model.Package;
         private Utf8JsonWriter writer;
-        private readonly Dictionary<int, int[]> instanceArguments = [];
+        private ZzzNativeModel Native => (ZzzNativeModel)model.GameNativeModel;
 
         // Header generation precedes JSON output. Discover arrays produced by generic signature substitution first.
         internal void PrepareNativeArrayTypes()
@@ -313,11 +313,7 @@ namespace Il2CppInspector.Outputs
             writer.WriteEndObject();
         }
 
-        internal string MethodName(int definition, int spec)
-        {
-            var method = model.TypeModel.MethodsByDefinitionIndex[definition];
-            return method.DeclaringType.FullName.ToCIdentifier() + "_" + method.Name.ToCIdentifier() + $"_{definition}" + (spec >= 0 ? $"_Generic_{spec}" : "");
-        }
+        internal string MethodName(int definition, int spec) => Native.MethodName(definition, spec);
 
         private void Method(int definition, int specIndex, ulong address)
         {
@@ -456,57 +452,9 @@ namespace Il2CppInspector.Outputs
             return name + "(" + string.Join(", ", parameters) + ")";
         }
 
-        private int[] Arguments(int instance)
-        {
-            if (instance < 0)
-            {
-                return [];
-            }
+        private int[] Arguments(int instance) => Native.Arguments(instance);
 
-            if (!instanceArguments.TryGetValue(instance, out var args))
-            {
-                var inst = Package.GenericInstances[instance];
-                args = Package.BinaryImage.ReadMappedUWordArray(inst.TypeArgv, (int)inst.TypeArgc).Select(a => Package.TypeReferenceIndicesByAddress[a]).ToArray();
-                instanceArguments.Add(instance, args);
-            }
-            return args;
-        }
-
-        private TypeInfo ResolveType(int index, int[] classArgs, int[] methodArgs, int depth = 0)
-        {
-            if (depth > 64)
-            {
-                throw new InvalidDataException("Cyclic MORAX method signature.");
-            }
-
-            var raw = Package.TypeReferences[index];
-            TypeInfo result;
-            switch (raw.Type)
-            {
-                case Il2CppTypeEnum.IL2CPP_TYPE_VAR:
-                case Il2CppTypeEnum.IL2CPP_TYPE_MVAR:
-                    var args = raw.Type == Il2CppTypeEnum.IL2CPP_TYPE_VAR ? classArgs : methodArgs;
-                    var number = Package.GenericParameters[raw.Data.GenericParameterIndex].Num;
-                    result = number < args.Length ? ResolveType(args[number], [], [], depth + 1) : model.TypeModel.TypesByReferenceIndex[index];
-                    break;
-                case Il2CppTypeEnum.IL2CPP_TYPE_GENERICINST:
-                    var pair = Adapter.GenericClass(raw.Data.Value);
-                    result = model.TypeModel.TypesByDefinitionIndex[pair.Definition].MakeGenericType(Arguments(pair.Instance).Select(a => ResolveType(a, classArgs, methodArgs, depth + 1)).ToArray());
-                    break;
-                case Il2CppTypeEnum.IL2CPP_TYPE_PTR:
-                case Il2CppTypeEnum.IL2CPP_TYPE_SZARRAY:
-                    var element = ResolveType(Package.TypeReferenceIndicesByAddress[raw.Data.Value], classArgs, methodArgs, depth + 1);
-                    result = raw.Type == Il2CppTypeEnum.IL2CPP_TYPE_PTR ? element.MakePointerType() : element.MakeArrayType(1);
-                    break;
-                case Il2CppTypeEnum.IL2CPP_TYPE_ARRAY:
-                    var array = Package.BinaryImage.ReadMappedVersionedObject<Il2CppArrayType>(raw.Data.ArrayType);
-                    result = ResolveType(Package.TypeReferenceIndicesByAddress[array.ElementType], classArgs, methodArgs, depth + 1).MakeArrayType(array.Rank);
-                    break;
-                default:
-                    return model.TypeModel.TypesByReferenceIndex[index];
-            }
-            return raw.ByRef && !result.IsByRef ? result.MakeByRefType() : result;
-        }
+        private TypeInfo ResolveType(int index, int[] classArgs, int[] methodArgs) => Native.ResolveType(index, classArgs, methodArgs);
 
         private void Array(string name, Action body)
         {

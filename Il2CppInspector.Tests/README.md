@@ -10,6 +10,7 @@ Il2CppInspector.Tests/
     IL2CPP/                    Stock loading
     Model/                     Stock application model
     Plugins/                   Shared plugin selection
+    Outputs/                   Native PDB records and symbol indices
     Reflection/                Stock reflection
   Plugin/
     <game>/
@@ -25,6 +26,7 @@ Il2CppInspector.Tests/
 dotnet run --project Il2CppInspector.Tests -c Release -- --plugins
 dotnet run --project Il2CppInspector.Tests -c Release -- --stock '<Unity player directory>'
 dotnet run --project Il2CppInspector.Tests -c Release -- --plugin-cli '<CLI DLL>' '<isolated directory>'
+dotnet run --project Il2CppInspector.Tests -c Release -- --pdb-fixture '<output directory>' llvm-pdbutil
 ```
 
 Game-specific input arguments, modes and output options belong to the corresponding test runner. Keep their documentation alongside `Plugin/<game>/` rather than adding game-specific instructions to this README.

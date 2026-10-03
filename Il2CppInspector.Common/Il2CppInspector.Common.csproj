@@ -15,6 +15,7 @@
   <ItemGroup>
     <GamePluginProject Include="../Il2CppInspector.Plugin/*/*.csproj" />
     <InternalsVisibleTo Include="@(GamePluginProject->'%(Filename)')" />
+    <InternalsVisibleTo Include="Il2CppInspector.Tests" />
     <ProjectReference Include="..\Bin2Object\Bin2Object.csproj" />
     <ProjectReference Include="..\VersionedSerialization.Generator\VersionedSerialization.Generator.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
     <ProjectReference Include="..\VersionedSerialization\VersionedSerialization.csproj" />

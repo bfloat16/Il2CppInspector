@@ -341,6 +341,9 @@ namespace Il2CppInspector.Cpp
             Size = 8;
         }
 
+        // Lazy layouts may discard generated fields after a streaming consumer finishes.
+        public virtual void ReleaseTransientFields() { }
+
         // Add a field to the type. Returns the offset of the field in the type
         public int AddField(CppField field, int alignmentBytes = 0)
         {

@@ -12,12 +12,16 @@ namespace Il2CppInspector.Tests
                     "Usage: dotnet run --project Il2CppInspector.Tests -c Release -- "
                         + "<ZZZ Native directory> [output directory] [options], --plugins, "
                         + "--plugin-cli <CLI DLL> <isolated directory>, --assembly-resolution <ZZZ DummyDll directory>, "
-                        + "or --stock <Unity player directory>."
+                        + "--pdb-fixture <output directory> [llvm-pdbutil], or --stock <Unity player directory>."
                 );
             }
 
             switch (args[0])
             {
+                case "--pdb-fixture":
+                    RequireArguments(args, 2);
+                    Common.Outputs.PdbOutputTests.Run(args[1], args.Length > 2 ? args[2] : null);
+                    break;
                 case "--plugins":
                     ZzzPluginTests.Run();
                     break;

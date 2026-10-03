@@ -26,7 +26,6 @@ namespace Il2CppInspector.Model
                 return;
             }
 
-            var naming = new ZzzJsonMetadata(model);
             for (var index = 0; index < Package.Methods.Length; index++)
             {
                 if (Reflection.MethodsByDefinitionIndex[index].VirtualAddress.HasValue)
@@ -86,7 +85,7 @@ namespace Il2CppInspector.Model
                 parameters.Add(("method", Cpp.GetType("MethodInfo *")));
                 var pointer = new CppFnPtrType(64, method is MethodInfo info ? AsCType(info.ReturnType) : Cpp.GetType("void"), parameters)
                 {
-                    Name = naming.MethodName(definition, spec),
+                    Name = Native.MethodName(definition, spec),
                     Group = group,
                 };
                 var result = new AppMethod(method, pointer) { Group = group };
@@ -97,12 +96,64 @@ namespace Il2CppInspector.Model
 
         public void BuildTypes()
         {
+            BuildMethods();
+            RegisterTypes();
+        }
+
+        public IEnumerable<CppType> EnumerateNativeTypes()
+        {
+            RegisterTypes();
+            return Cpp.Types.Values.ToArray();
+        }
+
+        public IEnumerable<NativeMethod> EnumerateNativeMethods()
+        {
+            for (var index = 0; index < Package.Methods.Length; index++)
+                if (Reflection.MethodsByDefinitionIndex[index].VirtualAddress is { } address)
+                    yield return NativeMethod(index, -1, address.Start);
+            for (var index = 0; index < Package.MethodSpecs.Length; index++)
+            {
+                var spec = Package.MethodSpecs[index];
+                if (Package.GenericMethodPointers.TryGetValue(spec, out var address))
+                    yield return NativeMethod(spec.MethodDefinitionIndex, index, address);
+            }
+        }
+
+        private NativeMethod NativeMethod(int definition, int specIndex, ulong address)
+        {
+            var d = Package.Methods[definition];
+            var method = Reflection.MethodsByDefinitionIndex[definition];
+            var spec = specIndex >= 0 ? Package.MethodSpecs[specIndex] : new Next.BinaryMetadata.Il2CppMethodSpec { ClassIndexIndex = -1, MethodIndexIndex = -1 };
+            var classArgs = Native.Arguments(spec.ClassIndexIndex);
+            var methodArgs = Native.Arguments(spec.MethodIndexIndex);
+            var complete = true;
+            CppType Storage(TypeInfo type)
+            {
+                complete &= Native.IsSignatureTypeComplete(type);
+                return type == null ? Cpp.GetType("void *") : AsCType(type);
+            }
+            var parameters = new List<(string Name, CppType Type)>();
+            if (!method.IsStatic)
+            {
+                var declaring = method.DeclaringType;
+                if (classArgs.Length > 0)
+                    declaring = declaring.MakeGenericType(classArgs.Select(a => Reflection.TypesByReferenceIndex[a]).ToArray());
+                parameters.Add(("__this", Storage(declaring.IsValueType ? declaring.MakeByRefType() : declaring)));
+            }
+            for (var i = 0; i < d.ParameterCount; i++)
+                parameters.Add(($"arg{i}", Storage(Native.ResolveType(Package.Params[d.ParameterStart + i].TypeIndex, classArgs, methodArgs))));
+            parameters.Add(("method", Cpp.GetType("MethodInfo *")));
+            var signature = new CppFnPtrType(64, Storage(Native.ResolveType(d.ReturnType, classArgs, methodArgs)), parameters) { Name = Native.MethodName(definition, specIndex) };
+            return new NativeMethod(signature.Name, address, signature, complete);
+        }
+
+        private void RegisterTypes()
+        {
             if (typesBuilt)
             {
                 return;
             }
 
-            BuildMethods();
             group = "unused_concrete_types";
             foreach (var type in Reflection.TypesByDefinitionIndex.Concat(Reflection.TypesByReferenceIndex).Concat(Native.GenericTypes.Values).Distinct())
             {
@@ -568,11 +619,25 @@ namespace Il2CppInspector.Model
         private sealed class DeferredStruct(int bytes, Action<CppComplexType> fill) : CppComplexType(ComplexValueType.Struct)
         {
             private bool initialized;
+            private int? releasedSize;
             public override int Size
             {
-                get => bytes >= 0 ? checked(bytes * 8) : Fields.Values.SelectMany(f => f).Select(f => f.Offset + f.Type.Size).DefaultIfEmpty(0).Max();
+                get =>
+                    bytes >= 0 ? checked(bytes * 8)
+                    : !initialized && releasedSize.HasValue ? releasedSize.Value
+                    : Fields.Values.SelectMany(f => f).Select(f => f.Offset + f.Type.Size).DefaultIfEmpty(0).Max();
                 set { }
             }
+
+            public override void ReleaseTransientFields()
+            {
+                if (!initialized)
+                    return;
+                releasedSize = Size;
+                base.Fields.Clear();
+                initialized = false;
+            }
+
             public override SortedDictionary<int, List<CppField>> Fields
             {
                 get

@@ -93,6 +93,23 @@ namespace Il2CppInspector.Model
         }
         internal MultiKeyDictionary<TypeInfo, CppComplexType, AppType> AnalysisTypes => types;
 
+        public IEnumerable<NativeMethod> EnumerateNativeMethods()
+        {
+            var nativeMethods =
+                gameAnalysis?.EnumerateNativeMethods() ?? methods.Values.Where(m => m.HasCompiledCode).Select(m => new NativeMethod(m.ToMangledString(), m.MethodCodeAddress, m.CppFnPtrType));
+            foreach (var method in nativeMethods)
+                yield return method;
+            foreach (var method in TypeModel.AttributesByIndices.Values)
+                if (method.VirtualAddress.Start != 0)
+                    yield return new NativeMethod(method.Name, method.VirtualAddress.Start, null, false);
+            var invokers = Package.MethodInvokePointers;
+            for (var i = 0; i < invokers.Length; i++)
+                if (invokers[i] != 0)
+                    yield return new NativeMethod($"Il2CppInvoker_{i}", invokers[i], null, false);
+        }
+
+        public IEnumerable<CppType> EnumerateNativeTypes() => gameAnalysis?.EnumerateNativeTypes() ?? cppTypeCollection.Types.Values;
+
         // All of the string literals in the IL2CPP binary
         // Note: Does not include string literals from global-metadata.dat
         // Note: The virtual addresses are of String* (VAs of the pointer to String*) objects, not the strings themselves

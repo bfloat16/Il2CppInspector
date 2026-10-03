@@ -1,3 +1,4 @@
+using Il2CppInspector.Next.BinaryMetadata;
 using Il2CppInspector.Reflection;
 
 namespace Il2CppInspector.Model
@@ -9,6 +10,59 @@ namespace Il2CppInspector.Model
         public override Dictionary<TypeInfo, int> GenericOrdinals { get; }
         public override Dictionary<int, TypeInfo> GenericTypes { get; }
         public override Dictionary<string, TypeInfo> ArrayTypes { get; } = [];
+        private readonly Dictionary<int, int[]> instanceArguments = [];
+
+        internal string MethodName(int definition, int spec)
+        {
+            var method = Model.MethodsByDefinitionIndex[definition];
+            return method.DeclaringType.FullName.ToCIdentifier() + "_" + method.Name.ToCIdentifier() + $"_{definition}" + (spec >= 0 ? $"_Generic_{spec}" : "");
+        }
+
+        internal int[] Arguments(int instance)
+        {
+            if (instance < 0)
+                return [];
+            if (!instanceArguments.TryGetValue(instance, out var args))
+            {
+                var inst = Package.GenericInstances[instance];
+                args = Package.BinaryImage.ReadMappedUWordArray(inst.TypeArgv, (int)inst.TypeArgc).Select(a => Package.TypeReferenceIndicesByAddress[a]).ToArray();
+                instanceArguments.Add(instance, args);
+            }
+            return args;
+        }
+
+        internal TypeInfo ResolveType(int index, int[] classArgs, int[] methodArgs, int depth = 0)
+        {
+            if (depth > 64)
+                throw new InvalidDataException("Cyclic MORAX method signature.");
+            var raw = Package.TypeReferences[index];
+            TypeInfo result;
+            switch (raw.Type)
+            {
+                case Il2CppTypeEnum.IL2CPP_TYPE_VAR:
+                case Il2CppTypeEnum.IL2CPP_TYPE_MVAR:
+                    var args = raw.Type == Il2CppTypeEnum.IL2CPP_TYPE_VAR ? classArgs : methodArgs;
+                    var number = Package.GenericParameters[raw.Data.GenericParameterIndex].Num;
+                    result = number < args.Length ? ResolveType(args[number], [], [], depth + 1) : Model.TypesByReferenceIndex[index];
+                    break;
+                case Il2CppTypeEnum.IL2CPP_TYPE_GENERICINST:
+                    var pair = ((ZzzMorax)Package.Metadata.GameAdapter).GenericClass(raw.Data.Value);
+                    result = Model.TypesByDefinitionIndex[pair.Definition].MakeGenericType(Arguments(pair.Instance).Select(a => ResolveType(a, classArgs, methodArgs, depth + 1)).ToArray());
+                    break;
+                case Il2CppTypeEnum.IL2CPP_TYPE_PTR:
+                case Il2CppTypeEnum.IL2CPP_TYPE_SZARRAY:
+                    var element = ResolveType(Package.TypeReferenceIndicesByAddress[raw.Data.Value], classArgs, methodArgs, depth + 1);
+                    result = raw.Type == Il2CppTypeEnum.IL2CPP_TYPE_PTR ? element.MakePointerType() : element.MakeArrayType(1);
+                    break;
+                case Il2CppTypeEnum.IL2CPP_TYPE_ARRAY:
+                    var array = Package.BinaryImage.ReadMappedVersionedObject<Il2CppArrayType>(raw.Data.ArrayType);
+                    result = ResolveType(Package.TypeReferenceIndicesByAddress[array.ElementType], classArgs, methodArgs, depth + 1).MakeArrayType(array.Rank);
+                    break;
+                default:
+                    return Model.TypesByReferenceIndex[index];
+            }
+            return raw.ByRef && !result.IsByRef ? result.MakeByRefType() : result;
+        }
 
         internal ZzzNativeModel(TypeModel model)
         {
