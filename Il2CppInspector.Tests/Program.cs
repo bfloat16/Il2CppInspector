@@ -29,6 +29,10 @@ namespace Il2CppInspector.Tests
                 case "--plugins":
                     ZzzPluginTests.Run();
                     break;
+                case "--tot":
+                    RequireArguments(args, 2);
+                    Plugin.TOT.TotSelfTest.Run(args[1]);
+                    break;
                 case "--plugin-cli":
                     RequireArguments(args, 3);
                     PluginCliTests.Run(args);

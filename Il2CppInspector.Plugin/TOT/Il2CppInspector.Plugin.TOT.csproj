@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Il2CppInspector.Common/Il2CppInspector.Common.csproj" />
+    <EmbeddedResource Include="Resources/TotWhiteboxTables.bin" LogicalName="Il2CppInspector.Plugin.TOT.TotWhiteboxTables.bin" />
+    <InternalsVisibleTo Include="Il2CppInspector.Tests" />
+  </ItemGroup>
+</Project>
