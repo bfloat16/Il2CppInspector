@@ -35,6 +35,8 @@ namespace Il2CppInspector.Cpp
         // The alignment of the type
         public int AlignmentBytes { get; set; }
 
+        public virtual int Alignment => AlignmentBytes > 0 ? AlignmentBytes : Math.Max(1, Math.Min(8, SizeBytes));
+
         // The size of the C++ type in bytes
         public virtual int SizeBytes => (Size / 8) + (Size % 8 > 0 ? 1 : 0);
 
@@ -54,12 +56,14 @@ namespace Il2CppInspector.Cpp
         // Generate typedef to this type
         public CppAlias AsAlias(string Name) => new(Name, this);
 
+        public CppConstType AsConst() => new(this);
+
         // Return the type as a field
         public virtual string ToFieldString(string fieldName, string format = "") => Name + " " + fieldName;
 
         public virtual string ToString(string format = "") => format == "o" ? $"/* {SizeBytes:x2} - {Name} */" : "";
 
-        public override string ToString() => ToString();
+        public override string ToString() => ToString("");
     }
 
     // A pointer type
@@ -86,6 +90,8 @@ namespace Il2CppInspector.Cpp
         public int Length { get; }
 
         public CppType ElementType { get; }
+
+        public override int Alignment => Math.Max(AlignmentBytes, ElementType.Alignment);
 
         // Even an array of 1-bit bitfields must use at least 1 byte each
         public override int Size => SizeBytes * 8;
@@ -115,7 +121,7 @@ namespace Il2CppInspector.Cpp
         public List<(string Name, CppType Type)> Arguments { get; }
 
         // Regex which matches a function pointer
-        public const string Regex = @"(\S+)\s*\(\s*\*\s*(\S+?)\s*?\)\s*\(\s*(.*)\s*\)";
+        public const string Regex = @"((?:(?:const|volatile|unsigned|signed)\s+)*(?:long\s+)?\S+)\s*\(\s*\*\s*(\S+?)\s*?\)\s*\(\s*(.*)\s*\)";
 
         public CppFnPtrType(int WordSize, CppType returnType, List<(string Name, CppType Type)> arguments)
             : base(null, WordSize)
@@ -178,7 +184,7 @@ namespace Il2CppInspector.Cpp
                 }
 
                 // Function with no arguments ie. (*foo)()
-                if (argument.Length > 1)
+                if (argument.Length > 1 && argument[..^1].Trim() != "void")
                 {
                     arguments.Add(argument[..^1].Trim());
                 }
@@ -237,10 +243,36 @@ namespace Il2CppInspector.Cpp
 
         public override int SizeBytes => ElementType.SizeBytes;
 
+        public override int Alignment => Math.Max(AlignmentBytes, ElementType.Alignment);
+
         public CppAlias(string name, CppType elementType)
             : base(name) => ElementType = elementType;
 
         public override string ToString(string format = "") => $"typedef {ElementType.ToFieldString(Name)};";
+    }
+
+    public sealed class CppConstType(CppType elementType) : CppType
+    {
+        public CppType ElementType { get; } = elementType;
+        public override string Name => ElementType is CppPointerType or CppFnPtrType ? ElementType.Name + " const" : "const " + ElementType.Name;
+        public override int Size => ElementType.Size;
+        public override int SizeBytes => ElementType.SizeBytes;
+        public override int Alignment => ElementType.Alignment;
+
+        public override string ToFieldString(string fieldName, string format = "") =>
+            ElementType is CppPointerType or CppFnPtrType ? ElementType.ToFieldString("const " + fieldName, format) : "const " + ElementType.ToFieldString(fieldName, format);
+    }
+
+    public sealed class CppVolatileType(CppType elementType) : CppType
+    {
+        public CppType ElementType { get; } = elementType;
+        public override string Name => ElementType is CppPointerType or CppFnPtrType ? ElementType.Name + " volatile" : "volatile " + ElementType.Name;
+        public override int Size => ElementType.Size;
+        public override int SizeBytes => ElementType.SizeBytes;
+        public override int Alignment => ElementType.Alignment;
+
+        public override string ToFieldString(string fieldName, string format = "") =>
+            ElementType is CppPointerType or CppFnPtrType ? ElementType.ToFieldString("volatile " + fieldName, format) : "volatile " + ElementType.ToFieldString(fieldName, format);
     }
 
     // A struct, union, enum or class type (type with fields)
@@ -331,6 +363,33 @@ namespace Il2CppInspector.Cpp
         // Unions and bitfields can have more than one field at the same offset
         public virtual SortedDictionary<int, List<CppField>> Fields { get; internal set; } = [];
 
+        private int alignmentFieldCount = -1;
+        private int fieldAlignment = 1;
+        public override int Alignment
+        {
+            get
+            {
+                if (alignmentFieldCount != Fields.Count)
+                {
+                    fieldAlignment = Fields.Values.SelectMany(f => f).Select(f => f.Type.Alignment).DefaultIfEmpty(1).Max();
+                    alignmentFieldCount = Fields.Count;
+                }
+                return Math.Max(AlignmentBytes, fieldAlignment);
+            }
+        }
+
+        public override int SizeBytes
+        {
+            get
+            {
+                var bytes = base.SizeBytes;
+                if (bytes == 0)
+                    return 0;
+                var alignment = Alignment;
+                return checked((bytes + alignment - 1) / alignment * alignment);
+            }
+        }
+
         public CppComplexType(ComplexValueType complexValueType)
             : base("", 0)
         {
@@ -344,6 +403,8 @@ namespace Il2CppInspector.Cpp
         // Lazy layouts may discard generated fields after a streaming consumer finishes.
         public virtual void ReleaseTransientFields() { }
 
+        public virtual bool CCompatibleEnumFields => true;
+
         // Add a field to the type. Returns the offset of the field in the type
         public int AddField(CppField field, int alignmentBytes = 0)
         {
@@ -355,47 +416,31 @@ namespace Il2CppInspector.Cpp
             if (field.BitfieldSize == 0 && field.Offset % 8 != 0)
                 field.Offset = (field.Offset / 8) * 8 + 8;
 
-            // A 2, 4 or 8-byte value etc. must be aligned on an equivalent boundary
-            // The same goes for the first entry in a struct, union or array
-            // This block searches depth-first for the first field or element in any child types to find the required alignment boundary
-            // https://en.wikipedia.org/wiki/Data_structure_alignment
-            if (field.BitfieldSize == 0)
+            if (field.BitfieldSize > 0 && ComplexValueType == ComplexValueType.Struct)
             {
-                var firstSimpleType = field.Type;
-                var foundType = false;
-                while (!foundType)
-                {
-                    var simpleType = firstSimpleType switch
-                    {
-                        CppAlias alias => alias.ElementType,
-                        CppComplexType { ComplexValueType: ComplexValueType.Struct } complex => complex.Fields.FirstOrDefault().Value?.First().Type,
-                        CppArrayType array => array.ElementType,
-                        _ => firstSimpleType,
-                    };
-                    if (simpleType == firstSimpleType)
-                        foundType = true;
-                    firstSimpleType = simpleType;
-                }
-
-                // Empty classes shall always have sizeof() >= 1 and alignment doesn't matter
-                // Empty classes will be returned as null by the above code (complex? null conditional operator)
-                // https://www.stroustrup.com/bs_faq2.html#sizeof-empty
-                if (firstSimpleType != null)
-                    if (field.OffsetBytes % firstSimpleType.SizeBytes != 0)
-                        field.Offset += (firstSimpleType.SizeBytes - field.OffsetBytes % firstSimpleType.SizeBytes) * 8;
+                int storageBits = checked(field.Type.SizeBytes * 8);
+                if (field.BitfieldSize > storageBits)
+                    throw new InvalidDataException("Bitfield exceeds its underlying storage type.");
+                if (field.Offset / storageBits != (field.Offset + field.BitfieldSize - 1) / storageBits)
+                    field.Offset = checked((field.Offset + storageBits - 1) / storageBits * storageBits);
             }
+
+            // Embedded aggregates use the maximum member alignment, not their first member.
+            var naturalAlignment = field.Type.Alignment;
+            if (field.BitfieldSize == 0 && field.OffsetBytes % naturalAlignment != 0)
+                field.Offset += (naturalAlignment - field.OffsetBytes % naturalAlignment) * 8;
 
             // Respect alignment directives
             if (alignmentBytes > 0 && field.OffsetBytes % alignmentBytes != 0)
                 field.Offset += (alignmentBytes - field.OffsetBytes % alignmentBytes) * 8;
 
-            if (field.Type.AlignmentBytes > 0 && field.OffsetBytes % field.Type.AlignmentBytes != 0)
-                field.Offset += (field.Type.AlignmentBytes - field.OffsetBytes % field.Type.AlignmentBytes) * 8;
-
             if (Fields.ContainsKey(field.Offset))
                 Fields[field.Offset].Add(field);
             else
                 Fields.Add(field.Offset, [field]);
+            fieldAlignment = Math.Max(fieldAlignment, Math.Max(naturalAlignment, alignmentBytes));
+            alignmentFieldCount = Fields.Count;
+            flattenedFields = null;
 
             // Update type size. This lazy evaluation only works if there are no value type forward declarations in the type
             // Union size is the size of the largest element in the union
@@ -467,14 +512,32 @@ namespace Il2CppInspector.Cpp
     public class CppEnumType : CppComplexType
     {
         // The underlying type of the enum
-        public CppType UnderlyingType { get; }
+        public CppType UnderlyingType { get; private set; }
+        internal bool InferUnderlyingType { get; set; }
+        private decimal minValue;
+        private decimal maxValue;
 
         public override int Size => UnderlyingType.Size;
+
+        public override int Alignment => Math.Max(AlignmentBytes, UnderlyingType.Alignment);
 
         public CppEnumType(CppType underlyingType)
             : base(ComplexValueType.Enum) => UnderlyingType = underlyingType;
 
-        public void AddField(string name, object value) => AddField(new CppEnumField(this, name, UnderlyingType, value));
+        public void AddField(string name, object value)
+        {
+            if (InferUnderlyingType)
+            {
+                var number = Convert.ToDecimal(value);
+                minValue = Math.Min(minValue, number);
+                maxValue = Math.Max(maxValue, number);
+                UnderlyingType =
+                    minValue >= 0 && maxValue > int.MaxValue && maxValue <= uint.MaxValue ? new CppType("uint32_t", 32)
+                    : minValue < int.MinValue || maxValue > uint.MaxValue || (minValue < 0 && maxValue > int.MaxValue) ? new CppType(minValue < 0 ? "int64_t" : "uint64_t", 64)
+                    : new CppType("int32_t", 32);
+            }
+            AddField(new CppEnumField(this, name, UnderlyingType, value));
+        }
 
         // Return the type as a field
         public override string ToFieldString(string fieldName, string format = "")
@@ -495,7 +558,7 @@ namespace Il2CppInspector.Cpp
 
             // Don't output " : {underlyingType.Name}" because it breaks C
             if (format.Contains('c'))
-                sb.Append($"enum {Name} {{");
+                sb.Append($"enum {Name}" + (format.Contains('b') ? $" : {UnderlyingType.Name}" : "") + " {");
             else
                 sb.Append($"enum class {Name} : {UnderlyingType.Name} {{");
 

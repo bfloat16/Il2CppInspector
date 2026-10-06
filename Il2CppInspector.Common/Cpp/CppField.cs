@@ -28,7 +28,7 @@ namespace Il2CppInspector.Cpp
         public int OffsetBytes => Offset / 8;
 
         // The size of the field
-        public int Size => (BitfieldSize > 0 ? BitfieldSize : Type.Size);
+        public int Size => (BitfieldSize > 0 ? BitfieldSize : checked(Type.SizeBytes * 8));
 
         public int SizeBytes => (Size / 8) + (Size % 8 > 0 ? 1 : 0);
 
@@ -85,6 +85,8 @@ namespace Il2CppInspector.Cpp
         // The value of this key name
         public object Value { get; }
 
+        public string CName => DeclaringType.Name + "_" + Name;
+
         public CppEnumField(CppEnumType declType, string name, CppType type, object value)
             : base(name, type) => (DeclaringType, Value) = (declType, value);
 
@@ -97,7 +99,7 @@ namespace Il2CppInspector.Cpp
             // Signed number with top bit set (only perform cast if underlying type is signed)
             var fieldIsNegative = signed && ((long)Convert.ChangeType(Value, typeof(long))) < 0;
 
-            var fieldName = (format.Contains('c') ? DeclaringType.Name + "_" : "") + Name;
+            var fieldName = format.Contains('c') ? CName : Name;
 
             if (fieldIsNegative)
                 return $"{fieldName} = {Value}";

@@ -618,6 +618,9 @@ namespace Il2CppInspector.Model
 
         private sealed class DeferredStruct(int bytes, Action<CppComplexType> fill) : CppComplexType(ComplexValueType.Struct)
         {
+            // Deferred layouts have explicit offsets and are emitted with pack(1).
+            public override int Alignment => Math.Max(1, AlignmentBytes);
+            public override bool CCompatibleEnumFields => false;
             private bool initialized;
             private int? releasedSize;
             public override int Size

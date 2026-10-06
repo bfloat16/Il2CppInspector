@@ -22,6 +22,8 @@ public class CppDeclarationGenerator
 
     // Word size (32/64-bit) for this generator
     public int WordSize => appModel.WordSizeBits;
+    internal string Architecture => appModel.Image.Arch;
+    internal bool WindowsAbi => appModel.Image.Format.StartsWith("PE", StringComparison.Ordinal);
 
     // Version number and header file to generate structures for
     public UnityVersion UnityVersion => appModel.UnityVersion;

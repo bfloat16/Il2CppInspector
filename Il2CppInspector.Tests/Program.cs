@@ -18,6 +18,9 @@ namespace Il2CppInspector.Tests
 
             switch (args[0])
             {
+                case "--cpp-layout":
+                    Common.Cpp.CppTypeTests.Run(args.Length > 1 ? args[1] : null);
+                    break;
                 case "--pdb-fixture":
                     RequireArguments(args, 2);
                     Common.Outputs.PdbOutputTests.Run(args[1], args.Length > 2 ? args[2] : null);

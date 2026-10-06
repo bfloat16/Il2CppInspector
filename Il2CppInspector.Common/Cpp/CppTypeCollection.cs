@@ -64,15 +64,26 @@ namespace Il2CppInspector.Cpp
         ];
 
         public CppTypeCollection(int wordSize)
+            : this(wordSize, 8, wordSize) { }
+
+        private CppTypeCollection(int wordSize, int scalarAlignmentLimit, int longSize)
         {
             if (wordSize != 32 && wordSize != 64)
                 throw new ArgumentOutOfRangeException("Architecture word size must be 32 or 64-bit to generate C++ data");
 
             WordSize = wordSize;
-            Types = primitiveTypes.ToDictionary(t => t.Name, t => t);
+            Types = primitiveTypes.ToDictionary(t => t.Name, t => new CppType(t.Name, t.Size, Math.Min(scalarAlignmentLimit, Math.Max(1, t.SizeBytes))));
 
             // This is all compiler-dependent, let's hope for the best!
-            Add(new CppType("long", WordSize));
+            Add(new CppType("long", longSize));
+            Add(new CppType("unsigned int", 32));
+            Add(new CppType("short", 16));
+            Add(new CppType("unsigned short", 16));
+            Add(new CppType("signed char", 8));
+            Add(new CppType("unsigned char", 8));
+            Add(new CppType("unsigned long", longSize));
+            Add(new CppType("long long", 64, scalarAlignmentLimit));
+            Add(new CppType("unsigned long long", 64, scalarAlignmentLimit));
             Add(new CppType("intptr_t", WordSize));
             Add(new CppType("uintptr_t", WordSize));
             Add(new CppType("size_t", WordSize));
@@ -88,15 +99,13 @@ namespace Il2CppInspector.Cpp
             using StringReader lines = new(text);
 
             var rgxForwardDecl = new Regex(@"(struct|union)\s+(\S+);");
-            var rgxTypedefAlias = new Regex(@"typedef\s+(?:(struct|union)\s+)?(\S+)\s+(\S+);");
+            var rgxTypedefAlias = new Regex(@"typedef\s+(?:(struct|union)\s+)?((?:(?:const|volatile|unsigned|signed|struct|union)\s+)*(?:long\s+)?\S+(?:\s*\*)?)\s+(\S+);");
             var rgxTypedefFnPtr = new Regex(@"typedef\s+(?:struct\s+)?" + CppFnPtrType.Regex + ";");
             var rgxDefinition = new Regex(@"^(typedef\s+)?(struct|union|enum)");
             var rgxFieldFnPtr = new Regex(CppFnPtrType.Regex + @";");
-            var rgxField = new Regex(@"^(?:struct\s+|enum\s+)?(\S+?\s*\**)\s*((?:\S|\s*,\s*)+)(?:\s*:\s*([0-9]+))?;");
+            var rgxField = new Regex(@"^((?:(?:const|volatile|unsigned|signed|struct|enum)\s+)*(?:long\s+)?\S+?\s*(?:\*\s*(?:(?:const|volatile)\s*)?)*)\s*((?:\S|\s*,\s*)+)(?:\s*:\s*([0-9]+))?;");
             var rgxEnumValue = new Regex(@"^\s*([A-Za-z0-9_]+)(?:\s*=\s*(.+?))?,?\s*$");
-            var rgxIsConst = new Regex(@"\bconst\b");
 
-            var rgxStripKeywords = new Regex(@"\b(?:const|unsigned|volatile)\b");
             var rgxCompressPtrs = new Regex(@"\*\s+\*");
 
             var rgxArrayField = new Regex(@"(\S+?)\[([0-9]+)\]");
@@ -173,9 +182,6 @@ namespace Il2CppInspector.Cpp
                     Debug.WriteLine($"[METHOD START ] {line}");
                     continue;
                 }
-
-                // Remove keywords we don't care about
-                line = rgxStripKeywords.Replace(line, "");
 
                 // Remove whitespace in multiple indirections
                 line = rgxCompressPtrs.Replace(line, "**");
@@ -429,7 +435,6 @@ namespace Il2CppInspector.Cpp
                 {
                     var names = field.Groups[2].Captures[0].ToString();
                     var typeName = field.Groups[1].Captures[0].ToString().Trim();
-                    var isConst = rgxIsConst.Match(rawLine).Success;
 
                     // Multiple fields can be separated by commas
                     foreach (var fieldName in names.Split(','))
@@ -458,7 +463,7 @@ namespace Il2CppInspector.Cpp
                         if (arraySize > 0)
                             type = type.AsArray(arraySize);
 
-                        ct.AddField(name, type, alignment, bitfield, isConst);
+                        ct.AddField(name, type, alignment, bitfield);
 
                         if (bitfield == 0)
                         {
@@ -525,9 +530,11 @@ namespace Il2CppInspector.Cpp
         public CppType GetType(string typeName, bool returnUnaliased = false)
         {
             // Separate type name from pointers
-            var baseName = typeName.Replace("*", "");
-            var indirectionCount = typeName.Length - baseName.Length;
-            baseName = baseName.Trim();
+            var parts = typeName.Split('*');
+            bool baseConst = Regex.IsMatch(parts[0], @"\bconst\b");
+            bool baseVolatile = Regex.IsMatch(parts[0], @"\bvolatile\b");
+            var baseName = Regex.Replace(parts[0], @"\b(?:const|volatile|struct|union|enum)\b", "").Trim();
+            baseName = Regex.Replace(baseName, @"\s+", " ");
 
             CppType type;
 
@@ -548,8 +555,18 @@ namespace Il2CppInspector.Cpp
             }
 
             // Resolve pointer indirections
-            for (int i = 0; i < indirectionCount; i++)
+            if (baseConst)
+                type = type.AsConst();
+            if (baseVolatile)
+                type = new CppVolatileType(type);
+            for (int i = 1; i < parts.Length; i++)
+            {
                 type = type.AsPointer(WordSize);
+                if (Regex.IsMatch(parts[i], @"\bconst\b"))
+                    type = type.AsConst();
+                if (Regex.IsMatch(parts[i], @"\bvolatile\b"))
+                    type = new CppVolatileType(type);
+            }
 
             return type;
         }
@@ -622,8 +639,13 @@ namespace Il2CppInspector.Cpp
             return type;
         }
 
-        // Create an empty enum with the default underlying type for the architecture (32 or 64-bit)
-        public CppEnumType NewDefaultEnum(string name = "") => Enum(Types["long"], name);
+        // C++ unscoped enums without a wider value use int, including on 64-bit targets.
+        public CppEnumType NewDefaultEnum(string name = "")
+        {
+            var type = Enum(Types["int32_t"], name);
+            type.InferUnderlyingType = true;
+            return type;
+        }
 
         // Generate a populated CppTypeCollection object from a set of Unity headers
         // The CppDeclarationGenerator is used to ensure that the Unity header type names are not used again afterwards
@@ -634,7 +656,8 @@ namespace Il2CppInspector.Cpp
         public static CppTypeCollection FromUnityHeaders(UnityHeaders.UnityHeaders header, CppDeclarationGenerator declGen = null)
         {
             var wordSize = declGen?.WordSize ?? 64;
-            var cppTypes = new CppTypeCollection(wordSize);
+            var alignmentLimit = declGen is { Architecture: "x86", InheritanceStyle: CppCompilerType.GCC } ? 4 : 8;
+            var cppTypes = new CppTypeCollection(wordSize, alignmentLimit, declGen?.WindowsAbi == true ? 32 : wordSize);
 
             // Process Unity headers
             cppTypes.SetGroup("il2cpp");
