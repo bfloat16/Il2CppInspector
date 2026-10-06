@@ -203,71 +203,6 @@ namespace Il2CppInspector.CLI
         }
     }
 
-    internal static class ProgressBar
-    {
-        private static int _lastLineLen;
-
-        public static void Update(string message)
-        {
-            string line = $"\r  {message}";
-            int pad = Math.Max(0, _lastLineLen - line.Length);
-            Console.Write(line + new string(' ', pad));
-            _lastLineLen = line.Length;
-        }
-
-        public static void Update(string label, int current, int total)
-        {
-            int pct = total > 0 ? current * 100 / total : 0;
-            int barLen = 30;
-            int filled = total > 0 ? current * barLen / total : 0;
-            string bar = new string('#', filled) + new string('-', barLen - filled);
-            Update($"{label} [{bar}] {pct}% ({current}/{total})");
-        }
-
-        public static void Done(string message = null)
-        {
-            if (message != null)
-            {
-                Update(message);
-            }
-
-            Console.WriteLine();
-            _lastLineLen = 0;
-        }
-
-        public static void RunWithSpinner(string label, Action action)
-        {
-            char[] spinChars = ['|', '/', '-', '\\'];
-            int spinIdx = 0;
-            Stopwatch sw = Stopwatch.StartNew();
-            bool done = false;
-
-            Thread spinThread = new(() =>
-            {
-                while (!Volatile.Read(ref done))
-                {
-                    Update($"{label} {spinChars[spinIdx++ % spinChars.Length]} ({sw.Elapsed.TotalSeconds:F1}s)");
-                    Thread.Sleep(100);
-                }
-            })
-            {
-                IsBackground = true,
-            };
-            spinThread.Start();
-
-            try
-            {
-                action();
-            }
-            finally
-            {
-                Volatile.Write(ref done, true);
-                spinThread.Join();
-                Done($"{label} done ({sw.Elapsed.TotalSeconds:F1}s)");
-            }
-        }
-    }
-
     internal static class Program
     {
         private static void Main(string[] args)
@@ -529,7 +464,12 @@ Output structure:
                 return;
             }
 
-            LoadOptions loadOptions = new() { StartupMetadataPath = options.StartupMetadataFile, Game = options.Game };
+            LoadOptions loadOptions = new()
+            {
+                StartupMetadataPath = options.StartupMetadataFile,
+                Game = options.Game,
+                ProgressCallback = ProgressBar.Update,
+            };
 
             if (!string.IsNullOrEmpty(options.ImageBase))
             {
@@ -563,10 +503,11 @@ Output structure:
             List<Inspector> il2cppList;
             try
             {
-                il2cppList = Inspector.LoadFromFile(options.BinaryFile, options.MetadataFile, loadOptions, (_, msg) => Console.WriteLine($"  {msg}"));
+                il2cppList = Inspector.LoadFromFile(options.BinaryFile, options.MetadataFile, loadOptions, (_, msg) => ProgressBar.WriteStatus(msg));
             }
             catch (Exception ex)
             {
+                ProgressBar.Fail();
                 Console.Error.WriteLine(ex.Message);
                 Environment.ExitCode = 1;
                 return;
@@ -602,54 +543,43 @@ Output structure:
                     Console.WriteLine($"=== Processing image {imageIndex} ===");
                 }
 
-                // Type model with spinner
                 TypeModel model = null;
-                ProgressBar.RunWithSpinner("Building type model...", () => model = new TypeModel(il2cpp));
+                ProgressBar.Run("Building type model", progress => model = new TypeModel(il2cpp, progress));
 
                 // DummyDll with per-assembly progress
                 string dllOut = Path.Combine(output, "DummyDll");
                 Console.WriteLine($"Generating DummyDlls -> {dllOut}");
-                int asmCount = model.Assemblies.Count;
-                int dllStep = 0;
-                new AssemblyShims(model).Write(
-                    dllOut,
-                    (_, msg) =>
-                    {
-                        dllStep++;
-                        ProgressBar.Update("DummyDll", dllStep, asmCount * 3);
-                    }
-                );
-                ProgressBar.Done();
+                ProgressBar.Run("Generating DummyDlls", progress => new AssemblyShims(model) { ProgressCallback = progress }.Write(dllOut));
 
                 // C# stubs with spinner
                 if (il2cpp.Metadata.GamePlugin?.StreamExports == true)
                 {
                     string csOut = Path.Combine(output, "dump.cs");
-                    ProgressBar.RunWithSpinner($"Generating C# stubs -> {csOut}", () => new CSharpCodeStubs(model).WriteSingleFile(csOut));
+                    ProgressBar.Run($"Generating C# stubs -> {csOut}", () => new CSharpCodeStubs(model).WriteSingleFile(csOut));
                 }
                 else
                 {
                     string csOut = Path.Combine(output, "CS");
-                    ProgressBar.RunWithSpinner($"Generating C# stubs -> {csOut}", () => new CSharpCodeStubs(model).WriteFilesByClassTree(csOut, false));
+                    ProgressBar.Run($"Generating C# stubs -> {csOut}", () => new CSharpCodeStubs(model).WriteFilesByClassTree(csOut, false));
                 }
 
                 if (options.Targets.Count > 0 || il2cpp.Metadata.GamePlugin?.StreamExports == true)
                 {
                     AppModel appModel = null;
                     var targetUnity = unityVersion ?? il2cpp.Metadata.GamePlugin?.DefaultUnityVersion;
-                    ProgressBar.RunWithSpinner("Building application model...", () => appModel = new AppModel(model, false).Build(targetUnity));
+                    ProgressBar.Run("Building application model...", () => appModel = new AppModel(model, false).Build(targetUnity));
 
                     var scriptTargets = options.Targets.Where(t => t != "PDB").ToArray();
                     if (scriptTargets.Length > 0 || options.Targets.Count == 0)
                     {
                         var header = Path.Combine(output, "il2cpp.h");
                         var json = Path.Combine(output, "il2cpp.json");
-                        ProgressBar.RunWithSpinner("Generating C++ types...", () => new CppScaffolding(appModel, useBetterArraySize: true).WriteTypes(header));
-                        ProgressBar.RunWithSpinner("Generating JSON metadata...", () => new JSONMetadata(appModel).Write(json));
+                        ProgressBar.Run("Generating C++ types...", () => new CppScaffolding(appModel, useBetterArraySize: true).WriteTypes(header));
+                        ProgressBar.Run("Generating JSON metadata...", () => new JSONMetadata(appModel).Write(json));
                         foreach (var target in scriptTargets)
                         {
                             var pyOut = Path.Combine(output, scriptTargets.Length == 1 ? "il2cpp.py" : $"il2cpp-{target}.py");
-                            ProgressBar.RunWithSpinner($"Generating {target} Python script -> {pyOut}", () => new PythonScript(appModel).WriteScriptToFile(pyOut, target, header, json));
+                            ProgressBar.Run($"Generating {target} Python script -> {pyOut}", () => new PythonScript(appModel).WriteScriptToFile(pyOut, target, header, json));
                         }
                     }
 
@@ -658,7 +588,7 @@ Output structure:
                     {
                         var pdbOut = Path.Combine(output, Path.GetFileNameWithoutExtension(options.BinaryFile) + ".pdb");
                         PdbOutputResult pdb = null;
-                        ProgressBar.RunWithSpinner($"Generating PDB -> {pdbOut}", () => pdb = new PdbOutput(appModel).Write(pdbOut));
+                        ProgressBar.Run($"Generating PDB -> {pdbOut}", () => pdb = new PdbOutput(appModel).Write(pdbOut));
                         Console.WriteLine($"PDB: {pdb.Functions} functions, {pdb.TypedFunctions} typed, {pdb.TypeRecords} type records.");
                         if (!pdb.HasCodeView)
                             Console.WriteLine("PE has no RSDS record; load the generated PDB manually in the debugger.");

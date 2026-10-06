@@ -313,13 +313,14 @@ namespace Il2CppInspector
             var relsz = (uint)Sizeof(typeof(TSym));
 
             var currentRel = 0;
-            var totalRel = rels.Count();
+            var totalRel = rels.Count;
+            ReportRelocations(0);
 
             foreach (var rel in rels)
             {
+                if (currentRel != 0 && currentRel % 1000 == 0)
+                    ReportRelocations(currentRel);
                 currentRel++;
-                if (currentRel % 1000 == 0)
-                    StatusUpdate($"Processing relocations ({currentRel * 100 / totalRel:F0}%)");
 
                 TWord symValue;
 
@@ -389,7 +390,16 @@ namespace Il2CppInspector
                     WriteWord(result.newValue);
                 }
             }
-            Console.WriteLine($"Processed {rels.Count} relocations");
+            ReportRelocations(totalRel);
+            StatusUpdate($"Processed {totalRel} relocations");
+
+            void ReportRelocations(int completed)
+            {
+                if (LoadOptions?.ProgressCallback is { } progress)
+                    progress(new OperationProgress("Processing relocations", completed, totalRel));
+                else
+                    StatusUpdate($"Processing relocations ({(totalRel > 0 ? completed * 100L / totalRel : 100)}%)");
+            }
 
             // Build symbol and export tables
             processSymbols();

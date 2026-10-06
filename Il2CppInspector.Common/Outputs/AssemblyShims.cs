@@ -701,9 +701,15 @@ namespace Il2CppInspector.Outputs
             return genericInstSig;
         }
 
+        public Action<OperationProgress> ProgressCallback { get; set; }
+
         // Generate and save all DLLs
         public void Write(string outputPath, EventHandler<string> statusCallback = null)
         {
+            long completed = 0;
+            long total = model.Assemblies.Count * (model.Package.Metadata.HasGameAdapter ? 1L : 3L);
+            void Report(string detail) => ProgressCallback?.Invoke(new OperationProgress("Generating DummyDlls", completed, total, detail));
+            Report("Preparing assemblies");
             // Create folder for DLLs
             Directory.CreateDirectory(outputPath);
 
@@ -716,7 +722,21 @@ namespace Il2CppInspector.Outputs
                     using var support = CreateBaseAssembly();
                     support.Write(Path.Combine(outputPath, support.Name));
                 }
-                model.Package.Metadata.GamePlugin.WriteAssemblies(model, outputPath, SuppressMetadata, statusCallback);
+                long started = 0;
+                model.Package.Metadata.GamePlugin.WriteAssemblies(
+                    model,
+                    outputPath,
+                    SuppressMetadata,
+                    (sender, message) =>
+                    {
+                        // Plugin status notifications precede each assembly write.
+                        completed = Math.Min(started++, Math.Max(0, total - 1));
+                        Report(message);
+                        statusCallback?.Invoke(sender, message);
+                    }
+                );
+                completed = total;
+                Report("Complete");
                 return;
             }
 
@@ -766,13 +786,17 @@ namespace Il2CppInspector.Outputs
             foreach (var asm in model.Assemblies)
             {
                 statusCallback?.Invoke(this, "Preparing " + asm.ShortName);
+                Report("Preparing " + asm.ShortName);
                 foreach (var type in asm.DefinedTypes.Where(t => !t.IsNested))
                     AddType(modules[asm], type);
+                completed++;
+                Report("Preparing " + asm.ShortName);
             }
 
             foreach (var asm in model.Assemblies)
             {
                 statusCallback?.Invoke(this, "Populating " + asm.ShortName);
+                Report("Populating " + asm.ShortName);
                 var module = modules[asm];
 
                 // Add assembly custom attribute attributes (must do this after all assemblies and types are created due to type referencing)
@@ -786,13 +810,18 @@ namespace Il2CppInspector.Outputs
                 if (types.TryGetValue(module, out var shallowTypes))
                     foreach (var (typeInfo, typeDef) in shallowTypes)
                         PopulateType(module, typeDef, typeInfo);
+                completed++;
+                Report("Populating " + asm.ShortName);
             }
 
             // Write all assemblies to disk
             foreach (var asm in modules.Values)
             {
                 statusCallback?.Invoke(this, "Generating " + asm.Name);
+                Report("Generating " + asm.Name);
                 asm.Write(Path.Combine(outputPath, asm.Name));
+                completed++;
+                Report("Generating " + asm.Name);
             }
 
             return;

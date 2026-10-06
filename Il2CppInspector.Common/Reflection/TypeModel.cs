@@ -118,7 +118,7 @@ namespace Il2CppInspector.Reflection
         }
 
         // Create type model
-        public TypeModel(Il2CppInspector package)
+        public TypeModel(Il2CppInspector package, Action<OperationProgress> progressCallback = null)
         {
             Package = package;
             TypesByDefinitionIndex = new TypeInfo[package.TypeDefinitions.Length];
@@ -127,32 +127,52 @@ namespace Il2CppInspector.Reflection
             MethodsByDefinitionIndex = new MethodBase[package.Methods.Length];
             methodInvokers = new MethodInvoker[package.MethodInvokePointers.Length];
 
+            var specs = package.Metadata.GamePlugin?.StreamExports == true ? [] : Package.MethodSpecs;
+            // Layouts, namespaces, seven attribute scans, two indexes, and completion.
+            long total = (long)package.Images.Length + package.TypeReferences.Length + specs.Length * 2L + package.Methods.Length + 12;
+            long completed = 0;
+            long lastReported = -1;
+            void Report(string detail, bool advance = true, bool force = false)
+            {
+                if (advance)
+                    completed++;
+                if (progressCallback != null && (force || completed - lastReported >= 1000 || completed == total))
+                {
+                    progressCallback(new OperationProgress("Building type model", completed, total, detail));
+                    lastReported = completed;
+                }
+            }
+            Report("Assemblies and type definitions", false, true);
+
             // Recursively create hierarchy of assemblies and types from TypeDefs
             // No code that executes here can access any type through a TypeRef (ie. via TypesByReferenceIndex)
             for (var image = 0; image < package.Images.Length; image++)
+            {
                 Assemblies.Add(new Assembly(this, image));
+                Report("Assemblies and type definitions", force: true);
+            }
 
             // Create and reference types from TypeRefs
             // Note that you can't resolve any TypeRefs until all the TypeDefs have been processed
+            Report("Type references", false, true);
             for (int typeRefIndex = 0; typeRefIndex < package.TypeReferences.Length; typeRefIndex++)
             {
-                if (TypesByReferenceIndex[typeRefIndex] != null)
+                if (TypesByReferenceIndex[typeRefIndex] == null)
                 {
-                    /* type already generated - probably by forward reference through GetTypeFromVirtualAddress */
-                    continue;
+                    var typeRef = Package.TypeReferences[typeRefIndex];
+                    var referencedType = resolveTypeReference(typeRef);
+                    TypesByReferenceIndex[typeRefIndex] = referencedType;
                 }
-
-                var typeRef = Package.TypeReferences[typeRefIndex];
-                var referencedType = resolveTypeReference(typeRef);
-
-                TypesByReferenceIndex[typeRefIndex] = referencedType;
+                Report("Type references");
             }
 
             if (package.Metadata.HasGameAdapter)
                 GameLayouts = package.Metadata.GamePlugin.CreateTypeLayouts(this);
+            Report("Type layouts", force: true);
 
             // Create types and methods from MethodSpec (which incorporates TypeSpec in IL2CPP)
-            foreach (var spec in package.Metadata.GamePlugin?.StreamExports == true ? [] : Package.MethodSpecs)
+            Report("Generic methods", false, true);
+            foreach (var spec in specs)
             {
                 var methodDefinition = MethodsByDefinitionIndex[spec.MethodDefinitionIndex];
                 var declaringType = methodDefinition.DeclaringType;
@@ -180,31 +200,44 @@ namespace Il2CppInspector.Reflection
                 }
                 method.VirtualAddress = Package.GetGenericMethodPointer(spec);
                 genericMethods[spec] = method;
+                Report("Generic methods");
             }
+            total -= specs.Length - genericMethods.Count;
 
             // Generate a list of all namespaces used
             Namespaces = Assemblies.SelectMany(x => x.DefinedTypes).GroupBy(t => t.Namespace).Select(n => n.Key).Distinct().ToList();
+            Report("Namespaces", force: true);
 
             // Find all custom attribute generators (populate AttributesByIndices) (use ToList() to force evaluation)
             var allAssemblyAttributes = Assemblies.Select(a => a.CustomAttributes).ToList();
+            Report("Assembly attributes", force: true);
             var definedTypes = TypesByDefinitionIndex.Where(t => t != null);
             var allTypeAttributes = definedTypes.Select(t => t.CustomAttributes).ToList();
+            Report("Type attributes", force: true);
             var allEventAttributes = definedTypes.SelectMany(t => t.DeclaredEvents).Select(e => e.CustomAttributes).ToList();
+            Report("Event attributes", force: true);
             var allFieldAttributes = definedTypes.SelectMany(t => t.DeclaredFields).Select(f => f.CustomAttributes).ToList();
+            Report("Field attributes", force: true);
             var allPropertyAttributes = definedTypes.SelectMany(t => t.DeclaredProperties).Select(p => p.CustomAttributes).ToList();
+            Report("Property attributes", force: true);
             var allMethodAttributes = MethodsByDefinitionIndex.Select(m => m.CustomAttributes).ToList();
+            Report("Method attributes", force: true);
             var allParameterAttributes = MethodsByDefinitionIndex.SelectMany(m => m.DeclaredParameters).Select(p => p.CustomAttributes).ToList();
+            Report("Parameter attributes", force: true);
 
             // Populate list of unique custom attribute generators for each type
             CustomAttributeGenerators = AttributesByIndices.Values.GroupBy(a => a.AttributeType).ToDictionary(g => g.Key, g => g.GroupBy(a => a.VirtualAddress.Start).Select(g => g.First()).ToList());
+            Report("Attribute generators", force: true);
 
             // Populate list of unique custom attribute generators for each address
             CustomAttributeGeneratorsByAddress = AttributesByIndices
                 .Values.GroupBy(a => a.VirtualAddress.Start)
                 .ToDictionary(g => g.Key, g => g.GroupBy(a => a.AttributeType).Select(g => g.First()).ToList());
+            Report("Attribute addresses", force: true);
 
             // Create method invokers (one per signature, in invoker index order)
             // Generic type definitions have an invoker index of -1
+            Report("Method invokers", false, true);
             foreach (var method in MethodsByDefinitionIndex)
             {
                 var index = package.GetInvokerIndex(method.DeclaringType.Assembly.ModuleDefinition, method.Definition);
@@ -213,9 +246,11 @@ namespace Il2CppInspector.Reflection
                     methodInvokers[index] ??= new MethodInvoker(method, index);
                     method.Invoker = methodInvokers[index];
                 }
+                Report("Method invokers");
             }
 
             // Create method invokers sourced from generic method invoker indices
+            Report("Generic method invokers", false, true);
             foreach (var spec in genericMethods.Keys)
             {
                 if (package.GenericMethodInvokerIndices.TryGetValue(spec, out var index))
@@ -226,7 +261,9 @@ namespace Il2CppInspector.Reflection
                         genericMethods[spec].Invoker = methodInvokers[index];
                     }
                 }
+                Report("Generic method invokers");
             }
+            Report("Complete", force: true);
         }
 
         public void ApplyNameTranslationFromFile(string nameTranslationMapPath)
