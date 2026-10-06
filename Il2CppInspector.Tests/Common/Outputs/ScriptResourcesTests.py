@@ -9,6 +9,7 @@ from unittest.mock import Mock
 ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = ROOT / "Il2CppInspector.Common/Outputs/ScriptResources"
 shared = (SCRIPTS / "shared_base.py").read_text(encoding="utf-8-sig")
+shared = shared.replace("%SUPPLEMENT_DEBUG_INFO%", "False")
 processor = (ROOT / "Il2CppInspector.Plugin/ZZZ/Outputs/RuntimeCaches.py").read_text()
 shared = shared.replace("        # %GAME_METADATA_PROCESSOR%", processor)
 BASE = {}
@@ -16,9 +17,10 @@ exec(compile(shared, "shared_base.py", "exec"), BASE)
 
 
 class Backend:
-    def __init__(self, enabled, fake):
+    def __init__(self, enabled, fake, supplement=False):
         self.apply_structures = enabled
         self.supports_fake_string_segment = fake
+        self.supplement_debug_info = supplement
         self.calls = []
 
     def __getattr__(self, name):
@@ -94,6 +96,47 @@ class ScriptResourcesTests(unittest.TestCase):
         context.process_metadata(metadata(legacy=True))
         self.assertIn("import_c_typedef", {name for name, _ in backend.calls})
 
+    def test_debug_supplement_does_not_touch_function_symbols(self):
+        for fake in (False, True):
+            with self.subTest(fake=fake):
+                backend = Backend(True, fake, supplement=True)
+                context = BASE["ScriptContext"](backend, Mock(spec=BASE["BaseStatusHandler"]))
+                context.process_metadata(metadata())
+                calls = {name for name, _ in backend.calls}
+                self.assertFalse(calls & {"define_function", "set_function_name", "set_function_type", "cache_function_types"})
+                self.assertTrue({"set_data_name", "set_data_comment", "add_cross_reference", "set_data_type", "define_data_array"} <= calls)
+                if fake:
+                    self.assertTrue({"create_fake_segment", "write_string", "write_address"} <= calls)
+
+    def test_debug_supplement_accepts_minimal_json_and_empty_strings(self):
+        supplemental = metadata()
+        for key in ("methodDefinitions", "constructedGenericMethods", "customAttributesGenerators", "methodInvokers", "functionAddresses", "functionMetadata", "apis"):
+            del supplemental[key]
+        supplemental["stringLiterals"] = []
+        backend = Backend(True, False, supplement=True)
+        BASE["ScriptContext"](backend, Mock(spec=BASE["BaseStatusHandler"])).process_metadata(supplemental)
+        self.assertIn("add_cross_reference", {name for name, _ in backend.calls})
+
+    def test_ida_debug_supplement_reuses_types_without_loading_header(self):
+        ida = Mock(INFFL_AUTO=1, DEMNAM_GCC3=1, DEMNAM_NAME=2)
+        ida.inf_get_genflags.return_value = 1
+        typeinfo, clang, segment = Mock(), Mock(), Mock()
+        typeinfo.idc_parse_decl.return_value = (0, b"type", b"fields")
+        segment.get_segm_by_name.return_value = None
+        namespace = target_classes("IDA", ida_ida=ida, ida_typeinf=typeinfo, ida_srclang=clang,
+                                   ida_segment=segment, IDACLANG_AVAILABLE=True, FOLDERS_AVAILABLE=False,
+                                   DEFAULT_TIL=None, TINFO_DEFINITE=1)
+        backend = namespace["IDADisassemblerInterface"](Mock(spec=BASE["BaseStatusHandler"]))
+        backend.supplement_debug_info = True
+        backend.on_start()
+        typeinfo.del_til.assert_not_called()
+        typeinfo.idc_parse_types.assert_not_called()
+        clang.parse_decls_with_parser.assert_not_called()
+        backend.set_data_type(0x1000, "struct Type *")
+        typeinfo.idc_parse_decl.assert_called_once()
+        typeinfo.apply_type.assert_called_once()
+        backend.on_finish()
+
     def test_ida_disabled_does_not_touch_type_libraries_or_parse_header(self):
         ida = Mock(INFFL_AUTO=1, DEMNAM_GCC3=1, DEMNAM_NAME=2)
         ida.inf_get_genflags.return_value = 1
@@ -137,6 +180,40 @@ class ScriptResourcesTests(unittest.TestCase):
         backend.on_start()
         get_types.assert_not_called()
         self.assertIs(backend.xrefs, program.getReferenceManager.return_value)
+
+    def test_binary_ninja_debug_supplement_reuses_loaded_types(self):
+        view = Mock(address_size=8, endianness="little")
+        view.get_data_var_at.return_value = None
+        parser, pointers = Mock(), Mock()
+        namespace = target_classes("BinaryNinja", bv=view, Endianness=types.SimpleNamespace(LittleEndian="little"),
+                                   open=Mock(side_effect=AssertionError("Header was opened")), TypeParser=parser, PointerType=pointers,
+                                   Symbol=lambda *args: args, SymbolType=types.SimpleNamespace(DataSymbol="data"))
+        backend = namespace["BinaryNinjaDisassemblerInterface"](Mock(spec=BASE["BaseStatusHandler"]))
+        backend.supplement_debug_info = True
+        backend.on_start()
+        parser.default.parse_types_from_source.assert_not_called()
+        view.define_user_types.assert_not_called()
+        backend.set_data_type(0x1000, "struct Type *")
+        view.get_type_by_name.assert_called_once_with("Type")
+        view.define_user_data_var.assert_called_once()
+        backend.set_data_name(0x1000, "field")
+        view.define_user_symbol.assert_called_once_with(("data", 0x1000, "field"))
+        backend.on_finish()
+
+    def test_ghidra_debug_supplement_uses_loaded_pointer_types_without_rebasing(self):
+        program = Mock()
+        program.getExecutableFormat.return_value = "Executable and Linking Format (ELF)"
+        get_types = Mock(return_value=["loaded-type"])
+        namespace = target_classes("Ghidra", currentProgram=program, getDataTypes=get_types, setAnalysisOption=Mock(),
+                                   PointerDataType=lambda base, manager: ("pointer", base), VoidDataType=types.SimpleNamespace(dataType="void"))
+        backend = namespace["GhidraDisassemblerInterface"].__new__(namespace["GhidraDisassemblerInterface"])
+        backend.supplement_debug_info = True
+        backend.on_start()
+        get_types.assert_not_called()
+        program.setImageBase.assert_not_called()
+        self.assertEqual(backend._get_data_type("struct Type **"), ("pointer", ("pointer", "loaded-type")))
+        get_types.assert_called_once_with("Type")
+        self.assertEqual(backend._get_data_type("void *"), ("pointer", "void"))
 
 
 if __name__ == "__main__":

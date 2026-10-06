@@ -5,7 +5,8 @@ namespace Il2CppInspector.Tests.CLI
         internal static void Run(string[] args)
         {
             var cli = Path.GetFullPath(args[1]);
-            Check(RunCli(cli, "ZZZ_CN_3.2.1").Contains("Available games: ZZZ_CN_3.2.0"), "Published CLI discovers game DLLs through the plugin loader library");
+            var available = RunCli(cli, "ZZZ_CN_3.2.1");
+            Check(available.Contains("Available games:") && available.Contains("ZZZ_CN_3.2.0"), "Published CLI discovers game DLLs through the plugin loader library");
             var isolated = Path.GetFullPath(args[2]);
             Directory.CreateDirectory(isolated);
             foreach (var file in Directory.EnumerateFiles(Path.GetDirectoryName(cli)))
@@ -16,7 +17,10 @@ namespace Il2CppInspector.Tests.CLI
                 }
             }
             var missing = RunCli(Path.Combine(isolated, Path.GetFileName(cli)), "ZZZ_CN_3.2.0");
-            Check(missing.Contains("No installed plugin supports ZZZ_CN_3.2.0") && !missing.Contains("Available games: ZZZ_CN_3.2.0"), "CLI without game DLLs reports the missing plugin clearly");
+            Check(
+                missing.Contains("No installed plugin supports ZZZ_CN_3.2.0") && missing.TrimEnd().EndsWith("Available games:", StringComparison.Ordinal),
+                "CLI without game DLLs reports the missing plugin clearly"
+            );
 
             static string RunCli(string cli, string gameId)
             {
@@ -34,7 +38,8 @@ namespace Il2CppInspector.Tests.CLI
                 var stdout = process.StandardOutput.ReadToEndAsync();
                 var stderr = process.StandardError.ReadToEndAsync();
                 process.WaitForExit();
-                Check(process.ExitCode == 1, "CLI rejects an unsupported game before opening input files");
+                if (process.ExitCode != 1)
+                    throw new InvalidOperationException($"CLI returned unexpected exit code {process.ExitCode}.");
                 return stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult();
             }
         }

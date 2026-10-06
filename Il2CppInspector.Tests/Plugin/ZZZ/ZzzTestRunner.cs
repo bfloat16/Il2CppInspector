@@ -8,6 +8,19 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ
             IL2CPP.ZenlessZoneZero.ZzzBinaryTests.Run(context);
             Reflection.ZzzReflectionTests.Run(context);
 
+            if (args.Contains("--debug-supplement"))
+            {
+                var app = new AppModel(context.Model, false).Build(new UnityVersion("2019.4.40f1"));
+                Outputs.ZzzPythonScriptTests.VerifyDebugSupplement(app, args[1]);
+                return;
+            }
+
+            if (args.Contains("--dwarf-only"))
+            {
+                Outputs.ZzzDwarfTests.Run(context, args[1]);
+                return;
+            }
+
             if (args.Contains("--native-profile"))
             {
                 Outputs.ZzzPdbTests.Profile(context, args[1], args.Contains("--with-pdb"));

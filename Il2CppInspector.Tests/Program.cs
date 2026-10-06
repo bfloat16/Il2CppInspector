@@ -12,7 +12,10 @@ namespace Il2CppInspector.Tests
                     "Usage: dotnet run --project Il2CppInspector.Tests -c Release -- "
                         + "<ZZZ Native directory> [output directory] [options], --plugins, "
                         + "--plugin-cli <CLI DLL> <isolated directory>, --assembly-resolution <ZZZ DummyDll directory>, "
-                        + "--pdb-fixture <output directory> [llvm-pdbutil], --cli-targets <CLI DLL>, or --stock <Unity player directory>."
+                        + "--pdb-fixture <output directory> [llvm-pdbutil] [idat], --dwarf-fixture <output directory> [readelf] [gdb] [idat] [llvm-symbolizer], "
+                        + "--tot-native <Native directory> <output directory>, "
+                        + "--dwarf-globals <Android sample directory> <output directory> [idat], "
+                        + "--debug-routing, --cli-targets <CLI DLL>, --progress [binary metadata output directory], or --stock <Unity player directory>."
                 );
             }
 
@@ -21,9 +24,33 @@ namespace Il2CppInspector.Tests
                 case "--cpp-layout":
                     Common.Cpp.CppTypeTests.Run(args.Length > 1 ? args[1] : null);
                     break;
+                case "--progress":
+                    ProgressBarTests.Run(args);
+                    break;
+                case "--debug-routing":
+                    Common.Outputs.DebugOutputTests.Run();
+                    break;
+                case "--tot-native":
+                    RequireArguments(args, 3);
+                    Plugin.TOT.TotNativeOutputTests.Run(args[1], args[2]);
+                    break;
+                case "--dwarf-fixture":
+                    RequireArguments(args, 2);
+                    Common.Outputs.DwarfOutputTests.Run(
+                        args[1],
+                        args.Length > 2 ? args[2] : null,
+                        args.Length > 3 ? args[3] : null,
+                        args.Length > 4 ? args[4] : null,
+                        args.Length > 5 ? args[5] : null
+                    );
+                    break;
+                case "--dwarf-globals":
+                    RequireArguments(args, 3);
+                    Common.Outputs.DwarfGlobalTests.Run(args[1], args[2], args.Length > 3 ? args[3] : null);
+                    break;
                 case "--pdb-fixture":
                     RequireArguments(args, 2);
-                    Common.Outputs.PdbOutputTests.Run(args[1], args.Length > 2 ? args[2] : null);
+                    Common.Outputs.PdbOutputTests.Run(args[1], args.Length > 2 ? args[2] : null, args.Length > 3 ? args[3] : null);
                     break;
                 case "--cli-targets":
                     RequireArguments(args, 2);
