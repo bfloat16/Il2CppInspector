@@ -31,6 +31,7 @@ class BaseStatusHandler(abc.ABC):
 class BaseDisassemblerInterface(abc.ABC):
     supports_fake_string_segment: bool = True
     apply_structures: bool = True
+    supplement_debug_info: bool = %SUPPLEMENT_DEBUG_INFO%
 
     @abc.abstractmethod
     def get_script_directory(self) -> str:
@@ -180,7 +181,7 @@ class ScriptContext:
         self._backend.set_data_name(addr, definition["name"])
         self._backend.set_data_comment(addr, definition["value"])
 
-    def process_metadata(self, metadata: dict):
+    def process_functions(self, metadata: dict):
         # Function boundaries
         function_addresses = metadata["functionAddresses"]
         function_addresses.sort()
@@ -248,8 +249,12 @@ class ScriptContext:
             self.define_cpp_function(d)
             self._status.update_progress()
 
+    def process_metadata(self, metadata: dict):
+        if not self._backend.supplement_debug_info:
+            self.process_functions(metadata)
+
         # String literals for version >= 19
-        if "virtualAddress" in metadata["stringLiterals"][0]:
+        if metadata["stringLiterals"] and "virtualAddress" in metadata["stringLiterals"][0]:
             self._status.update_step(
                 "Processing string literals (V19+)", len(metadata["stringLiterals"])
             )
@@ -290,7 +295,7 @@ class ScriptContext:
                     self._status.update_progress()
 
         # String literals for version < 19
-        elif self._backend.apply_structures:
+        elif metadata["stringLiterals"] and self._backend.apply_structures:
             self._status.update_step("Processing string literals (pre-V19)")
             litDecl = "enum StringLiteralIndex {\n"
             for d in metadata["stringLiterals"]:
@@ -352,11 +357,12 @@ class ScriptContext:
             self.define_field(d["virtualAddress"], d["name"], d["type"])
 
         # IL2CPP function metadata
-        self._status.update_step(
-            "Processing IL2CPP function metadata", len(metadata["functionMetadata"])
-        )
-        for d in metadata["functionMetadata"]:
-            self.define_cpp_function(d)
+        if not self._backend.supplement_debug_info:
+            self._status.update_step(
+                "Processing IL2CPP function metadata", len(metadata["functionMetadata"])
+            )
+            for d in metadata["functionMetadata"]:
+                self.define_cpp_function(d)
 
         # IL2CPP array metadata
         self._status.update_step(
@@ -366,13 +372,14 @@ class ScriptContext:
             self.define_array(d)
 
         # IL2CPP API functions
-        self._status.update_step(
-            "Processing IL2CPP API functions", len(metadata["apis"])
-        )
-        if self._backend.apply_structures:
-            self._backend.cache_function_types([x["signature"] for x in metadata["apis"]])
-        for d in metadata["apis"]:
-            self.define_cpp_function(d)
+        if not self._backend.supplement_debug_info:
+            self._status.update_step(
+                "Processing IL2CPP API functions", len(metadata["apis"])
+            )
+            if self._backend.apply_structures:
+                self._backend.cache_function_types([x["signature"] for x in metadata["apis"]])
+            for d in metadata["apis"]:
+                self.define_cpp_function(d)
 
     def process(self):
         self._status.initialize()

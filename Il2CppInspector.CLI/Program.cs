@@ -307,11 +307,11 @@ namespace Il2CppInspector.CLI
                             return null;
                         }
 
-                        var target = PythonScript.GetAvailableTargets().Append("PDB").FirstOrDefault(t => t.Equals(value, StringComparison.OrdinalIgnoreCase));
+                        var target = PythonScript.GetAvailableTargets().Append("Debug").FirstOrDefault(t => t.Equals(value, StringComparison.OrdinalIgnoreCase));
                         if (target == null)
                         {
                             Console.Error.WriteLine($"Unknown output target: {value}");
-                            Console.Error.WriteLine($"Available targets: {string.Join(", ", PythonScript.GetAvailableTargets().Append("PDB"))}");
+                            Console.Error.WriteLine($"Available targets: {string.Join(", ", PythonScript.GetAvailableTargets().Append("Debug"))}");
                             Environment.ExitCode = 1;
                             return null;
                         }
@@ -369,9 +369,11 @@ Options:
   -i, --bin <file>          IL2CPP binary file (required)
   -m, --metadata <file>     global-metadata.dat file (required)
   -o, --output <dir>        Output directory (default: output)
-  -t, --target <t>          Output target: IDA, BinaryNinja, Ghidra, PDB
-                            Repeat to select multiple targets: -t IDA -t PDB
-                            --script-target remains an alias; PDB requires x64 PE
+  -t, --target <t>          Output target: IDA, BinaryNinja, Ghidra, Debug
+                            Repeat to select multiple targets: -t IDA -t Debug
+                            --script-target remains an alias
+                            Debug: PE -> PDB (x64); ELF/Mach-O -> DWARF
+                            DWARF supports little-endian x86/x64/ARM/ARM64 images
       --startup-metadata <f> Plugin startup metadata (auto-detected beside metadata)
       --game <id>           Game plugin: NAME_REGION_VERSION (ZZZ_CN_3.2.0)
                             Auto-detect when omitted
@@ -386,7 +388,10 @@ Output structure:
   <output>/il2cpp-<t>.py    Python scripts (multiple script targets)
   <output>/il2cpp.h         Shared C++ type header for script targets
   <output>/il2cpp.json      Shared JSON metadata for script targets
-  <output>/<binary>.pdb    Native PDB symbols and types (with -t PDB)"
+  <output>/<binary>.pdb    Native PDB symbols and types (Debug on PE)
+  <output>/<input-name>    ELF/Mach-O binary with embedded DWARF symbols and types
+
+Disassembler targets with Debug emit only supplementary metadata, without a type header."
             );
         }
 
@@ -519,12 +524,7 @@ Output structure:
                 return;
             }
 
-            if (options.Targets.Contains("PDB") && il2cppList.Any(i => !PdbOutput.Supports(i.BinaryImage)))
-            {
-                Console.Error.WriteLine("PDB output requires an x64 PE binary.");
-                Environment.ExitCode = 1;
-                return;
-            }
+            var debugFormats = options.Targets.Contains("Debug") ? il2cppList.Select(i => DebugOutput.SelectFormat(i.BinaryImage)).ToArray() : [];
 
             Console.WriteLine($"Loaded {il2cppList.Count} image(s).");
             Console.WriteLine();
@@ -551,7 +551,8 @@ Output structure:
                 Console.WriteLine($"Generating DummyDlls -> {dllOut}");
                 ProgressBar.Run("Generating DummyDlls", progress => new AssemblyShims(model) { ProgressCallback = progress }.Write(dllOut));
 
-                // C# stubs with spinner
+                // C# export is intentionally disabled.
+                /*
                 if (il2cpp.Metadata.GamePlugin?.StreamExports == true)
                 {
                     string csOut = Path.Combine(output, "dump.cs");
@@ -562,36 +563,56 @@ Output structure:
                     string csOut = Path.Combine(output, "CS");
                     ProgressBar.Run($"Generating C# stubs -> {csOut}", () => new CSharpCodeStubs(model).WriteFilesByClassTree(csOut, false));
                 }
+                */
 
                 if (options.Targets.Count > 0 || il2cpp.Metadata.GamePlugin?.StreamExports == true)
                 {
                     AppModel appModel = null;
                     var targetUnity = unityVersion ?? il2cpp.Metadata.GamePlugin?.DefaultUnityVersion;
-                    ProgressBar.Run("Building application model...", () => appModel = new AppModel(model, false).Build(targetUnity));
+                    ProgressBar.Run("Building application model", () => appModel = new AppModel(model, false).Build(targetUnity));
 
-                    var scriptTargets = options.Targets.Where(t => t != "PDB").ToArray();
+                    var scriptTargets = options.Targets.Where(t => t != "Debug").ToArray();
+                    var supplementScripts = options.Targets.Contains("Debug");
                     if (scriptTargets.Length > 0 || options.Targets.Count == 0)
                     {
                         var header = Path.Combine(output, "il2cpp.h");
                         var json = Path.Combine(output, "il2cpp.json");
-                        ProgressBar.Run("Generating C++ types...", () => new CppScaffolding(appModel, useBetterArraySize: true).WriteTypes(header));
-                        ProgressBar.Run("Generating JSON metadata...", () => new JSONMetadata(appModel).Write(json));
+                        if (!supplementScripts)
+                        {
+                            ProgressBar.Run("Generating C++ types", () => new CppScaffolding(appModel, useBetterArraySize: true).WriteTypes(header));
+                            ProgressBar.Run("Generating JSON metadata", () => new JSONMetadata(appModel).Write(json));
+                        }
+                        else
+                            ProgressBar.Run("Generating supplementary disassembler metadata", () => new JSONMetadata(appModel) { SupplementDebugInfo = true }.Write(json));
                         foreach (var target in scriptTargets)
                         {
                             var pyOut = Path.Combine(output, scriptTargets.Length == 1 ? "il2cpp.py" : $"il2cpp-{target}.py");
-                            ProgressBar.Run($"Generating {target} Python script -> {pyOut}", () => new PythonScript(appModel).WriteScriptToFile(pyOut, target, header, json));
+                            ProgressBar.Run(
+                                $"Generating {target} Python script -> {pyOut}",
+                                () => new PythonScript(appModel).WriteScriptToFile(pyOut, target, supplementScripts ? null : header, json, supplementScripts)
+                            );
                         }
                     }
 
-                    // PDB materializes native layouts; finish streaming script exports first.
-                    if (options.Targets.Contains("PDB"))
+                    // Debug outputs materialize native layouts; finish streaming script exports first.
+                    if (debugFormats.Length > 0 && debugFormats[imageIndex] == DebugSymbolFormat.Pdb)
                     {
                         var pdbOut = Path.Combine(output, Path.GetFileNameWithoutExtension(options.BinaryFile) + ".pdb");
                         PdbOutputResult pdb = null;
                         ProgressBar.Run($"Generating PDB -> {pdbOut}", () => pdb = new PdbOutput(appModel).Write(pdbOut));
-                        Console.WriteLine($"PDB: {pdb.Functions} functions, {pdb.TypedFunctions} typed, {pdb.TypeRecords} type records.");
+                        Console.WriteLine($"PDB: {pdb.Functions} functions, {pdb.TypedFunctions} typed, {pdb.Globals} globals, {pdb.TypeRecords} type records.");
                         if (!pdb.HasCodeView)
                             Console.WriteLine("PE has no RSDS record; load the generated PDB manually in the debugger.");
+                    }
+                    else if (debugFormats.Length > 0 && debugFormats[imageIndex] == DebugSymbolFormat.Dwarf)
+                    {
+                        var dwarfOut = Path.Combine(output, Path.GetFileName(options.BinaryFile));
+                        DwarfOutputResult dwarf = null;
+                        ProgressBar.Run($"Embedding DWARF -> {dwarfOut}", () => dwarf = new DwarfOutput(appModel).WriteImage(dwarfOut, options.BinaryFile));
+                        Console.WriteLine(
+                            $"DWARF: {dwarf.Functions} functions, {dwarf.TypedFunctions} typed, {dwarf.Globals} globals, {dwarf.TypeRecords} type records, {dwarf.CompilationUnits} units."
+                        );
+                        Console.WriteLine($"Load {dwarfOut}; DWARF is embedded in the binary.");
                     }
                 }
 

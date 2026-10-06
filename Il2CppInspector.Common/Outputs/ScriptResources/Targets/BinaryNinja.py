@@ -111,12 +111,12 @@ class BinaryNinjaDisassemblerInterface(BaseDisassemblerInterface):
             "little" if self._view.endianness == Endianness.LittleEndian else "big"
         )
 
-        if not self.apply_structures:
+        if not self.apply_structures or self.supplement_debug_info:
             return
 
         self._status.update_step("Parsing header")
 
-        with open(os.path.join(self.get_script_directory(), "il2cpp.h"), "r") as f:
+        with open(os.path.join(self.get_script_directory(), "%TYPE_HEADER_RELATIVE_PATH%"), "r") as f:
             parsed_types = self._parse_type_source(f.read(), "il2cpp.hpp")
             if parsed_types is None:
                 return
@@ -189,7 +189,7 @@ class BinaryNinjaDisassemblerInterface(BaseDisassemblerInterface):
 
         if var is not None:
             var.name = name
-        elif not self.apply_structures:
+        elif not self.apply_structures or self.supplement_debug_info:
             self._view.define_user_symbol(Symbol(SymbolType.DataSymbol, address, name))
 
     def set_function_name(self, address: int, name: str):

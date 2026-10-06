@@ -16,6 +16,19 @@ namespace Il2CppInspector.Outputs
 
         // Allow non-compliant C-style comments in JSON output
         public bool AllowComments { get; set; } = false;
+        public bool SupplementDebugInfo { get; set; }
+
+        internal static bool IsDebugSymbolSection(string name) =>
+            name
+                is "methodDefinitions"
+                    or "constructedGenericMethods"
+                    or "customAttributesGenerators"
+                    or "methodInvokers"
+                    or "functionAddresses"
+                    or "functionMetadata"
+                    or "apis"
+                    or "exports"
+                    or "symbols";
 
         public JSONMetadata(AppModel model) => this.model = model;
 
@@ -24,7 +37,7 @@ namespace Il2CppInspector.Outputs
         {
             if (model.Package.Metadata.HasGameAdapter)
             {
-                model.Package.Metadata.GamePlugin.WriteJson(model, outputFile, AllowComments);
+                model.Package.Metadata.GamePlugin.WriteJson(model, outputFile, AllowComments, SupplementDebugInfo);
                 return;
             }
             using var fs = new FileStream(outputFile, FileMode.Create);
@@ -371,6 +384,8 @@ namespace Il2CppInspector.Outputs
 
         private void writeArray(string name, Action arrayWriter, string description = null)
         {
+            if (SupplementDebugInfo && IsDebugSymbolSection(name))
+                return;
             writer.WriteStartArray(name);
             if (AllowComments && description != null)
                 writer.WriteCommentValue(" " + description + " ");

@@ -23,7 +23,7 @@ namespace Il2CppInspector.Outputs
         }
 
         // Output script file
-        public void WriteScriptToFile(string outputFile, string target, string existingTypeHeaderFIle = null, string existingJsonMetadataFile = null)
+        public void WriteScriptToFile(string outputFile, string target, string existingTypeHeaderFIle = null, string existingJsonMetadataFile = null, bool supplementDebugInfo = false)
         {
             // Check that target script API is valid
             if (!GetAvailableTargets().Contains(target))
@@ -32,18 +32,20 @@ namespace Il2CppInspector.Outputs
             // Write types file first if it hasn't been specified
             var typeHeaderFile = Path.Combine(Path.GetDirectoryName(outputFile), Path.GetFileNameWithoutExtension(outputFile) + ".h");
 
-            if (string.IsNullOrEmpty(existingTypeHeaderFIle))
+            if (supplementDebugInfo)
+                typeHeaderFile = null;
+            else if (string.IsNullOrEmpty(existingTypeHeaderFIle))
                 writeTypes(typeHeaderFile);
             else
                 typeHeaderFile = existingTypeHeaderFIle;
 
-            var typeHeaderRelativePath = getRelativePath(outputFile, typeHeaderFile);
+            var typeHeaderRelativePath = typeHeaderFile == null ? "" : getRelativePath(outputFile, typeHeaderFile);
 
             // Write JSON metadata if it hasn't been specified
             var jsonMetadataFile = Path.Combine(Path.GetDirectoryName(outputFile), Path.GetFileNameWithoutExtension(outputFile) + ".json");
 
             if (string.IsNullOrEmpty(existingJsonMetadataFile))
-                writeJsonMetadata(jsonMetadataFile);
+                new JSONMetadata(model) { SupplementDebugInfo = supplementDebugInfo }.Write(jsonMetadataFile);
             else
                 jsonMetadataFile = existingJsonMetadataFile;
 
@@ -54,6 +56,7 @@ namespace Il2CppInspector.Outputs
             var impl = ResourceHelper.GetText($"{ns}.Targets.{target}.py");
 
             var script = string.Join("\n", baseScipt, impl)
+                .Replace("%SUPPLEMENT_DEBUG_INFO%", supplementDebugInfo ? "True" : "False")
                 .Replace("%SCRIPTFILENAME%", Path.GetFileName(outputFile))
                 .Replace("%TYPE_HEADER_RELATIVE_PATH%", typeHeaderRelativePath.ToEscapedString())
                 .Replace("%JSON_METADATA_RELATIVE_PATH%", jsonMetadataRelativePath.ToEscapedString())
@@ -82,8 +85,6 @@ namespace Il2CppInspector.Outputs
         }
 
         private void writeTypes(string typeHeaderFile) => new CppScaffolding(model, useBetterArraySize: true).WriteTypes(typeHeaderFile);
-
-        private void writeJsonMetadata(string jsonMetadataFile) => new JSONMetadata(model).Write(jsonMetadataFile);
 
         private string getRelativePath(string from, string to) =>
             Path.GetRelativePath(Path.GetDirectoryName(Path.GetFullPath(from))!, Path.GetDirectoryName(Path.GetFullPath(to))!)

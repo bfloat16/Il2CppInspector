@@ -91,7 +91,7 @@ class IDADisassemblerInterface(BaseDisassemblerInterface):
         # Set name mangling to GCC 3.x and display demangled as default
         ida_ida.inf_set_demnames(ida_ida.DEMNAM_GCC3 | ida_ida.DEMNAM_NAME)
 
-        if self.apply_structures:
+        if self.apply_structures and not self.supplement_debug_info:
             # Unload type libraries we know to cause issues - like the c++ linux one
             PROBLEMATIC_LINUX_TYPELIBS = [f"gnulnx_{x}" for x in ["x86", "x64", "arm", "arm64"]]
             PROBLEMATIC_WINDOWS_TYPELIBS = ["_".join(x) for x in itertools.product(["mssdk64", "mssdk"], ["2000", "nt", "vista", "win10", "win7", "win8", "win81", "ws03", "xp"])]

@@ -1,7 +1,7 @@
 ﻿# Ghidra-specific implementation
 from ghidra.app.cmd.function import ApplyFunctionSignatureCmd
 from ghidra.app.util.cparser.C import CParserUtils
-from ghidra.program.model.data import ArrayDataType
+from ghidra.program.model.data import ArrayDataType, PointerDataType, VoidDataType
 from ghidra.program.model.symbol import SourceType, RefType, SymbolUtilities
 from ghidra.app.services import DataTypeManagerService
 from ghidra.app.util.demangler import Demangler, DemangledException
@@ -100,7 +100,7 @@ class GhidraDisassemblerInterface(BaseDisassemblerInterface):
         self.xrefs = currentProgram.getReferenceManager()
 
         # Check that the user has parsed the C headers first
-        if self.apply_structures and len(getDataTypes("Il2CppObject")) == 0:
+        if self.apply_structures and not self.supplement_debug_info and len(getDataTypes("Il2CppObject")) == 0:
             print(
                 "STOP! You must import the generated C header file (%TYPE_HEADER_RELATIVE_PATH%) before running this script."
             )
@@ -114,7 +114,7 @@ class GhidraDisassemblerInterface(BaseDisassemblerInterface):
         # Make sure that the base address is 0
         # Without this, Ghidra may not analyze the binary correctly and you will just waste your time
         # If 0 doesn't work for you, replace it with the base address from the output of the CLI or GUI
-        if currentProgram.getExecutableFormat().endswith("(ELF)"):
+        if not self.supplement_debug_info and currentProgram.getExecutableFormat().endswith("(ELF)"):
             currentProgram.setImageBase(self._to_address(0), True)
 
         # Don't trigger decompiler
@@ -131,22 +131,26 @@ class GhidraDisassemblerInterface(BaseDisassemblerInterface):
             # Create new function if none exists
             createFunction(addr, None)
 
-    def define_data_array(self, address: int, type: str, count: int):
+    def _get_data_type(self, type: str):
+        type = type.strip()
         if type.startswith("struct "):
             type = type[7:]
+        if type.endswith("*"):
+            return PointerDataType(self._get_data_type(type[:-1]), currentProgram.getDataTypeManager())
+        if type == "void":
+            return VoidDataType.dataType
+        return getDataTypes(type)[0]
 
-        t = getDataTypes(type)[0]
+    def define_data_array(self, address: int, type: str, count: int):
+        t = self._get_data_type(type)
         a = ArrayDataType(t, count, t.getLength())
         addr = self._to_address(address)
         removeDataAt(addr)
         createData(addr, a)
 
     def set_data_type(self, address: int, type: str):
-        if type.startswith("struct "):
-            type = type[7:]
-
         try:
-            t = getDataTypes(type)[0]
+            t = self._get_data_type(type)
             addr = self._to_address(address)
             removeDataAt(addr)
             createData(addr, t)

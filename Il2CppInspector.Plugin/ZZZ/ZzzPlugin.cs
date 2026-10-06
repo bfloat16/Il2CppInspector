@@ -65,7 +65,8 @@ namespace Il2CppInspector.Plugin.ZZZ
 
         public override void WriteHeader(AppModel model, string path, bool betterArraySize) => new ZzzHeaderWriter(model, betterArraySize).Write(path);
 
-        public override void WriteJson(AppModel model, string path, bool allowComments) => new ZzzJsonMetadata(model, allowComments).Write(path);
+        public override void WriteJson(AppModel model, string path, bool allowComments, bool supplementDebugInfo) =>
+            new ZzzJsonMetadata(model, allowComments) { SupplementDebugInfo = supplementDebugInfo }.Write(path);
 
         public override void WriteApplicationPointers(AppModel model, string path)
         {

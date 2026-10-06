@@ -18,6 +18,7 @@ namespace Il2CppInspector.Outputs
         private Il2CppInspector Package => model.Package;
         private Utf8JsonWriter writer;
         private ZzzNativeModel Native => (ZzzNativeModel)model.GameNativeModel;
+        internal bool SupplementDebugInfo { get; set; }
 
         // Header generation precedes JSON output. Discover arrays produced by generic signature substitution first.
         internal void PrepareNativeArrayTypes()
@@ -458,6 +459,8 @@ namespace Il2CppInspector.Outputs
 
         private void Array(string name, Action body)
         {
+            if (SupplementDebugInfo && JSONMetadata.IsDebugSymbolSection(name))
+                return;
             writer.WriteStartArray(name);
             if (allowComments)
             {

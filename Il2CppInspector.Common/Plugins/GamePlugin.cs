@@ -21,7 +21,7 @@ namespace Il2CppInspector.Plugins
         public abstract IGameAnalysisModel CreateAnalysisModel(AppModel model);
         public abstract void WriteAssemblies(TypeModel model, string path, bool suppressMetadata, EventHandler<string> status);
         public abstract void WriteHeader(AppModel model, string path, bool betterArraySize);
-        public abstract void WriteJson(AppModel model, string path, bool allowComments);
+        public abstract void WriteJson(AppModel model, string path, bool allowComments, bool supplementDebugInfo = false);
         public abstract void WriteApplicationPointers(AppModel model, string path);
     }
 }

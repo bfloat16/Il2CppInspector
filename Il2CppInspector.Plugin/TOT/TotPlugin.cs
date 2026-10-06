@@ -61,7 +61,8 @@ namespace Il2CppInspector.Plugin.TOT
 
         public override void WriteHeader(AppModel model, string path, bool betterArraySize) => new CppScaffolding(model, betterArraySize).WriteTypes(path);
 
-        public override void WriteJson(AppModel model, string path, bool allowComments) => new JSONMetadata(model) { AllowComments = allowComments }.Write(path);
+        public override void WriteJson(AppModel model, string path, bool allowComments, bool supplementDebugInfo) =>
+            new JSONMetadata(model) { AllowComments = allowComments, SupplementDebugInfo = supplementDebugInfo }.Write(path);
 
         public override void WriteApplicationPointers(AppModel model, string path)
         {
