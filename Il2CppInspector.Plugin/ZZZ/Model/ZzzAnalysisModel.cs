@@ -144,7 +144,7 @@ namespace Il2CppInspector.Model
                 parameters.Add(($"arg{i}", Storage(Native.ResolveType(Package.Params[d.ParameterStart + i].TypeIndex, classArgs, methodArgs))));
             parameters.Add(("method", Cpp.GetType("MethodInfo *")));
             var signature = new CppFnPtrType(64, Storage(Native.ResolveType(d.ReturnType, classArgs, methodArgs)), parameters) { Name = Native.MethodName(definition, specIndex) };
-            return new NativeMethod(signature.Name, address, signature, complete);
+            return new NativeMethod(signature.Name, address, signature, complete) { SourceName = method.Name, LinkageName = signature.Name };
         }
 
         private void RegisterTypes()
@@ -628,7 +628,7 @@ namespace Il2CppInspector.Model
                 get =>
                     bytes >= 0 ? checked(bytes * 8)
                     : !initialized && releasedSize.HasValue ? releasedSize.Value
-                    : Fields.Values.SelectMany(f => f).Select(f => f.Offset + f.Type.Size).DefaultIfEmpty(0).Max();
+                    : Fields.Values.SelectMany(f => f).Select(f => f.Offset + f.Size).DefaultIfEmpty(0).Max();
                 set { }
             }
 

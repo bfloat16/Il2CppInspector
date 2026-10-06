@@ -6,9 +6,12 @@ internal sealed class PdbTypes
 {
     public List<CvTypeRecord> Records { get; } = [];
     private readonly Dictionary<CppComplexType, uint> forward = [];
+    private readonly NativeDebugTypeAliases debugAliases = new();
     private readonly Dictionary<CppComplexType, uint> complete = [];
     private readonly Dictionary<CppComplexType, string> names = [];
     private readonly Dictionary<uint, uint> pointers = [];
+    private readonly Dictionary<uint, uint> constants = [];
+    private readonly Dictionary<uint, uint> volatiles = [];
     private readonly Dictionary<(uint Element, int Size), uint> arrays = [];
     private readonly Dictionary<string, uint> procedures = [];
     private readonly Dictionary<string, uint> arguments = [];
@@ -25,9 +28,11 @@ internal sealed class PdbTypes
     public uint Resolve(CppType type)
     {
         while (type is CppAlias alias)
-            type = alias.ElementType;
+            type = debugAliases.AliasElement(alias);
         return type switch
         {
+            CppConstType constant => Constant(Referent(constant.ElementType)),
+            CppVolatileType volatileType => Volatile(Referent(volatileType.ElementType)),
             CppPointerType pointer => Pointer(Referent(pointer.ElementType)),
             CppArrayType array => Array(Resolve(array.ElementType), array.SizeBytes),
             CppFnPtrType function => Pointer(Procedure(function)),
@@ -52,7 +57,7 @@ internal sealed class PdbTypes
     private uint Referent(CppType type)
     {
         while (type is CppAlias alias)
-            type = alias.ElementType;
+            type = debugAliases.AliasElement(alias);
         return type is CppComplexType and not CppEnumType ? Forward((CppComplexType)type) : Resolve(type);
     }
 
@@ -65,6 +70,30 @@ internal sealed class PdbTypes
         body.U32(0x1000C);
         index = Add(0x1002, body);
         pointers.Add(referent, index);
+        return index;
+    }
+
+    private uint Constant(uint referent)
+    {
+        if (constants.TryGetValue(referent, out var index))
+            return index;
+        using var body = new CvWriter();
+        body.U32(referent);
+        body.U16(1); // LF_MODIFIER, const
+        index = Add(0x1001, body);
+        constants.Add(referent, index);
+        return index;
+    }
+
+    private uint Volatile(uint referent)
+    {
+        if (volatiles.TryGetValue(referent, out var index))
+            return index;
+        using var body = new CvWriter();
+        body.U32(referent);
+        body.U16(2);
+        index = Add(0x1001, body);
+        volatiles.Add(referent, index);
         return index;
     }
 
@@ -165,23 +194,28 @@ internal sealed class PdbTypes
                     }
                     else
                         member.Numeric(Convert.ToUInt64(value.Value));
-                    member.String(field.Name);
+                    member.String(value.CName);
                 }
                 else
                 {
-                    var fieldType = Resolve(field.Type);
+                    var fieldType = Resolve(debugAliases.FieldType(type, field.Type, field.IsConst));
+                    var memberOffset = field.OffsetBytes;
                     if (field.BitfieldSize > 0)
                     {
+                        // LLVM records the storage offset separately from the bit offset.
+                        var storageBits = Math.Max(8, field.Type.Size);
+                        var bitOffset = field.Offset % storageBits;
+                        memberOffset = (field.Offset - bitOffset) / 8;
                         using var bitfield = new CvWriter();
                         bitfield.U32(fieldType);
                         bitfield.U8(checked((byte)field.BitfieldSize));
-                        bitfield.U8(checked((byte)(field.Offset % Math.Max(8, field.Type.Size))));
+                        bitfield.U8(checked((byte)bitOffset));
                         fieldType = Add(0x1205, bitfield);
                     }
                     member.U16(0x150D);
                     member.U16(3);
                     member.U32(fieldType);
-                    member.Numeric(checked((ulong)field.OffsetBytes));
+                    member.Numeric(checked((ulong)memberOffset));
                     member.String(field.Name);
                 }
                 member.Align(true);

@@ -5,10 +5,25 @@ namespace Il2CppInspector.Outputs.Pdb;
 
 internal static class PdbStreams
 {
-    public static void Write(string path, Guid guid, uint age, IReadOnlyList<PdbProcedure> procedures, IReadOnlyList<CvTypeRecord> types, byte[] sections)
+    public static void Write(string path, Guid guid, uint age, IReadOnlyList<PdbProcedure> procedures, IReadOnlyList<CvTypeRecord> types, byte[] sections, IReadOnlyList<PdbGlobal> data = null)
     {
+        data ??= [];
         using var module = new CvWriter();
         module.U32(4);
+        using (var obj = new CvWriter())
+        {
+            obj.U32(0);
+            obj.String("il2cpp.obj");
+            module.Bytes(obj.Record(0x1101)); // S_OBJNAME
+        }
+        using (var compiler = new CvWriter())
+        {
+            compiler.U32(1); // C++
+            compiler.U16(0xD0); // CodeView X64, not the PE machine identifier.
+            compiler.Bytes(new byte[16]);
+            compiler.String("Il2CppInspector");
+            module.Bytes(compiler.Record(0x113C)); // S_COMPILE3
+        }
         var offsets = new uint[procedures.Count];
         for (var i = 0; i < procedures.Count; i++)
         {
@@ -35,13 +50,13 @@ internal static class PdbStreams
         var symbolSize = (uint)module.Length;
         module.U32(0);
         var (tpi, hashes) = TypeStreams(types);
-        var (symbols, globals, publics) = SymbolStreams(procedures, offsets);
+        var (symbols, globals, publics) = SymbolStreams(procedures, offsets, data, types);
         byte[][] streams =
         [
             [],
             Info(guid, age),
             tpi,
-            Dbi(age, symbolSize),
+            Dbi(age, symbolSize, sections),
             EmptyTypes(),
             Names(),
             module.ToArray(),
@@ -129,10 +144,75 @@ internal static class PdbStreams
         return (header.ToArray(), hashes.ToArray());
     }
 
-    private static byte[] Dbi(uint age, uint symbols)
+    private static (byte[] Contributions, byte[] Map) SectionInfo(byte[] sections)
     {
+        if (sections.Length % 40 != 0)
+            throw new InvalidDataException("Invalid PE section header size.");
+        var count = sections.Length / 40;
+        using var contributions = new CvWriter();
+        contributions.U32(0xEFFE0000u + 19970605); // DbiSecContribVer60
+        using var map = new CvWriter();
+        map.U16(checked((ushort)(count + 1)));
+        map.U16(checked((ushort)(count + 1)));
+        for (var i = 0; i < count; i++)
+        {
+            var section = sections.AsSpan(i * 40, 40);
+            var size = BinaryPrimitives.ReadUInt32LittleEndian(section[8..]);
+            var characteristics = BinaryPrimitives.ReadUInt32LittleEndian(section[36..]);
+            if (size != 0)
+            {
+                contributions.U16(checked((ushort)(i + 1)));
+                contributions.U16(0);
+                contributions.U32(0);
+                contributions.U32(size);
+                contributions.U32(characteristics);
+                contributions.U16(0); // DBI module indices are zero-based.
+                contributions.U16(0);
+                contributions.U32(0);
+                contributions.U32(0);
+            }
+            ushort flags = 0x100; // IsSelector
+            if ((characteristics & 0x40000000) != 0)
+                flags |= 1;
+            if ((characteristics & 0x80000000) != 0)
+                flags |= 2;
+            if ((characteristics & 0x20000000) != 0)
+                flags |= 4;
+            if ((characteristics & 0x20000) == 0)
+                flags |= 8;
+            WriteMapEntry(map, flags, checked((ushort)(i + 1)), size);
+        }
+        WriteMapEntry(map, 0x208, checked((ushort)(count + 1)), uint.MaxValue);
+        return (contributions.ToArray(), map.ToArray());
+    }
+
+    private static void WriteMapEntry(CvWriter map, ushort flags, ushort frame, uint size)
+    {
+        map.U16(flags);
+        map.U16(0);
+        map.U16(0);
+        map.U16(frame);
+        map.U16(ushort.MaxValue);
+        map.U16(ushort.MaxValue);
+        map.U32(0);
+        map.U32(size);
+    }
+
+    private static byte[] Dbi(uint age, uint symbols, byte[] sections)
+    {
+        var (contributions, map) = SectionInfo(sections);
         using var module = new CvWriter();
-        module.Bytes(new byte[32]);
+        module.U32(0);
+        if (contributions.Length > 4)
+            module.Bytes(contributions.AsSpan(4, 28));
+        else
+        {
+            module.U16(ushort.MaxValue);
+            module.U16(0);
+            module.U32(0);
+            module.U32(uint.MaxValue);
+            module.Bytes(new byte[16]);
+        }
         module.U16(0);
         module.U16(6);
         module.U32(symbols);
@@ -158,8 +238,8 @@ internal static class PdbStreams
         w.U16(10);
         w.U16(0);
         w.U32((uint)module.Length);
-        w.U32(0);
-        w.U32(0);
+        w.U32((uint)contributions.Length);
+        w.U32((uint)map.Length);
         w.U32(8);
         w.U32(0);
         w.U32(0);
@@ -169,6 +249,8 @@ internal static class PdbStreams
         w.U16(0x8664);
         w.U32(0);
         w.Bytes(module.ToArray());
+        w.Bytes(contributions);
+        w.Bytes(map);
         w.U16(1);
         w.U16(0);
         w.U16(0);
@@ -228,11 +310,26 @@ internal static class PdbStreams
         return output.ToArray();
     }
 
-    private static (byte[] Symbols, byte[] Globals, byte[] Publics) SymbolStreams(IReadOnlyList<PdbProcedure> procedures, uint[] moduleOffsets)
+    private static byte[] DataSymbol(PdbGlobal variable)
+    {
+        using var record = new CvWriter();
+        record.U32(variable.TypeIndex);
+        record.U32(variable.Offset);
+        record.U16(variable.Segment);
+        record.String(variable.Name);
+        return record.Record(0x110D); // S_GDATA32, as emitted by LLVM's emitDebugInfoForGlobal.
+    }
+
+    private static (byte[] Symbols, byte[] Globals, byte[] Publics) SymbolStreams(
+        IReadOnlyList<PdbProcedure> procedures,
+        uint[] moduleOffsets,
+        IReadOnlyList<PdbGlobal> data,
+        IReadOnlyList<CvTypeRecord> types
+    )
     {
         using var symbols = new CvWriter();
         var publics = new List<HashEntry>(procedures.Count);
-        var globals = new List<HashEntry>(procedures.Count);
+        var globals = new List<HashEntry>(procedures.Count + data.Count);
         foreach (var p in procedures)
         {
             publics.Add(new((uint)symbols.Length, Encoding.UTF8.GetBytes(p.Name)));
@@ -252,6 +349,22 @@ internal static class PdbStreams
             record.U16(1);
             record.String(procedures[i].Name);
             symbols.Bytes(record.Record(0x1125));
+        }
+        foreach (var variable in data)
+        {
+            globals.Add(new((uint)symbols.Length, Encoding.UTF8.GetBytes(variable.Name)));
+            symbols.Bytes(DataSymbol(variable));
+        }
+        for (var i = 0; i < types.Count; i++)
+        {
+            var type = types[i];
+            if (type.Name == null || type.Forward)
+                continue;
+            globals.Add(new((uint)symbols.Length, Encoding.UTF8.GetBytes(type.Name)));
+            using var record = new CvWriter();
+            record.U32(checked(0x1000 + (uint)i));
+            record.String(type.Name);
+            symbols.Bytes(record.Record(0x1108)); // S_UDT references the complete TPI definition.
         }
         var publicHash = HashSymbols(publics);
         using var output = new CvWriter();

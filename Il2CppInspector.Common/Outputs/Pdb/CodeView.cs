@@ -124,3 +124,5 @@ internal sealed record PdbProcedure(string Name, ushort Segment, uint Offset, ui
 {
     public uint Size { get; set; }
 }
+
+internal sealed record PdbGlobal(string Name, ushort Segment, uint Offset, uint TypeIndex);

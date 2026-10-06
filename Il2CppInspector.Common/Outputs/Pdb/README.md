@@ -1,38 +1,27 @@
-# Native PDB Output
+# Native PDB
 
-`PdbOutput` writes Windows native PDB files directly from `AppModel`. It does not
-read exported C++ headers, JSON metadata or managed Dummy DLLs, and does not run
-the Rust generator or external tools. LLVM is used only for validation.
-
-The application model exposes native method signatures and C++ type objects.
-Game analysis adapters supply those objects from decoded metadata and runtime
-layouts. The ZZZ adapter resolves generic arguments without materializing its
-entire constructed-method dictionary. Field offsets, overlapping storage,
-arrays, enum values and bitfields come from the existing C++ model.
-
-The writer emits MSF 7.00, TPI/IPI, DBI, module procedure records, public/global
-symbol indices, type hashes, named streams and PE section headers. It copies
-the PE's CodeView RSDS GUID and age, including the DBI age. Incomplete native
-signatures retain their function names and addresses without claiming a typed
-prototype. PDB output supports x64 PE binaries. A PE without RSDS produces an
-empty-GUID PDB that must be loaded manually.
-
-```csharp
-var app = new AppModel(typeModel).Build(unityVersion);
-var result = new PdbOutput(app).Write("GameAssembly.pdb");
-```
-
-Select output targets independently, using repeated `-t` options:
+`PdbOutput` writes native PDB files directly from `AppModel` for x64 PE inputs, without exported headers, JSON or Dummy DLLs.
+The CLI selects PDB for x64 PE and [DWARF](../Dwarf/README.md) for ELF/Mach-O.
 
 ```bash
-dotnet Il2CppInspector.CLI/bin/Release/net10.0/Il2CppInspector.dll -i GameAssembly.dll -m global-metadata.dat -o output -t IDA -t PDB
+dotnet Il2CppInspector.CLI/bin/Release/net10.0/Il2CppInspector.dll -i GameAssembly.dll -m global-metadata.dat -o output -t IDA -t Debug
 ```
 
-Script exports run before PDB to keep their streaming memory profile. PDB still
-consumes the in-memory model directly. `-t PDB` does not
-generate headers or JSON. Script targets share one header and one metadata file;
-a single script target writes `il2cpp.py`, while multiple script targets write
-`il2cpp-IDA.py`, `il2cpp-Ghidra.py`, etc. `--target` and `--script-target` are
-aliases for `-t`. Targets are case-insensitive and duplicates are ignored.
+## Records and Loading
 
-The native PDB serialization was adapted from `il2cpp_pdbgen`; see [NOTICE.md](NOTICE.md).
+The writer emits MSF 7.00, CodeView types, module procedures, symbol indices and PE section headers, preserving the PE's RSDS GUID and age.
+Types retain ABI alignment, tail padding, arrays, unions, bitfields and const/volatile modifiers, matching the script header's C-compatible field view.
+Enum constants use type-qualified names so IDA keeps enums with different storage types separate.
+Functions include available invoker, attribute-generator, API and registration signatures; incomplete signatures remain untyped.
+Known globals use typed `S_GDATA32` records, applying registration structures and pointer caches at their data addresses without a script.
+Load the generated PDB explicitly if the PE points to another PDB, or has no RSDS record.
+Disassembler targets combined with Debug generate only [supplementary scripts](../Dwarf/README.md#scripts-and-limits).
+IDA may revise inferred prototypes or omit explicit `void()` types on jump wrappers; no user-definite function types or local locations are forced.
+
+## LLVM References
+
+- `CodeViewDebug::lowerRecordFieldList`: bit offsets within storage units and byte offsets of those units.
+- `CodeViewDebug::lowerTypeEnum`: enum underlying types, field lists and values.
+- `CodeViewDebug::emitDebugInfoForGlobal` and `SymbolRecordMapping::visitKnownRecord(DataSym)`: global type, section-relative offset, section index and name.
+
+Serialization was adapted from `il2cpp_pdbgen`; see [NOTICE.md](NOTICE.md).

@@ -158,24 +158,7 @@ namespace Il2CppInspector.Model
             }
 
             if (binary.RegistrationFunctionPointer != 0)
-                if (Model.Package.Metadata.HasGameAdapter)
-                    Add(binary.RegistrationFunctionPointer, CppFnPtrType.FromSignature(cppTypes, Model.Package.Metadata.GamePlugin.RegistrationSignature));
-                else if (Model.UnityVersion.CompareTo("5.3.5") >= 0)
-                    Add(
-                        binary.RegistrationFunctionPointer,
-                        CppFnPtrType.FromSignature(
-                            cppTypes,
-                            "void (*il2cpp_codegen_register)(const Il2CppCodeRegistration* const codeRegistration, const Il2CppMetadataRegistration* const metadataRegistration, const Il2CppCodeGenOptions* const codeGenOptions)"
-                        )
-                    );
-                else
-                    Add(
-                        binary.RegistrationFunctionPointer,
-                        CppFnPtrType.FromSignature(
-                            cppTypes,
-                            "void (*il2cpp_codegen_register)(const Il2CppCodeRegistration* const codeRegistration, const Il2CppMetadataRegistration* const metadataRegistration)"
-                        )
-                    );
+                Add(binary.RegistrationFunctionPointer, Model.GetRegistrationSignature());
 
             // IL2CPP API exports
             // Alternative names like il2cpp_class_from_type and il2cpp_class_from_il2cpp_type may point to the same address

@@ -156,7 +156,9 @@ namespace Il2CppInspector.Plugin.TOT
         }
 
         public IEnumerable<NativeMethod> EnumerateNativeMethods() =>
-            model.AnalysisMethods.Values.Where(m => m.HasCompiledCode).Select(m => new NativeMethod(m.ToMangledString(), m.MethodCodeAddress, m.CppFnPtrType));
+            model
+                .AnalysisMethods.Values.Where(m => m.HasCompiledCode)
+                .Select(m => new NativeMethod(m.CppFnPtrType.Name, m.MethodCodeAddress, m.CppFnPtrType) { SourceName = m.Method.Name, LinkageName = m.ToMangledString() });
 
         public IEnumerable<CppType> EnumerateNativeTypes() => model.RuntimeCppTypes.Types.Values;
 

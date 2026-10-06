@@ -4,7 +4,10 @@ using Il2CppInspector.Outputs.Pdb;
 
 namespace Il2CppInspector.Outputs;
 
-public sealed record PdbOutputResult(int Functions, int TypedFunctions, int TypeRecords, Guid Guid, uint Age, bool HasCodeView);
+public sealed record PdbOutputResult(int Functions, int TypedFunctions, int TypeRecords, Guid Guid, uint Age, bool HasCodeView)
+{
+    public int Globals { get; init; }
+}
 
 public sealed class PdbOutput(AppModel model)
 {
@@ -21,8 +24,6 @@ public sealed class PdbOutput(AppModel model)
             image.Position = 0;
             using var reader = new System.Reflection.PortableExecutable.PEReader((Stream)image, PEStreamOptions.LeaveOpen);
             var headers = reader.PEHeaders;
-            if (headers.CoffHeader.Machine != Machine.Amd64 || headers.PEHeader?.Magic != PEMagic.PE32Plus)
-                throw new NotSupportedException("PDB output requires an x64 PE binary.");
             var guid = Guid.Empty;
             uint age = 1;
             var matching = false;
@@ -80,10 +81,35 @@ public sealed class PdbOutput(AppModel model)
                 procedure.Size = checked((uint)Math.Min(0x200000UL, limit - procedure.Rva));
             }
             status?.Invoke(this, $"PDB functions: {procedures.Count} ({typed} typed)");
+            var globals = new List<PdbGlobal>();
+            var dataAddresses = new HashSet<ulong>();
+            foreach (var variable in NativeDebugGlobals.Enumerate(model))
+            {
+                if (
+                    variable.Type == null
+                    || variable.Type.SizeBytes <= 0
+                    || variable.Address < image.ImageBase
+                    || variable.Address - image.ImageBase > uint.MaxValue
+                    || dataAddresses.Contains(variable.Address)
+                )
+                    continue;
+                var rva = (uint)(variable.Address - image.ImageBase);
+                for (var i = 0; i < headers.SectionHeaders.Length; i++)
+                {
+                    var section = headers.SectionHeaders[i];
+                    var end = (ulong)(uint)section.VirtualAddress + (uint)section.VirtualSize;
+                    if ((section.SectionCharacteristics & SectionCharacteristics.MemExecute) != 0 || rva < (uint)section.VirtualAddress || rva >= end || (ulong)variable.Type.SizeBytes > end - rva)
+                        continue;
+                    globals.Add(new(variable.Name, checked((ushort)(i + 1)), rva - (uint)section.VirtualAddress, types.Resolve(variable.Type)));
+                    dataAddresses.Add(variable.Address);
+                    break;
+                }
+            }
             types.Include(model.EnumerateNativeTypes());
             status?.Invoke(this, $"PDB type records: {types.Records.Count}");
-            PdbStreams.Write(outputFile, guid, age, procedures, types.Records, sectionHeaders);
-            return new(procedures.Count, typed, types.Records.Count, guid, age, matching);
+            status?.Invoke(this, $"PDB globals: {globals.Count}");
+            PdbStreams.Write(outputFile, guid, age, procedures, types.Records, sectionHeaders, globals);
+            return new(procedures.Count, typed, types.Records.Count, guid, age, matching) { Globals = globals.Count };
         }
         finally
         {

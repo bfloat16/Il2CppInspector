@@ -62,11 +62,11 @@ public partial class MangledNameBuilder
             var buffer = (stackalloc char[8]);
             var offset = buffer.Length;
 
-            while (index > 0)
+            do
             {
                 buffer[--offset] = Base36Alphabet[index % 36];
                 index /= 36;
-            }
+            } while (index > 0);
 
             _sb.Append(buffer[offset..]);
         }

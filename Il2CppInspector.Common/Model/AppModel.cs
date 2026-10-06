@@ -96,16 +96,50 @@ namespace Il2CppInspector.Model
         public IEnumerable<NativeMethod> EnumerateNativeMethods()
         {
             var nativeMethods =
-                gameAnalysis?.EnumerateNativeMethods() ?? methods.Values.Where(m => m.HasCompiledCode).Select(m => new NativeMethod(m.ToMangledString(), m.MethodCodeAddress, m.CppFnPtrType));
+                gameAnalysis?.EnumerateNativeMethods()
+                ?? methods
+                    .Values.Where(m => m.HasCompiledCode)
+                    .Select(m => new NativeMethod(m.CppFnPtrType.Name, m.MethodCodeAddress, m.CppFnPtrType) { SourceName = m.Method.Name, LinkageName = m.ToMangledString() });
             foreach (var method in nativeMethods)
                 yield return method;
+            foreach (var method in EnumerateNativeSupportMethods())
+                yield return method;
+        }
+
+        internal IEnumerable<NativeMethod> EnumerateNativeSupportMethods()
+        {
             foreach (var method in TypeModel.AttributesByIndices.Values)
                 if (method.VirtualAddress.Start != 0)
-                    yield return new NativeMethod(method.Name, method.VirtualAddress.Start, null, false);
+                    yield return new NativeMethod(
+                        method.Name,
+                        method.VirtualAddress.Start,
+                        new CppFnPtrType(WordSizeBits, RuntimeCppTypes.GetType("void"), [("cache", RuntimeCppTypes.GetType("CustomAttributesCache *"))]) { Name = method.Name }
+                    );
             var invokers = Package.MethodInvokePointers;
+            var reflected = Package.Metadata.GamePlugin?.StreamExports == true ? null : TypeModel.MethodInvokers;
             for (var i = 0; i < invokers.Length; i++)
                 if (invokers[i] != 0)
-                    yield return new NativeMethod($"Il2CppInvoker_{i}", invokers[i], null, false);
+                {
+                    var name = reflected?[i]?.Name ?? (Package.Metadata.HasGameAdapter ? $"Morax_Invoker_{i}" : $"Il2CppInvoker_{i}");
+                    yield return new NativeMethod(name, invokers[i], MethodInvoker.CreateSignature(RuntimeCppTypes, UnityVersion, name));
+                }
+            foreach (var api in AvailableAPIs)
+                yield return new NativeMethod(api.Key, AvailableAPIs.primaryToSubkeyMapping[api.Key], api.Value);
+            if (Package.Binary.RegistrationFunctionPointer != 0)
+            {
+                var signature = GetRegistrationSignature();
+                yield return new NativeMethod(signature.Name, Package.Binary.RegistrationFunctionPointer, signature);
+            }
+        }
+
+        internal CppFnPtrType GetRegistrationSignature()
+        {
+            var declaration =
+                Package.Metadata.HasGameAdapter ? Package.Metadata.GamePlugin.RegistrationSignature
+                : UnityVersion.CompareTo("5.3.5") >= 0
+                    ? "void (*il2cpp_codegen_register)(const Il2CppCodeRegistration* codeRegistration, const Il2CppMetadataRegistration* metadataRegistration, const Il2CppCodeGenOptions* codeGenOptions)"
+                : "void (*il2cpp_codegen_register)(const Il2CppCodeRegistration* codeRegistration, const Il2CppMetadataRegistration* metadataRegistration)";
+            return CppFnPtrType.FromSignature(RuntimeCppTypes, declaration);
         }
 
         public IEnumerable<CppType> EnumerateNativeTypes() => gameAnalysis?.EnumerateNativeTypes() ?? cppTypeCollection.Types.Values;
