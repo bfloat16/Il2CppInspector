@@ -5,6 +5,60 @@ namespace Il2CppInspector.Cpp;
 
 public class CppTypeDependencyGraph
 {
+    // Order already-normalized native declarations, including references to scalar enums.
+    internal static (List<CppType> Ordered, List<CppType> Forwards) OrderDeclarations(CppTypeCollection types, HashSet<CppType> declarations)
+    {
+        var ordered = new List<CppType>();
+        var forwards = new List<CppType>();
+        var visited = new HashSet<CppType>();
+        var visiting = new HashSet<CppType>();
+        var forwardNames = new HashSet<string>();
+        int count;
+        do
+        {
+            count = types.Types.Count;
+            foreach (var type in types.Types.Values.ToArray())
+                Visit(type);
+        } while (count != types.Types.Count);
+        return (ordered, forwards);
+
+        void Visit(CppType type)
+        {
+            if (type is CppAlias alias)
+            {
+                Visit(alias.ElementType);
+                return;
+            }
+            if (type is CppArrayType array)
+            {
+                Visit(array.ElementType);
+                return;
+            }
+            if (type is CppPointerType pointer)
+            {
+                if (pointer.ElementType is CppEnumType)
+                    Visit(pointer.ElementType);
+                else if (pointer.ElementType is CppComplexType && declarations.Contains(pointer.ElementType) && forwardNames.Add(pointer.ElementType.Name))
+                    forwards.Add(new CppForwardDefinitionType(pointer.ElementType.Name) { Group = "required_forward_definitions" });
+                return;
+            }
+            if (type is CppFnPtrType || visited.Contains(type))
+                return;
+            if (!visiting.Add(type))
+                throw new InvalidDataException("Cyclic C++ value layout.");
+            if (type is CppComplexType complex)
+            {
+                foreach (var field in complex.Fields.Values.SelectMany(f => f))
+                    Visit(field.Type);
+                complex.ReleaseTransientFields();
+            }
+            visiting.Remove(type);
+            visited.Add(type);
+            if (declarations.Contains(type))
+                ordered.Add(type);
+        }
+    }
+
     private sealed class CppTypeNode(TypeInfo typeInfo)
     {
         public TypeInfo Type { get; } = typeInfo;

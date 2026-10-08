@@ -29,11 +29,6 @@ namespace Il2CppInspector.Outputs
         // This can be used by other output modules
         public void WriteTypes(string typeHeaderFile)
         {
-            if (_model.Package.Metadata.HasGameAdapter)
-            {
-                _model.Package.Metadata.GamePlugin.WriteHeader(_model, typeHeaderFile, _useBetterArraySize);
-                return;
-            }
             using var fs = new FileStream(typeHeaderFile, FileMode.Create);
             _writer = new StreamWriter(fs, Encoding.ASCII);
 
@@ -133,11 +128,27 @@ namespace Il2CppInspector.Outputs
 
                 writeForwardDefinitions();
 
-                writeTypesForGroup("Required forward definitions", "required_forward_definitions");
-                writeTypesForGroup("Application types from method calls", "types_from_methods");
-                writeTypesForGroup("Application types from generic methods", "types_from_generic_methods");
-                writeTypesForGroup("Application types from usages", "types_from_usages");
-                writeTypesForGroup("Application unused value types", "unused_concrete_types");
+                if (_model.GameNativeModel is NativeTypeModel)
+                {
+                    writeSectionHeader("Application types");
+                    foreach (var type in _model.DependencyOrderedCppTypes)
+                    {
+                        writeType(type);
+                        if (type is CppComplexType complex)
+                            complex.ReleaseTransientFields();
+                    }
+                    var declarations = _model.DependencyOrderedCppTypes.ToHashSet();
+                    foreach (var alias in _model.RuntimeCppTypes.TypedefAliases.Where(a => a.Key != a.Value.Name && declarations.Contains(a.Value)))
+                        writeCode($"typedef {alias.Value.ToFieldString(alias.Key)};");
+                }
+                else
+                {
+                    writeTypesForGroup("Required forward definitions", "required_forward_definitions");
+                    writeTypesForGroup("Application types from method calls", "types_from_methods");
+                    writeTypesForGroup("Application types from generic methods", "types_from_generic_methods");
+                    writeTypesForGroup("Application types from usages", "types_from_usages");
+                    writeTypesForGroup("Application unused value types", "unused_concrete_types");
+                }
 
                 writeCode("#ifndef IS_DECOMPILER");
                 writeCode("}");
@@ -331,7 +342,39 @@ namespace Il2CppInspector.Outputs
             WriteIfNotExists(Path.Combine(projectPath, solutionFile), sln);
         }
 
-        internal void WriteGameApplicationPointers(string path) => _model.Package.Metadata.GamePlugin.WriteApplicationPointers(_model, path);
+        internal void WriteGameApplicationPointers(string path) => WriteApplicationPointers(path);
+
+        internal void WriteApplicationPointers(string path)
+        {
+            Directory.CreateDirectory(path);
+            using (var functions = new StreamWriter(Path.Combine(path, "il2cpp-functions.h"), false, Encoding.UTF8))
+            {
+                foreach (var method in _model.Methods.Values.Where(m => m.HasCompiledCode && m.SignatureComplete))
+                {
+                    var signature = method.CppFnPtrType;
+                    functions.WriteLine(
+                        $"DO_APP_FUNC(0x{method.MethodCodeAddress - _model.Image.ImageBase:X8}, {signature.ReturnType.Name}, {signature.Name}, ({string.Join(", ", signature.Arguments.Select(p => p.Type.ToFieldString(p.Name)))}));"
+                    );
+                }
+                foreach (var usage in _model.Package.MetadataUsages.Where(u => u.Type is MetadataUsageType.MethodDef or MetadataUsageType.MethodRef))
+                {
+                    var method = _model.Methods[_model.TypeModel.GetMetadataUsageMethod(usage)];
+                    functions.WriteLine($"DO_APP_FUNC_METHODINFO(0x{usage.VirtualAddress - _model.Image.ImageBase:X8}, {method.ToMangledMethodInfoString()});");
+                }
+            }
+            using var types = new StreamWriter(Path.Combine(path, "il2cpp-types-ptr.h"), false, Encoding.UTF8);
+            var names = new HashSet<string>();
+            foreach (var usage in (_model.Package.MetadataUsages ?? []).Where(u => u.Type == MetadataUsageType.TypeInfo))
+            {
+                var type = _model.TypeModel.GetMetadataUsageType(usage);
+                var name = _model.NativeTypeNamer.GetName(type);
+                if (!names.Add(name))
+                    continue;
+                if (_model.GameNativeModel?.ClassName(type) == "Il2CppClass")
+                    types.WriteLine($"typedef ::Il2CppClass {name}__Class;");
+                types.WriteLine($"DO_TYPEDEF(0x{usage.VirtualAddress - _model.Image.ImageBase:X8}, {name});");
+            }
+        }
 
         private void writeHeader()
         {
@@ -352,21 +395,26 @@ namespace Il2CppInspector.Outputs
             writeSectionHeader(header);
             foreach (var cppType in _model.GetDependencyOrderedCppTypeGroup(group))
             {
-                if (cppType is CppEnumType)
-                {
-                    // Ghidra can't process C++ enum base types
-                    writeCode("#if defined(_CPLUSPLUS_)");
-                    writeCode(cppType.ToString());
-                    writeCode("#elif defined(IS_LIBCLANG_DECOMPILER)");
-                    writeCode(cppType.ToString("cb"));
-                    writeCode("#else");
-                    writeCode(cppType.ToString("c"));
-                    writeCode("#endif");
-                }
-                else
-                {
-                    writeCode(cppType.ToString());
-                }
+                writeType(cppType);
+            }
+        }
+
+        private void writeType(CppType cppType)
+        {
+            if (cppType is CppEnumType)
+            {
+                // Ghidra can't process C++ enum base types
+                writeCode("#if defined(_CPLUSPLUS_)");
+                writeCode(cppType.ToString());
+                writeCode("#elif defined(IS_LIBCLANG_DECOMPILER)");
+                writeCode(cppType.ToString("cb"));
+                writeCode("#else");
+                writeCode(cppType.ToString("c"));
+                writeCode("#endif");
+            }
+            else
+            {
+                writeCode(cppType.ToString());
             }
         }
 

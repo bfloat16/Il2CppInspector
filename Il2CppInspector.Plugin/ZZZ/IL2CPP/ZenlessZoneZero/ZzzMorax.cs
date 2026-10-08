@@ -11,7 +11,15 @@ namespace Il2CppInspector
     /// <summary>Static C# adapter for the IDA-verified ZZZ 3.2.0 Windows MORAX build.</summary>
     internal sealed partial class ZzzMorax : Plugins.GameMetadataAdapter
     {
-        public override string StorageBase(uint tag) => Outputs.ZzzAssemblyWriter.ZzzStorageBase(tag);
+        public override string StorageBase(uint tag) =>
+            tag switch
+            {
+                0 => "klass->static_fields",
+                1 => "thread static storage",
+                2 => "MetadataRegistration->globalStaticStorage (+0x60)",
+                4 => "*MetadataRegistration->globalStaticStorageSlot (+0x78)",
+                _ => "unknown",
+            };
 
         public override int VTableSlotSize => 8;
         private const int Payload = 0x198;

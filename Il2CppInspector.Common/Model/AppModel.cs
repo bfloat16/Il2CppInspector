@@ -120,7 +120,7 @@ namespace Il2CppInspector.Model
             for (var i = 0; i < invokers.Length; i++)
                 if (invokers[i] != 0)
                 {
-                    var name = reflected?[i]?.Name ?? (Package.Metadata.HasGameAdapter ? $"Morax_Invoker_{i}" : $"Il2CppInvoker_{i}");
+                    var name = reflected?[i]?.Name ?? $"Il2CppInvoker_{i}";
                     yield return new NativeMethod(name, invokers[i], MethodInvoker.CreateSignature(RuntimeCppTypes, UnityVersion, name));
                 }
             foreach (var api in AvailableAPIs)
@@ -177,6 +177,8 @@ namespace Il2CppInspector.Model
 
         // The C++ declaration generator for this binary
         private CppDeclarationGenerator declarationGenerator;
+        internal CppNamespace.Namer<TypeInfo> NativeTypeNamer => declarationGenerator.TypeNamer;
+        internal CppDeclarationGenerator NativeDeclarationGenerator => declarationGenerator;
 
         // Convenience properties
 
@@ -299,29 +301,23 @@ namespace Il2CppInspector.Model
                 return this;
             }
 
-            // Add method definitions and types used by them to C++ type model
-            Group = "types_from_methods";
+            // Both native-layout adapters and stock layouts use the same method/usage traversal.
+            BuildMethodsFromMetadata(
+                (method, definition, spec, methodGroup) =>
+                {
+                    if (AnalysisMethods.ContainsKey(method))
+                        return AnalysisMethods[method];
+                    Group = methodGroup;
+                    declarationGenerator.IncludeMethod(method);
+                    AddTypes(declarationGenerator.GenerateRemainingTypeDeclarations());
+                    var pointer = declarationGenerator.GenerateMethodDeclaration(method);
+                    var entry = new AppMethod(method, pointer) { Group = Group };
+                    AnalysisMethods.Add(method, pointer, entry);
+                    return entry;
+                }
+            );
 
-            foreach (var method in TypeModel.MethodsByDefinitionIndex.Where(m => m.VirtualAddress.HasValue))
-            {
-                declarationGenerator.IncludeMethod(method);
-                AddTypes(declarationGenerator.GenerateRemainingTypeDeclarations());
-
-                var fnPtr = declarationGenerator.GenerateMethodDeclaration(method);
-                Methods.Add(method, fnPtr, new AppMethod(method, fnPtr) { Group = Group });
-            }
-
-            // Add generic methods definitions and types used by them to C++ type model
-            Group = "types_from_generic_methods";
-
-            foreach (var method in TypeModel.GenericMethods.Values.Where(m => m.VirtualAddress.HasValue))
-            {
-                declarationGenerator.IncludeMethod(method);
-                AddTypes(declarationGenerator.GenerateRemainingTypeDeclarations());
-
-                var fnPtr = declarationGenerator.GenerateMethodDeclaration(method);
-                Methods.Add(method, fnPtr, new AppMethod(method, fnPtr) { Group = Group });
-            }
+            BuildMetadataDataUsages();
 
             // Add types from metadata usage list to C++ type model
             // Not supported in il2cpp <19
@@ -336,7 +332,7 @@ namespace Il2CppInspector.Model
                     {
                         case MetadataUsageType.StringLiteral:
                             var str = TypeModel.GetMetadataUsageName(usage);
-                            Strings.Add(address, str);
+                            Strings[address] = str;
                             break;
 
                         case MetadataUsageType.Type
@@ -383,21 +379,9 @@ namespace Il2CppInspector.Model
 
                             break;
 
-                        // FieldInfo is used for array initializers.
-                        // FieldRva is used for span initializers.
                         case MetadataUsageType.FieldInfo
                         or MetadataUsageType.FieldRva:
-                            var fieldRef = TypeModel.Package.FieldRefs[usage.SourceIndex];
-                            var fieldType = TypeModel.GetMetadataUsageType(usage);
-                            var field = fieldType.DeclaredFields.First(f => f.Index == fieldType.Definition.FieldIndex + fieldRef.FieldIndex);
-
-                            var value = field.HasFieldRVA ? Convert.ToHexString(Package.Metadata.ReadBytes((long)field.DefaultValueMetadataAddress, field.FieldType.Sizes.NativeSize)) : "";
-
-                            if (usage.Type == MetadataUsageType.FieldInfo)
-                                Fields[usage.VirtualAddress] = (field, value);
-                            else
-                                FieldRvas[usage.VirtualAddress] = (field, value);
-
+                            // Populated by the shared data-usage decoder above.
                             break;
                     }
                 }
@@ -434,6 +418,51 @@ namespace Il2CppInspector.Model
             // This is to allow this method to be chained after a new expression
             return this;
         }
+
+        internal void BuildMethodsFromMetadata(Func<MethodBase, int, int, string, AppMethod> add)
+        {
+            foreach (var method in TypeModel.MethodsByDefinitionIndex.Where(m => m.VirtualAddress.HasValue))
+                add(method, method.Index, -1, "types_from_methods");
+            for (var i = 0; i < Package.MethodSpecs.Length; i++)
+            {
+                var spec = Package.MethodSpecs[i];
+                if (!Package.GenericMethodPointers.ContainsKey(spec))
+                    continue;
+                add(TypeModel.GetGenericMethod(spec), spec.MethodDefinitionIndex, i, "types_from_generic_methods");
+            }
+            foreach (var usage in Package.MetadataUsages ?? [])
+                if (usage.Type is MetadataUsageType.MethodDef or MetadataUsageType.MethodRef)
+                {
+                    var method = TypeModel.GetMetadataUsageMethod(usage);
+                    var spec = usage.Type == MetadataUsageType.MethodRef ? usage.SourceIndex : -1;
+                    add(method, method.Index, spec, "types_from_usages").MethodInfoPtrAddress = usage.VirtualAddress;
+                }
+        }
+
+        internal void BuildMetadataDataUsages()
+        {
+            foreach (var usage in Package.MetadataUsages ?? [])
+            {
+                if (usage.Type == MetadataUsageType.StringLiteral)
+                    Strings[usage.VirtualAddress] = TypeModel.GetMetadataUsageName(usage);
+                else if (usage.Type is MetadataUsageType.FieldInfo or MetadataUsageType.FieldRva)
+                {
+                    var reference = Package.FieldRefs[usage.SourceIndex];
+                    var type = TypeModel.GetMetadataUsageType(usage);
+                    var definition = type.Definition.IsValid ? type.Definition : type.GetGenericTypeDefinition().Definition;
+                    var field = type.DeclaredFields.First(f => f.Index == definition.FieldIndex + reference.FieldIndex);
+                    var size = FieldRvaSize(field);
+                    var value =
+                        field.HasFieldRVA && size > 0 && field.DefaultValueMetadataAddress != 0 ? Convert.ToHexString(Package.Metadata.ReadBytes((long)field.DefaultValueMetadataAddress, size)) : "";
+                    (usage.Type == MetadataUsageType.FieldInfo ? Fields : FieldRvas)[usage.VirtualAddress] = (field, value);
+                }
+            }
+        }
+
+        internal int FieldRvaSize(FieldInfo field) =>
+            Package.Metadata.HasGameAdapter
+                ? Package.Metadata.GameAdapter.FieldRvaSize(Package.TypeReferences[Package.Fields[field.Index].TypeIndex], Package.Binary)
+                : field.FieldType.Sizes.NativeSize;
 
         private void AddTypes(List<(TypeInfo ilType, CppComplexType valueType, CppComplexType referenceType, CppComplexType fieldsType, CppComplexType vtableType, CppComplexType staticsType)> types)
         {

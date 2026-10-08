@@ -86,6 +86,9 @@ namespace Il2CppInspector.Outputs
 
         // Our custom attributes
         private TypeDef addressAttribute;
+        private TypeDef genericInstAddressAttribute;
+        private TypeDef assemblyFlagsAttribute;
+        private Dictionary<int, (ulong Address, int Spec)> genericAddresses = [];
         private TypeDef fieldOffsetAttribute;
         private TypeDef staticFieldOffsetAttribute;
         private TypeDef attributeAttribute;
@@ -145,10 +148,10 @@ namespace Il2CppInspector.Outputs
 
             if (model.Package.Metadata.HasGameAdapter)
             {
-                var genericInstAddress = createAttribute("GenericInstAddressAttribute");
+                genericInstAddressAttribute = createAttribute("GenericInstAddressAttribute");
                 foreach (var field in new[] { "RVA", "Offset", "VA", "Spec" })
-                    genericInstAddress.Fields.Add(new FieldDefUser(field, stringField, FieldAttributes.Public));
-                genericInstAddress.AddDefaultConstructor(attributeCtorRef);
+                    genericInstAddressAttribute.Fields.Add(new FieldDefUser(field, stringField, FieldAttributes.Public));
+                genericInstAddressAttribute.AddDefaultConstructor(attributeCtorRef);
             }
 
             fieldOffsetAttribute = createAttribute("FieldOffsetAttribute");
@@ -162,9 +165,9 @@ namespace Il2CppInspector.Outputs
             {
                 staticFieldOffsetAttribute.Fields.Add(new FieldDefUser("StorageTag", stringField, FieldAttributes.Public));
                 staticFieldOffsetAttribute.Fields.Add(new FieldDefUser("StorageBase", stringField, FieldAttributes.Public));
-                var assemblyFlags = createAttribute("AssemblyFlagsAttribute");
-                assemblyFlags.Fields.Add(new FieldDefUser("Flags", stringField, FieldAttributes.Public));
-                assemblyFlags.AddDefaultConstructor(attributeCtorRef);
+                assemblyFlagsAttribute = createAttribute("AssemblyFlagsAttribute");
+                assemblyFlagsAttribute.Fields.Add(new FieldDefUser("Flags", stringField, FieldAttributes.Public));
+                assemblyFlagsAttribute.AddDefaultConstructor(attributeCtorRef);
             }
             staticFieldOffsetAttribute.AddDefaultConstructor(attributeCtorRef);
 
@@ -198,10 +201,18 @@ namespace Il2CppInspector.Outputs
         }
 
         // Create a new DLL assembly definition
+        private ModuleDefUser NewModule(string name)
+        {
+            // dnlib defaults to mscorlib 2.0; bind to the actual decoded application's core library.
+            var core = model.TypesByFullName["System.Object"].Assembly.AssemblyDefinition.Aname;
+            var reference = new AssemblyRefUser(CreateAssembly(core));
+            return new ModuleDefUser(name, null, reference) { Kind = ModuleKind.Dll };
+        }
+
         private ModuleDefUser CreateAssembly(string name)
         {
             // Create module
-            var module = new ModuleDefUser(name) { Kind = ModuleKind.Dll };
+            var module = NewModule(name);
 
             // Create assembly
             var ourVersion = System.Reflection.Assembly.GetAssembly(typeof(Il2CppInspector)).GetName().Version;
@@ -244,7 +255,7 @@ namespace Il2CppInspector.Outputs
 
         private ModuleDefUser CreateAssembly(Assembly assembly)
         {
-            var module = new ModuleDefUser(assembly.ShortName) { Kind = ModuleKind.Dll };
+            var module = NewModule(assembly.ShortName);
 
             var asm = CreateAssembly(assembly.AssemblyDefinition.Aname);
             asm.Modules.Add(module);
@@ -261,7 +272,11 @@ namespace Il2CppInspector.Outputs
             var mType = new TypeDefUser(ns, type.BaseName, GetTypeRef(module, type.BaseType)) { Attributes = (TypeAttributes)type.Attributes };
 
             if (mType.IsExplicitLayout || mType.IsSequentialLayout)
-                mType.ClassLayout = new ClassLayoutUser(1, (uint)type.Sizes.NativeSize);
+            {
+                var packing = (int)type.Definition.Bitfield.PackingSize;
+                var size = model.Package.Metadata.HasGameAdapter ? Math.Max(0, (long)type.Sizes.InstanceSize - 16) : type.Sizes.NativeSize;
+                mType.ClassLayout = new ClassLayoutUser((ushort)(type.Definition.Bitfield.DefaultPackingSize || packing == 0 ? 0 : 1 << (packing - 1)), (uint)size);
+            }
 
             // Add nested types
             foreach (var nestedType in type.DeclaredNestedTypes)
@@ -357,7 +372,9 @@ namespace Il2CppInspector.Outputs
             {
                 // Attempt to get field size
 
-                var fieldSize = field.FieldType.Sizes.NativeSize;
+                var fieldSize = model.Package.Metadata.HasGameAdapter
+                    ? model.Package.Metadata.GameAdapter.FieldRvaSize(model.Package.TypeReferences[model.Package.Fields[field.Index].TypeIndex], model.Package.Binary)
+                    : field.FieldType.Sizes.NativeSize;
                 var preview = model.Package.Metadata.ReadBytes((long)field.DefaultValueMetadataAddress, fieldSize);
 
                 mField.InitialValue = preview;
@@ -368,7 +385,15 @@ namespace Il2CppInspector.Outputs
             if (!field.IsStatic)
                 mField.AddAttribute(module, fieldOffsetAttribute, ("Offset", $"0x{field.Offset:X2}"));
             else if (!field.IsLiteral)
-                mField.AddAttribute(module, staticFieldOffsetAttribute, ("ThreadStatic", field.IsThreadStatic), ("Offset", $"0x{field.Offset:X2}"));
+            {
+                var args = new List<(string, object)> { ("ThreadStatic", field.IsThreadStatic), ("Offset", $"0x{field.Offset:X2}") };
+                if (model.Package.Metadata.HasGameAdapter)
+                {
+                    args.Add(("StorageTag", field.StorageTag.ToString()));
+                    args.Add(("StorageBase", model.Package.Metadata.GameAdapter.StorageBase((uint)field.StorageTag)));
+                }
+                mField.AddAttribute(module, staticFieldOffsetAttribute, args.ToArray());
+            }
 
             // Add token attribute
             mField.AddAttribute(module, tokenAttribute, ("Token", $"0x{field.MetadataToken:X8}"));
@@ -377,6 +402,8 @@ namespace Il2CppInspector.Outputs
             foreach (var ca in field.CustomAttributes)
                 AddCustomAttribute(module, mField, ca);
 
+            if (mType.IsExplicitLayout && !field.IsStatic)
+                mField.FieldOffset = (uint)field.Offset;
             mType.Fields.Add(mField);
             return mField;
         }
@@ -535,6 +562,15 @@ namespace Il2CppInspector.Outputs
 
                 mMethod.AddAttribute(module, addressAttribute, args.ToArray());
             }
+            else if (genericAddresses.TryGetValue(method.Index, out var generic))
+                mMethod.AddAttribute(
+                    module,
+                    genericInstAddressAttribute,
+                    ("RVA", $"0x{generic.Address - model.Package.BinaryImage.ImageBase:X}"),
+                    ("Offset", $"0x{model.Package.BinaryImage.MapVATR(generic.Address):X}"),
+                    ("VA", $"0x{generic.Address:X}"),
+                    ("Spec", generic.Spec.ToString())
+                );
 
             // Add custom attribute attributes
             foreach (var ca in method.CustomAttributes)
@@ -641,7 +677,7 @@ namespace Il2CppInspector.Outputs
             if (!signatureCache.TryGetValue(module, out var cache))
                 signatureCache.Add(module, cache = []);
             if (!cache.TryGetValue(type, out var signature))
-                cache.Add(type, signature = module.Import(GetTypeSigImpl(module, type)));
+                cache.Add(type, signature = new Importer(module, ImporterOptions.TryToUseTypeDefs).Import(GetTypeSigImpl(module, type)));
             return signature;
         }
 
@@ -650,6 +686,14 @@ namespace Il2CppInspector.Outputs
         {
             if (type == null)
                 return null;
+
+            // Encode CLR primitive signatures as ELEMENT_TYPE_I4/I8/etc., including RVA fields.
+            if (type.IsPrimitive || type.FullName is "System.String" or "System.Object")
+            {
+                var primitive = module.CorLibTypes.GetCorLibTypeSig(type.Namespace, type.Name, module.CorLibTypes.AssemblyRef);
+                if (primitive != null)
+                    return primitive;
+            }
 
             // Generic type parameter (VAR)
             if (type.IsGenericTypeParameter)
@@ -676,6 +720,17 @@ namespace Il2CppInspector.Outputs
 
             // Get module that owns the type
             var typeOwnerModule = modules[type.Assembly];
+            var definition = type.IsGenericType ? type.GetGenericTypeDefinition() : type;
+            if (typeOwnerModule == module && types.TryGetValue(module, out var localTypes) && localTypes.TryGetValue(definition, out var localType))
+            {
+                var localSig = localType.ToTypeSig(type.IsValueType);
+                if (!type.IsGenericType)
+                    return localSig;
+                var genericSig = new GenericInstSig(localSig.ToClassOrValueTypeSig(), type.GenericTypeArguments.Length);
+                foreach (var argument in type.GetGenericArguments())
+                    genericSig.GenericArguments.Add(GetTypeSig(module, argument));
+                return genericSig;
+            }
             var typeOwnerModuleRef = new ModuleRefUser(typeOwnerModule);
 
             //Keep the same as TypeDef
@@ -707,38 +762,11 @@ namespace Il2CppInspector.Outputs
         public void Write(string outputPath, EventHandler<string> statusCallback = null)
         {
             long completed = 0;
-            long total = model.Assemblies.Count * (model.Package.Metadata.HasGameAdapter ? 1L : 3L);
+            long total = model.Assemblies.Count * 3L;
             void Report(string detail) => ProgressCallback?.Invoke(new OperationProgress("Generating DummyDlls", completed, total, detail));
             Report("Preparing assemblies");
             // Create folder for DLLs
             Directory.CreateDirectory(outputPath);
-
-            if (model.Package.Metadata.HasGameAdapter)
-            {
-                // Game writers reuse the shared informational-attribute assembly.
-                modules = model.Assemblies.ToDictionary(a => a, a => (ModuleDef)CreateAssembly(a));
-                if (!SuppressMetadata)
-                {
-                    using var support = CreateBaseAssembly();
-                    support.Write(Path.Combine(outputPath, support.Name));
-                }
-                long started = 0;
-                model.Package.Metadata.GamePlugin.WriteAssemblies(
-                    model,
-                    outputPath,
-                    SuppressMetadata,
-                    (sender, message) =>
-                    {
-                        // Plugin status notifications precede each assembly write.
-                        completed = Math.Min(started++, Math.Max(0, total - 1));
-                        Report(message);
-                        statusCallback?.Invoke(sender, message);
-                    }
-                );
-                completed = total;
-                Report("Complete");
-                return;
-            }
 
             if (model.Package.Version >= MetadataVersions.V290)
             {
@@ -750,9 +778,19 @@ namespace Il2CppInspector.Outputs
                 // Get all custom attributes with no parameters
                 // We'll add these directly to objects instead of the attribute generator function pointer
                 directApplyAttributes = model
-                    .TypesByDefinitionIndex.Where(t => IsAttributeType(t) && t.DeclaredFields.Count == 0 && t.DeclaredProperties.Count == 0)
+                    .TypesByDefinitionIndex.Where(t =>
+                        IsAttributeType(t) && t.DeclaredFields.Count == 0 && t.DeclaredProperties.Count == 0 && t.DeclaredConstructors.Any(c => !c.IsStatic && c.DeclaredParameters.Count == 0)
+                    )
                     .ToDictionary(t => t, t => (TypeDef)null);
             }
+
+            if (model.Package.Metadata.HasGameAdapter)
+                for (var i = 0; i < model.Package.MethodSpecs.Length; i++)
+                {
+                    var spec = model.Package.MethodSpecs[i];
+                    if (model.Package.GenericMethodPointers.TryGetValue(spec, out var pointer))
+                        genericAddresses.TryAdd(spec.MethodDefinitionIndex, (pointer, i));
+                }
 
             // Used for resolving TypeRefs, needed for static array initializers
             var ctx = ModuleDef.CreateModuleContext();
@@ -802,6 +840,9 @@ namespace Il2CppInspector.Outputs
                 // Add assembly custom attribute attributes (must do this after all assemblies and types are created due to type referencing)
                 foreach (var ca in asm.CustomAttributes)
                     AddCustomAttribute(module, module.Assembly, ca);
+
+                if (model.Package.Metadata.HasGameAdapter)
+                    module.Assembly.AddAttribute(module, assemblyFlagsAttribute, ("Flags", $"0x{(uint)asm.AssemblyDefinition.Aname.Flags:X}"));
 
                 // Add token attributes
                 module.AddAttribute(module, tokenAttribute, ("Token", $"0x{asm.ImageDefinition.Token:X8}"));

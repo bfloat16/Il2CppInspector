@@ -10,6 +10,8 @@ namespace Il2CppInspector
         internal ImmutableArray<Il2CppGenericInst> GenericInstances;
         public override List<MetadataUsage> Usages { get; } = [];
         internal List<(int TypeIndex, ulong Address)> RuntimeCaches { get; } = [];
+        public override IEnumerable<Plugins.AdditionalMetadataUsage> AdditionalUsages =>
+            RuntimeCaches.Select(cache => new Plugins.AdditionalMetadataUsage("moraxRuntimeCaches", cache.TypeIndex, cache.Address, $"RuntimeCache_{cache.TypeIndex}_{cache.Address:X}", "void *"));
         private uint[] rawFieldOffsets;
         internal uint[] RawFieldOffsets => rawFieldOffsets;
         internal Dictionary<int, int> GenericLayoutGroups { get; } = [];

@@ -8,6 +8,12 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ
             IL2CPP.ZenlessZoneZero.ZzzBinaryTests.Run(context);
             Reflection.ZzzReflectionTests.Run(context);
 
+            if (args.Contains("--native-names"))
+            {
+                Model.ZzzNativeNamingTests.Run(context, args[1], args);
+                return;
+            }
+
             if (args.Contains("--debug-supplement"))
             {
                 var app = new AppModel(context.Model, false).Build(new UnityVersion("2019.4.40f1"));

@@ -15,6 +15,7 @@ namespace Il2CppInspector.Model
         // The logical group this method is part of
         // This is purely for querying methods in related groups and has no bearing on the code
         public string Group { get; set; }
+        public bool SignatureComplete { get; internal set; } = true;
 
         // The corresponding C++ function pointer type
         public CppFnPtrType CppFnPtrType { get; internal set; }

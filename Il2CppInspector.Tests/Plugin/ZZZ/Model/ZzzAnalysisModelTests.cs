@@ -19,6 +19,7 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Model
             );
             Check(model.GenericMethods.Count == input.MethodSpecs.Distinct().Count(), "Public generic enumeration includes every distinct spec");
             var cpp = app.CppTypeCollection;
+            var native = app.GameNativeModel;
             var value = app.Types[vector].CppValueType;
             Check(
                 value.SizeBytes == 12 && value["x"].OffsetBytes == 0 && value["y"].OffsetBytes == 4 && value["z"].OffsetBytes == 8,
@@ -36,16 +37,16 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Model
                 "Public C++ generic class vtables retain the conditional SoA layout"
             );
             Check(
-                cpp.GetComplexType("Zzz_Type_3__GlobalStaticFields2").Fields.Values.SelectMany(f => f).Min(f => f.OffsetBytes) == 0x210,
+                cpp.GetComplexType(native.Name(model.TypesByDefinitionIndex[3]) + "__GlobalStaticFields2").Fields.Values.SelectMany(f => f).Min(f => f.OffsetBytes) == 0x210,
                 "Public C++ global-static regions retain the process buffer offsets"
             );
             var interfaceType = model.TypesByDefinitionIndex.First(t => t is { IsInterface: true, IsGenericType: false } && t.Definition.MethodCount > 0 && t.Definition.VTableCount == 0);
-            var interfaceView = cpp.GetComplexType($"Zzz_Type_{interfaceType.Index}__InterfaceVTable");
+            var interfaceView = cpp.GetComplexType(native.Name(interfaceType) + "__InterfaceVTable");
             Check(
-                interfaceView.SizeBytes == interfaceType.Definition.MethodCount * 8 && cpp.GetComplexType($"Zzz_Type_{interfaceType.Index}__Class").SizeBytes == 0xD0,
+                interfaceView.SizeBytes == interfaceType.Definition.MethodCount * 8 && cpp.GetComplexType(native.ClassName(interfaceType)).SizeBytes == 0xD0,
                 "Interface callable views expose method slots without changing the physical interface class layout"
             );
-            var globalRegion = cpp.GetComplexType("Zzz_Type_3__GlobalStaticFields2");
+            var globalRegion = cpp.GetComplexType(native.Name(model.TypesByDefinitionIndex[3]) + "__GlobalStaticFields2");
             var regionField = globalRegion.Fields.Values.SelectMany(f => f).First();
             var rendered =
                 "#include \"il2cpp.h\"\n"
@@ -56,7 +57,8 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Model
                 + $"static_assert(__builtin_offsetof(AuditStatic, {regionField.Name}) == {regionField.OffsetBytes});\n"
                 + $"static_assert(sizeof(AuditVTable) == {table.SizeBytes});\n"
                 + "static_assert(__builtin_offsetof(AuditVTable, methodPtr_1_Finalize) == 8);\n";
-            File.WriteAllText("output/zzz-gaps-fixed/native-model-render-check.cpp", rendered, Encoding.UTF8);
+            Directory.CreateDirectory(args[1]);
+            File.WriteAllText(Path.Combine(args[1], "native-model-render-check.cpp"), rendered, Encoding.UTF8);
             if (args.Contains("--analysis-layouts"))
             {
                 var ordered = app.DependencyOrderedCppTypes;

@@ -25,28 +25,28 @@ namespace Il2CppInspector
             const Il2CppImage* image;
             void* gc_desc;
             uint64_t cctor_thread;
-            Il2CppClass** type_hierarchy;
+            Il2CppClass** typeHierarchy;
             void* static_fields;
             const char* name;
             Il2CppClass** nestedTypes;
             FieldInfo* fields;
-            Il2CppClass** implemented_interfaces;
+            Il2CppClass** implementedInterfaces;
             const Il2CppRGCTXData* rgctx_data;
-            Il2CppRuntimeInterfaceOffsetPair* interface_offsets;
-            const void* type_definition;
-            void* generic_class;
+            Il2CppRuntimeInterfaceOffsetPair* interfaceOffsets;
+            const Il2CppTypeDefinition* typeDefinition;
+            Il2CppGenericClass* generic_class;
             const MethodInfo** methods;
             PropertyInfo* properties;
             EventInfo* events;
             Il2CppType byval_arg;
             Il2CppType this_arg;
-            uint32_t parent_offset;
-            uint32_t type_token;
-            uint32_t element_or_cast_offset;
-            uint32_t type_attributes;
-            uint32_t declaring_type_offset;
-            uint32_t alternate_type_offset;
-            uint16_t alignment_index;
+            uint32_t parent; // class-pool relative offset; add the pool base to decode
+            uint32_t token;
+            uint32_t element_class; // class-pool relative offset
+            uint32_t flags;
+            uint32_t declaringType; // class-pool relative offset
+            uint32_t castClass; // class-pool relative offset
+            int16_t thread_static_fields_offset; // thread-static storage slot; -1 means unassigned
             uint16_t element_size;
             uint16_t instance_size;
             uint16_t static_fields_size;
@@ -54,7 +54,7 @@ namespace Il2CppInspector
             uint16_t method_count;
             uint16_t vtable_count;
             uint16_t interface_offsets_count;
-            uint8_t type_hierarchy_depth;
+            uint8_t typeHierarchyDepth;
             uint8_t thread_static_fields_size;
             uint8_t cctor_started;
             uint8_t cctor_finished;
@@ -79,34 +79,34 @@ namespace Il2CppInspector
             (
                 "FieldInfo",
                 """
-                const Il2CppType* type;
-                Il2CppClass* parent;
-                const char* name;
-                uint32_t offset;
-                uint32_t token;
+                const Il2CppType* type; // encoded pointer: XOR 0x202F636B23E52A58 before dereferencing
+                Il2CppClass* parent; // encoded pointer: subtract 0x5294F86322A36BB2 before dereferencing
+                const char* name; // encoded pointer: subtract 0x1C1A66B034E5840A before dereferencing
+                int32_t offset; // XOR 0x39336AB2; decoded high byte selects the storage region
+                uint32_t token; // XOR 0x1818791C
                 """
             ),
             (
                 "PropertyInfo",
                 """
-                Il2CppClass* parent;
-                const MethodInfo* get;
-                const char* name;
-                const MethodInfo* set;
-                uint32_t token;
-                uint32_t attrs;
+                Il2CppClass* parent; // encoded pointer: subtract 0x3F0C58071F6369DE before dereferencing
+                const MethodInfo* get; // encoded pointer: XOR 0x56A138275EBCABE7 before dereferencing
+                const char* name; // encoded pointer: subtract 0x7725D3606CFDD420 before dereferencing
+                const MethodInfo* set; // encoded pointer: XOR 0x6190F6204044FCD5 before dereferencing
+                uint32_t token; // XOR 0x02D17E8E
+                uint32_t attrs; // XOR 0x7B28FD48
                 """
             ),
             (
                 "EventInfo",
                 """
-                const MethodInfo* raise;
-                const MethodInfo* remove;
-                const MethodInfo* add;
-                Il2CppClass* parent;
-                const Il2CppType* eventType;
-                const char* name;
-                uint32_t token;
+                const MethodInfo* raise; // encoded pointer: XOR 0x149B8D1C461547A0 before dereferencing
+                const MethodInfo* remove; // encoded pointer: XOR 0x1D64B25F2B21EE69 before dereferencing
+                const MethodInfo* add; // encoded pointer: subtract 0x1352511770BF4262 before dereferencing
+                Il2CppClass* parent; // encoded pointer: XOR 0x580433D95E79455D before dereferencing
+                const Il2CppType* eventType; // encoded pointer: subtract 0x3D7F2688535EEC20 before dereferencing
+                const char* name; // encoded pointer: XOR 0x4BDA03742AAB08FF before dereferencing
+                uint32_t token; // subtract 0x73AEF8D7
                 uint32_t reserved_34;
                 """
             ),
@@ -118,9 +118,15 @@ namespace Il2CppInspector
                 int32_t methodDefinitionIndex;
                 uint32_t reserved_14;
                 InvokerMethod invoker_method;
-                void* genericMethod;
+                // Definitions store an index; inflated methods store a pointer.
+                union
+                {
+                    const Il2CppGenericMethod* genericMethod;
+                    int32_t genericContainerIndex;
+                };
                 uint32_t token;
-                uint32_t flags_packed;
+                uint16_t flags;
+                uint16_t iflags;
                 uint16_t slot;
                 uint8_t parameters_count;
                 uint8_t runtime_flags;

@@ -1,5 +1,6 @@
 using Il2CppInspector.Cpp.UnityHeaders;
 using Il2CppInspector.Model;
+using Il2CppInspector.Outputs;
 using Il2CppInspector.Reflection;
 
 namespace Il2CppInspector.Plugins
@@ -19,9 +20,15 @@ namespace Il2CppInspector.Plugins
         public abstract IGameTypeLayouts CreateTypeLayouts(TypeModel model);
         public abstract GameNativeModel CreateNativeModel(TypeModel model);
         public abstract IGameAnalysisModel CreateAnalysisModel(AppModel model);
-        public abstract void WriteAssemblies(TypeModel model, string path, bool suppressMetadata, EventHandler<string> status);
-        public abstract void WriteHeader(AppModel model, string path, bool betterArraySize);
-        public abstract void WriteJson(AppModel model, string path, bool allowComments, bool supplementDebugInfo = false);
-        public abstract void WriteApplicationPointers(AppModel model, string path);
+
+        public virtual void WriteAssemblies(TypeModel model, string path, bool suppressMetadata, EventHandler<string> status) =>
+            new AssemblyShims(model) { SuppressMetadata = suppressMetadata }.Write(path, status);
+
+        public virtual void WriteHeader(AppModel model, string path, bool betterArraySize) => new CppScaffolding(model, betterArraySize).WriteTypes(path);
+
+        public virtual void WriteJson(AppModel model, string path, bool allowComments, bool supplementDebugInfo = false) =>
+            new JSONMetadata(model) { AllowComments = allowComments, SupplementDebugInfo = supplementDebugInfo }.Write(path);
+
+        public virtual void WriteApplicationPointers(AppModel model, string path) => new CppScaffolding(model).WriteApplicationPointers(path);
     }
 }

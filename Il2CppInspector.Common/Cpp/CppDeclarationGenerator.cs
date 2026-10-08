@@ -18,7 +18,7 @@ public class CppDeclarationGenerator
     private readonly AppModel appModel;
 
     private TypeModel model => appModel.TypeModel;
-    private CppTypeCollection types => appModel.CppTypeCollection;
+    private CppTypeCollection types => appModel.RuntimeCppTypes;
 
     // Word size (32/64-bit) for this generator
     public int WordSize => appModel.WordSizeBits;
@@ -64,6 +64,13 @@ public class CppDeclarationGenerator
         ["Double"] = "double",
         ["Single"] = "float",
     };
+
+    internal static string PrimitiveTypeName(TypeInfo type) =>
+        type?.FullName == "System.Void" ? "void"
+        : type?.IsPrimitive == true && primitiveTypeMap.TryGetValue(type.Name, out var name) ? name
+        : null;
+
+    internal static string FieldIdentifier(string name) => CreateNamespace().MakeNamer<string>(n => n.ToCIdentifier()).GetName(name);
 
     public CppType AsCType(TypeInfo ti)
     {
@@ -598,12 +605,13 @@ public class CppDeclarationGenerator
     }
 
     // Generate a C declaration for a method
-    private CppFnPtrType GenerateMethodDeclaration(MethodBase method, string name, TypeInfo declaringType)
+    private CppFnPtrType GenerateMethodDeclaration(MethodBase method, string name, TypeInfo declaringType, Func<TypeInfo, CppType> convert = null)
     {
+        convert ??= AsCType;
         CppType retType;
         if (method is MethodInfo mi)
         {
-            retType = mi.ReturnType.FullName == "System.Void" ? types["void"] : AsCType(mi.ReturnType);
+            retType = mi.ReturnType.FullName == "System.Void" ? types["void"] : convert(mi.ReturnType);
         }
         else
         {
@@ -620,24 +628,24 @@ public class CppDeclarationGenerator
         {
             // In older versions, static methods took a dummy this parameter
             if (UnityVersion.CompareTo("2018.3.0") < 0)
-                paramList.Add(("this", types.GetType("void *")));
+                paramList.Add(("__this", types.GetType("void *")));
         }
         else
         {
             if (declaringType.IsValueType)
             {
-                // Methods for structs take the boxed object as the this param
-                paramList.Add(("this", types.GetType(TypeNamer.GetName(declaringType) + " *"))); // + "__Boxed *")));
+                // Value-type methods receive the native value storage address.
+                paramList.Add(("__this", convert(declaringType.MakeByRefType())));
             }
             else
             {
-                paramList.Add(("this", AsCType(declaringType)));
+                paramList.Add(("__this", convert(declaringType)));
             }
         }
 
         foreach (var pi in method.DeclaredParameters)
         {
-            paramList.Add((paramNamer.GetName(pi), AsCType(pi.ParameterType)));
+            paramList.Add((paramNamer.GetName(pi), convert(pi.ParameterType)));
         }
 
         paramList.Add(("method", types.GetType("MethodInfo *")));
@@ -656,6 +664,10 @@ public class CppDeclarationGenerator
     {
         return GenerateMethodDeclaration(method, GlobalNamer.GetName(method), method.DeclaringType);
     }
+
+    internal CppFnPtrType GenerateMethodDeclaration(MethodBase method, Func<TypeInfo, CppType> convert) =>
+        GenerateMethodDeclaration(method, GlobalNamer.GetName(method), method.DeclaringType, convert);
+
     #endregion
 
     #region Naming

@@ -2,6 +2,7 @@
 // All rights reserved
 
 using System.Text.Json;
+using Il2CppInspector.Cpp;
 using Il2CppInspector.Model;
 using Il2CppInspector.Next;
 using Il2CppInspector.Reflection;
@@ -35,11 +36,6 @@ namespace Il2CppInspector.Outputs
         // Write JSON metadata to file
         public void Write(string outputFile)
         {
-            if (model.Package.Metadata.HasGameAdapter)
-            {
-                model.Package.Metadata.GamePlugin.WriteJson(model, outputFile, AllowComments, SupplementDebugInfo);
-                return;
-            }
             using var fs = new FileStream(outputFile, FileMode.Create);
             writer = new Utf8JsonWriter(fs, options: new JsonWriterOptions { Indented = true });
             writer.WriteStartObject();
@@ -58,6 +54,7 @@ namespace Il2CppInspector.Outputs
                     writeExports();
                     writeSymbols();
                     writeFields();
+                    writeAdditionalUsages();
                 },
                 "Address map of methods, internal functions, type pointers and string literals in the binary file"
             );
@@ -89,10 +86,8 @@ namespace Il2CppInspector.Outputs
                 "methodInvokers",
                 () =>
                 {
-                    foreach (var method in model.TypeModel.MethodInvokers.Where(m => m != null))
-                    {
-                        writeObject(() => writeTypedFunctionName(method.VirtualAddress.Start, method.GetSignature(model.UnityVersion), method.Name));
-                    }
+                    foreach (var method in model.EnumerateNativeSupportMethods().Where(m => m.Name.StartsWith("Il2CppInvoker_", StringComparison.Ordinal)))
+                        writeObject(() => writeTypedFunctionName(method.Address, method.Signature.ToSignatureString(), method.Name));
                 },
                 "Method.Invoke thunks"
             );
@@ -106,6 +101,8 @@ namespace Il2CppInspector.Outputs
                 {
                     writeTypedFunctionName(method.MethodCodeAddress, method.CppFnPtrType.ToSignatureString(), method.ToMangledString());
                     writeDotNetSignature(method.Method);
+                    if (model.GameNativeModel != null)
+                        writer.WriteBoolean("signatureComplete", method.SignatureComplete);
 
                     var groupString = $"{method.Method.DeclaringType.Assembly.ShortName}/{method.Method.DeclaringType.FullName.Replace(".", "/")}";
                     writer.WriteString("group", groupString);
@@ -148,18 +145,15 @@ namespace Il2CppInspector.Outputs
                 "typeInfoPointers",
                 () =>
                 {
-                    foreach (var type in model.Types.Values)
+                    foreach (var usage in (model.Package.MetadataUsages ?? []).Where(u => u.Type == MetadataUsageType.TypeInfo))
                     {
-                        // A type may have no addresses, for example an unreferenced array type
-
-                        if (type.TypeClassAddress != 0xffffffff_ffffffff)
+                        var type = model.TypeModel.GetMetadataUsageType(usage);
+                        var className = model.GameNativeModel?.ClassName(type) ?? model.Types[type].Name + "__Class";
+                        writeObject(() =>
                         {
-                            writeObject(() =>
-                            {
-                                writeTypedName(type.TypeClassAddress, $"struct {type.Name}__Class *", type.ToMangledTypeInfoString());
-                                writeDotNetTypeName(type.Type);
-                            });
-                        }
+                            writeTypedName(usage.VirtualAddress, $"struct {className} *", MangledNameBuilder.TypeInfo(type));
+                            writeDotNetTypeName(type);
+                        });
                     }
                 },
                 "Il2CppClass (TypeInfo) pointers"
@@ -170,17 +164,14 @@ namespace Il2CppInspector.Outputs
                 "typeRefPointers",
                 () =>
                 {
-                    foreach (var type in model.Types.Values)
+                    foreach (var usage in (model.Package.MetadataUsages ?? []).Where(u => u.Type == MetadataUsageType.Type))
                     {
-                        if (type.TypeRefPtrAddress != 0xffffffff_ffffffff)
+                        var type = model.TypeModel.GetMetadataUsageType(usage);
+                        writeObject(() =>
                         {
-                            writeObject(() =>
-                            {
-                                // A generic type definition does not have any direct C++ types, but may have a reference
-                                writeName(type.TypeRefPtrAddress, type.ToMangledTypeRefString());
-                                writeDotNetTypeName(type.Type);
-                            });
-                        }
+                            writeName(usage.VirtualAddress, MangledNameBuilder.TypeRef(type));
+                            writeDotNetTypeName(type);
+                        });
                     }
                 },
                 "Il2CppType (TypeRef) pointers"
@@ -191,14 +182,15 @@ namespace Il2CppInspector.Outputs
                 "methodInfoPointers",
                 () =>
                 {
-                    foreach (var method in model.Methods.Values.Where(m => m.HasMethodInfo))
+                    foreach (var usage in (model.Package.MetadataUsages ?? []).Where(u => u.Type is MetadataUsageType.MethodDef or MetadataUsageType.MethodRef))
                     {
+                        var method = model.TypeModel.GetMetadataUsageMethod(usage);
                         writeObject(() =>
                         {
-                            writeName(method.MethodInfoPtrAddress, method.ToMangledMethodInfoString());
-                            writeDotNetSignature(method.Method);
-                            if (method.HasCompiledCode)
-                                writer.WriteString("methodAddress", method.MethodCodeAddress.ToAddressString());
+                            writeName(usage.VirtualAddress, MangledNameBuilder.MethodInfo(method));
+                            writeDotNetSignature(method);
+                            if (method.VirtualAddress.HasValue)
+                                writer.WriteString("methodAddress", method.VirtualAddress.Value.Start.ToAddressString());
                         });
                     }
                 },
@@ -246,22 +238,10 @@ namespace Il2CppInspector.Outputs
                 {
                     // This will be zero if we found the structs from the symbol table
                     if (binary.RegistrationFunctionPointer != 0)
-                        if (model.UnityVersion.CompareTo("5.3.5") >= 0)
-                            writeObject(() =>
-                                writeTypedFunctionName(
-                                    binary.RegistrationFunctionPointer,
-                                    "void il2cpp_codegen_register(const Il2CppCodeRegistration* const codeRegistration, const Il2CppMetadataRegistration* const metadataRegistration, const Il2CppCodeGenOptions* const codeGenOptions)",
-                                    "il2cpp_codegen_register"
-                                )
-                            );
-                        else
-                            writeObject(() =>
-                                writeTypedFunctionName(
-                                    binary.RegistrationFunctionPointer,
-                                    "void il2cpp_codegen_register(const Il2CppCodeRegistration* const codeRegistration, const Il2CppMetadataRegistration* const metadataRegistration)",
-                                    "il2cpp_codegen_register"
-                                )
-                            );
+                    {
+                        var signature = model.GetRegistrationSignature();
+                        writeObject(() => writeTypedFunctionName(binary.RegistrationFunctionPointer, signature.ToSignatureString(), signature.Name));
+                    }
                 },
                 "IL2CPP Function Metadata"
             );
@@ -343,7 +323,7 @@ namespace Il2CppInspector.Outputs
                 () =>
                 {
                     foreach (var (addr, field) in model.Fields)
-                        writeFieldObject(addr, (field.Field + "_Field").ToCIdentifier(), field.Value);
+                        writeFieldObject(addr, (field.Field + "_Field").ToCIdentifier(), field.Value, field.Field);
                 }
             );
 
@@ -352,19 +332,45 @@ namespace Il2CppInspector.Outputs
                 () =>
                 {
                     foreach (var (addr, rva) in model.FieldRvas)
-                        writeFieldObject(addr, (rva.Field + "_FieldRva").ToCIdentifier(), rva.Value);
+                        writeFieldObject(addr, (rva.Field + "_FieldRva").ToCIdentifier(), rva.Value, rva.Field);
                 }
             );
         }
 
-        private void writeFieldObject(ulong addr, string name, string value)
+        private void writeFieldObject(ulong addr, string name, string value, FieldInfo field)
         {
             writeObject(() =>
             {
                 writer.WriteString("virtualAddress", addr.ToAddressString());
                 writer.WriteString("name", name);
                 writer.WriteString("value", value);
+                if (model.Package.Metadata.HasGameAdapter)
+                {
+                    writer.WriteNumber("storageTag", field.StorageTag);
+                    writer.WriteNumber("offset", field.Offset);
+                    writer.WriteString("storageBase", model.Package.Metadata.GameAdapter.StorageBase((uint)field.StorageTag));
+                }
             });
+        }
+
+        private void writeAdditionalUsages()
+        {
+            var additional = model.Package.Metadata.GameAdapter?.AdditionalUsages;
+            if (additional == null)
+                return;
+            foreach (var section in additional.GroupBy(u => u.Section))
+                writeArray(
+                    section.Key,
+                    () =>
+                    {
+                        foreach (var usage in section)
+                            writeObject(() =>
+                            {
+                                writeTypedName(usage.Address, usage.Type, usage.Name);
+                                writeDotNetTypeName(model.TypeModel.TypesByReferenceIndex[usage.TypeIndex]);
+                            });
+                    }
+                );
         }
 
         // JSON helpers

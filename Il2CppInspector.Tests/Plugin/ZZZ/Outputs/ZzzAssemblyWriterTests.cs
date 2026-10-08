@@ -181,10 +181,13 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                             throw new InvalidOperationException("DLL managed layout or packing differs from metadata");
                         checkedPacking++;
                     }
+                    var methodsByToken = exported.Methods.ToDictionary(m =>
+                        Convert.ToUInt32(m.CustomAttributes.Single(a => a.AttributeType.Name == "TokenAttribute").NamedArguments.Single(a => a.Name == "Token").Argument.Value.ToString()[2..], 16)
+                    );
                     for (var methodIndex = 0; methodIndex < td.MethodCount; methodIndex++)
                     {
                         var rawMethod = input.Methods[td.MethodIndex + methodIndex];
-                        var method = exported.Methods[methodIndex];
+                        var method = methodsByToken[rawMethod.Token];
                         for (var p = 0; p < rawMethod.ParameterCount; p++)
                         {
                             var parameterIndex = rawMethod.ParameterStart + p;
@@ -226,7 +229,7 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                         {
                             var attribute = field.CustomAttributes.Single(a => a.AttributeType.Name == "StaticFieldOffsetAttribute");
                             var offset = attribute.NamedArguments.Single(a => a.Name == "Offset").Argument.Value.ToString();
-                            if (offset != $"0x{input.FieldOffsets[index] & 0x7FFFFFFF:X}")
+                            if (Convert.ToUInt32(offset[2..], 16) != (uint)(input.FieldOffsets[index] & 0x7FFFFFFF))
                                 throw new InvalidOperationException("DLL static offset differs from model");
                             if (attribute.NamedArguments.Single(a => a.Name == "StorageTag").Argument.Value.ToString() != (rawOffsets[index] >> 24).ToString())
                                 throw new InvalidOperationException("DLL static storage region differs from runtime tag");
@@ -246,7 +249,7 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                             scalarRvaFields++;
                         var expected = input.Metadata.ReadBytes((long)input.FieldDefaultValue[index].Item1, size);
                         if (field.RVA == 0 || !field.InitialValue.SequenceEqual(expected))
-                            throw new InvalidOperationException("DLL FieldRVA payload differs from metadata");
+                            throw new InvalidOperationException($"DLL FieldRVA payload differs from metadata: {field.FullName}, expected size {size}, actual size {field.InitialValue?.Length}");
                         if (
                             field.CustomAttributes.Single(a => a.AttributeType.Name == "MetadataPreviewAttribute").NamedArguments.Single(a => a.Name == "Data").Argument.Value.ToString()
                                 != Convert.ToHexString(expected)
@@ -266,8 +269,11 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                 nestedTypes += types.Count(t => t.IsNested);
             }
             Check(
-                methods == input.Methods.Length && fields == input.Fields.Length && properties == input.Properties.Length && events == input.Events.Length,
-                "All 170 exported DLLs reload with complete member counts"
+                methods == input.Methods.Length
+                    && fields == input.Fields.Length
+                    && properties == model.TypesByDefinitionIndex.Where(t => t != null).Sum(t => t.DeclaredProperties.Count)
+                    && events == input.Events.Length,
+                $"All 170 exported DLLs reload with complete member counts: methods={methods}/{input.Methods.Length}, fields={fields}/{input.Fields.Length}, properties={properties}/{input.Properties.Length}, events={events}/{input.Events.Length}"
             );
             Pass("All 170 DLL assembly versions and hash algorithms match metadata");
             Check(

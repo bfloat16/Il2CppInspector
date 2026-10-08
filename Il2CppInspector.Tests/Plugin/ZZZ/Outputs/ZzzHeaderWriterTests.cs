@@ -30,15 +30,11 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                 .GetType()
                 .GetMethod("ArrayName", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
                 .CreateDelegate<Func<global::Il2CppInspector.Reflection.TypeInfo, string>>(native);
-            var signatureType = typeof(global::Il2CppInspector.Plugin.ZZZ.ZzzPlugin).Assembly.GetType("Il2CppInspector.Outputs.ZzzJsonMetadata");
-            var signatureWriter = Activator.CreateInstance(signatureType, app);
             var vectorConstructor = vector.DeclaredConstructors.Single(c => c.DeclaredParameters.Count == 3);
-            var vectorSignature = ((string Name, string ReturnType, string Parameters, bool Complete))
-                signatureType
-                    .GetMethod("NativeSignature", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
-                    .Invoke(signatureWriter, [vectorConstructor.Index, -1]);
+            var vectorMethod = app.Methods[vectorConstructor];
+            var vectorSignature = vectorMethod.CppFnPtrType.ToSignatureString();
             Check(
-                vectorSignature.Parameters.Contains("float x") && vectorSignature.Parameters.Contains("float y") && vectorSignature.Parameters.Contains("float z") && vectorSignature.Complete,
+                vectorSignature.Contains("float x") && vectorSignature.Contains("float y") && vectorSignature.Contains("float z") && vectorMethod.SignatureComplete,
                 "Native method signatures retain the metadata parameter names instead of arg placeholders"
             );
             if (args.Contains("--write-project-pointers"))
@@ -82,12 +78,12 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
             }
             Check(
                 ctype(vector.MakeArrayType()) == "struct " + arrayName(vector.MakeArrayType()) + " *"
-                    && ctype(vector.MakeArrayType().MakeArrayType()).Contains("Zzz_Array_1_Zzz_Array_1_")
-                    && arrayName(model.TypesByFullName["System.Int32"].MakeArrayType(2)).StartsWith("Zzz_Array_2_"),
+                    && arrayName(vector.MakeArrayType().MakeArrayType()) == arrayName(vector.MakeArrayType()) + "__Array"
+                    && arrayName(model.TypesByFullName["System.Int32"].MakeArrayType(2)) != arrayName(model.TypesByFullName["System.Int32"].MakeArrayType()),
                 "Array declarations retain value elements, jagged pointer elements and multidimensional rank"
             );
             Check(
-                ctype(nullablePolicy.MakeByRefType()).StartsWith("struct Zzz_Generic_") && !ctype(nullablePolicy.MakeByRefType()).Contains("* *"),
+                ctype(nullablePolicy.MakeByRefType()) == ctype(nullablePolicy) + " *" && !ctype(nullablePolicy.MakeByRefType()).Contains("* *"),
                 "ByRef Nullable<enum> has one level of native indirection"
             );
             Check(ctype(model.TypesByFullName["System.IntPtr"].MakeByRefType()) == "void * *", "IntPtr ByRef retains its pointer slot indirection");
@@ -129,9 +125,9 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                 semanticAssertions.AppendLine($"static_assert(__builtin_offsetof(struct {byteEnumName}__Boxed, value) == 16);");
                 semanticAssertions.AppendLine($"static_assert((int){enumName}::Sunday == 0 && (int){enumName}::Saturday == 6);");
                 var interfaceType = model.TypesByDefinitionIndex.First(t => t is { IsInterface: true, IsGenericType: false } && t.Definition.MethodCount > 0 && t.Definition.VTableCount == 0);
-                var interfaceView = $"Zzz_Type_{interfaceType.Index}__InterfaceVTable";
+                var interfaceView = NativeName(interfaceType) + "__InterfaceVTable";
                 semanticAssertions.AppendLine($"static_assert(sizeof({interfaceView}) == {interfaceType.Definition.MethodCount * 8});");
-                semanticAssertions.AppendLine($"static_assert(sizeof(struct Zzz_Type_{interfaceType.Index}__Class) == 0xD0);");
+                semanticAssertions.AppendLine($"static_assert(sizeof(struct {className(interfaceType)}) == 0xD0);");
                 foreach (var slotType in slotTypes)
                 {
                     var definition = slotType.Definition.IsValid ? slotType.Definition : slotType.GetGenericTypeDefinition().Definition;

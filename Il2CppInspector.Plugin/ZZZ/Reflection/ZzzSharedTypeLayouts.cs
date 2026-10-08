@@ -8,8 +8,7 @@ namespace Il2CppInspector.Reflection
     {
         private readonly TypeModel model;
         private readonly ZzzMorax adapter;
-        private readonly TypeInfo objectType;
-        private readonly Dictionary<TypeInfo, TypeInfo> sharedArguments = [];
+        private readonly GenericTypeSharing sharing;
         public Dictionary<TypeInfo, int> GenericOrdinals { get; } = [];
         public Dictionary<int, TypeInfo> GenericTypes { get; } = [];
 
@@ -17,7 +16,7 @@ namespace Il2CppInspector.Reflection
         {
             this.model = model;
             adapter = (ZzzMorax)model.Package.Metadata.GameAdapter;
-            objectType = model.TypesByFullName["System.Object"];
+            sharing = new GenericTypeSharing(model, adapter.EnableEnumSharing);
             for (var i = 0; i < model.Package.TypeReferences.Length; i++)
             {
                 var raw = model.Package.TypeReferences[i];
@@ -56,7 +55,7 @@ namespace Il2CppInspector.Reflection
                 return;
             }
             var args = type.GetGenericArguments();
-            var shared = args.Select(SharedArgument).ToArray();
+            var shared = args.Select(sharing.SharedArgument).ToArray();
             if (args.SequenceEqual(shared))
             {
                 return;
@@ -73,37 +72,6 @@ namespace Il2CppInspector.Reflection
         {
             group = 0;
             return GenericOrdinals.TryGetValue(type, out var ordinal) && adapter.GenericLayoutGroups.TryGetValue(ordinal, out group);
-        }
-
-        private TypeInfo SharedArgument(TypeInfo type)
-        {
-            // Only reference kinds are replaced with Object. Native pointers and
-            // byrefs are not managed reference types in the runtime's kind mask.
-            if (!type.IsValueType && !type.IsPointer && !type.IsByRef && !type.IsGenericParameter)
-            {
-                return objectType;
-            }
-
-            if (type.IsEnum && adapter.EnableEnumSharing)
-            {
-                return model.TypesByFullName["System." + type.GetEnumUnderlyingType().Name + "Enum"];
-            }
-
-            if (!type.IsGenericType || type.IsGenericTypeDefinition)
-            {
-                return type;
-            }
-
-            if (sharedArguments.TryGetValue(type, out var cached))
-            {
-                return cached;
-            }
-
-            var args = type.GetGenericArguments();
-            var shared = args.Select(SharedArgument).ToArray();
-            var result = args.SequenceEqual(shared) ? type : type.GetGenericTypeDefinition().MakeGenericType(shared);
-            sharedArguments.Add(type, result);
-            return result;
         }
     }
 }

@@ -3,6 +3,8 @@ using Il2CppInspector.Reflection;
 
 namespace Il2CppInspector.Plugins
 {
+    public sealed record AdditionalMetadataUsage(string Section, int TypeIndex, ulong Address, string Name, string Type);
+
     public abstract class GameMetadataAdapter
     {
         protected GameMetadataAdapter(GamePlugin plugin) => Plugin = plugin;
@@ -18,5 +20,6 @@ namespace Il2CppInspector.Plugins
         public abstract (ulong Address, object Value) DecodeDefault(int typeIndex, int dataIndex, Il2CppBinary binary);
         public abstract int FieldRvaSize(Il2CppType type, Il2CppBinary binary);
         public abstract string StorageBase(uint tag);
+        public virtual IEnumerable<AdditionalMetadataUsage> AdditionalUsages => [];
     }
 }
