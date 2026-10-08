@@ -6,6 +6,7 @@
   <Project Path="Il2CppInspector.CLI/Il2CppInspector.CLI.csproj" Id="00b38e4c-b0da-4a10-a090-ca619672ef32" />
   <Project Path="Il2CppInspector.Common/Il2CppInspector.Common.csproj" />
   <Folder Name="/Plugins/">
+    <Project Path="Il2CppInspector.Plugin/Endfield/Il2CppInspector.Plugin.Endfield.csproj" />
     <Project Path="Il2CppInspector.Plugin/TOT/Il2CppInspector.Plugin.TOT.csproj" />
     <Project Path="Il2CppInspector.Plugin/ZZZ/Il2CppInspector.Plugin.ZZZ.csproj" />
   </Folder>

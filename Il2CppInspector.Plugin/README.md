@@ -14,13 +14,13 @@ dotnet build Il2CppInspector.slnx -c Release
 dotnet Il2CppInspector.CLI/bin/Release/net10.0/Il2CppInspector.dll --game NAME_REGION_VERSION -i GameAssembly.dll -m global-metadata.dat -o output/game -t IDA
 ```
 
-`--game NAME_REGION_VERSION` selects an installed plugin's exact supported ID, case-insensitively.
+`--game NAME_REGION[_VERSION]` selects an installed plugin's exact supported ID, case-insensitively.
 Without it, metadata detection selects the plugin; ambiguous matches require an explicit ID, while ordinary metadata uses the stock loader.
 
 ## Adding a Game
 
 1. Add `<game>/Il2CppInspector.Plugin.<game>.csproj` targeting .NET 10 with `EnableDynamicLoading=true`, a Common reference and the default assembly name.
-2. Implement a public, parameterless `GamePlugin` subclass with a supported `NAME_REGION_VERSION` identifier.
+2. Implement a public, parameterless `GamePlugin` subclass with a supported `NAME_REGION` or `NAME_REGION_VERSION` identifier.
 3. Decode stock metadata/binary records and attach a `GameMetadataAdapter` through `Metadata.CreateForPlugin`; game projects receive friend access while public record setters remain read-only.
 4. Implement layout, analysis and output hooks, setting `StreamExports` for lazy streamed exports.
 5. Add the project to the solution and tests for the supported inputs.

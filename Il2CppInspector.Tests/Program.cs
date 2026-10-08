@@ -58,6 +58,7 @@ namespace Il2CppInspector.Tests
                     break;
                 case "--plugins":
                     ZzzPluginTests.Run();
+                    Plugin.Endfield.EndfieldPluginTests.Run();
                     break;
                 case "--tot":
                     RequireArguments(args, 2);

@@ -375,7 +375,7 @@ Options:
                             Debug: PE -> PDB (x64); ELF/Mach-O -> DWARF
                             DWARF supports little-endian x86/x64/ARM/ARM64 images
       --startup-metadata <f> Plugin startup metadata (auto-detected beside metadata)
-      --game <id>           Game plugin: NAME_REGION_VERSION (ZZZ_CN_3.2.0)
+      --game <id>           Game plugin: NAME_REGION[_VERSION] (Endfield_CN, ZZZ_CN_3.2.0)
                             Auto-detect when omitted
       --unity-version <v>   Unity version override (e.g. 2021.3.0f1)
       --image-base <hex>    Image base address for ELF memory dumps (hex)

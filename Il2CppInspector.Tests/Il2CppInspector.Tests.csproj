@@ -10,6 +10,7 @@
   <ItemGroup>
     <Compile Include="../Il2CppInspector.CLI/ProgressBar.cs" Link="CLI/ProgressBar.cs" />
     <ProjectReference Include="../Il2CppInspector.Common/Il2CppInspector.Common.csproj" />
+    <ProjectReference Include="../Il2CppInspector.Plugin/Endfield/Il2CppInspector.Plugin.Endfield.csproj" />
     <ProjectReference Include="../Il2CppInspector.Plugin/ZZZ/Il2CppInspector.Plugin.ZZZ.csproj" />
     <ProjectReference Include="../Il2CppInspector.Plugin/TOT/Il2CppInspector.Plugin.TOT.csproj" />
   </ItemGroup>

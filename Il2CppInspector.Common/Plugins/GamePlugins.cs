@@ -12,9 +12,9 @@ namespace Il2CppInspector.Plugins
         public static GamePlugin Get(string gameId)
         {
             var parts = gameId?.Split('_');
-            if (parts is not { Length: 3 } || parts.Any(string.IsNullOrWhiteSpace) || !Version.TryParse(parts[2], out _))
+            if (parts == null || (parts.Length != 2 && parts.Length != 3) || parts.Any(string.IsNullOrWhiteSpace) || (parts.Length == 3 && !Version.TryParse(parts[2], out _)))
             {
-                throw new ArgumentException("Game ID must use NAME_REGION_VERSION, for example ZZZ_CN_3.2.0.", nameof(gameId));
+                throw new ArgumentException($"Available games: {string.Join(", ", Installed.Select(p => p.GameId))}");
             }
 
             return Installed.SingleOrDefault(p => string.Equals(p.GameId, gameId, StringComparison.OrdinalIgnoreCase))
@@ -43,7 +43,7 @@ namespace Il2CppInspector.Plugins
 
                 if (match != null)
                 {
-                    throw new InvalidOperationException("Multiple game plugins match this metadata; specify --game NAME_REGION_VERSION.");
+                    throw new InvalidOperationException("Multiple game plugins match this metadata; specify --game with an installed game ID.");
                 }
 
                 match = plugin;
