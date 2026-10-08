@@ -13,10 +13,21 @@ internal static class ZzzPythonScriptTests
         using (var document = JsonDocument.Parse(input))
         {
             var map = document.RootElement.GetProperty("addressMap");
-            Check(
-                !map.EnumerateObject().Any(p => JSONMetadata.IsDebugSymbolSection(p.Name)),
-                "Supplementary JSON omits function boundaries, definitions, prototypes, invokers, APIs and unused symbol tables"
-            );
+            foreach (
+                var name in new[]
+                {
+                    "methodDefinitions",
+                    "constructedGenericMethods",
+                    "customAttributesGenerators",
+                    "methodInvokers",
+                    "functionAddresses",
+                    "functionMetadata",
+                    "apis",
+                    "exports",
+                    "symbols",
+                }
+            )
+                Check(map.GetProperty(name).ValueKind == JsonValueKind.Array && map.GetProperty(name).GetArrayLength() == 0, $"Supplementary JSON preserves {name} as an empty array");
             foreach (var name in new[] { "stringLiterals", "typeInfoPointers", "typeRefPointers", "methodInfoPointers", "typeMetadata", "arrayMetadata", "fields", "fieldRvas" })
                 Check(map.GetProperty(name).ValueKind == JsonValueKind.Array, $"Supplementary JSON retains {name}");
             Check(
@@ -30,18 +41,21 @@ internal static class ZzzPythonScriptTests
         foreach (var target in PythonScript.GetAvailableTargets())
         {
             var script = Path.Combine(output, $"supplement-{target}.py");
-            new PythonScript(app).WriteScriptToFile(script, target, header, json, supplementDebugInfo: true);
+            new PythonScript(app).WriteScriptToFile(script, target, header, json, includeTypeHeader: false);
             var text = File.ReadAllText(script);
-            Check(!File.Exists(header) && !File.Exists(Path.ChangeExtension(script, ".h")), $"Supplementary {target} generation never emits a header");
             Check(
-                text.Contains("supplement_debug_info: bool = True") && !text.Contains("must-not-exist.h"),
-                $"Generated supplementary {target} script loads no header and skips debug-owned functions"
+                !text.Contains("must-not-exist.h") && !text.Contains("%TYPE_HEADER_RELATIVE_PATH%") && !text.Contains("supplement_debug_info"),
+                $"Generated Debug {target} script has no header path or alternate JSON processing mode"
             );
+            Check(!File.Exists(Path.ChangeExtension(script, ".h")), $"Debug {target} generation does not emit a header");
+            var automaticScript = Path.Combine(output, $"supplement-auto-{target}.py");
+            new PythonScript(app).WriteScriptToFile(automaticScript, target, existingJsonMetadataFile: json, includeTypeHeader: false);
+            Check(!File.Exists(Path.ChangeExtension(automaticScript, ".h")), $"Debug {target} does not generate a fallback header when none is supplied");
+            var regularScript = Path.Combine(output, $"regular-{target}.py");
+            new PythonScript(app).WriteScriptToFile(regularScript, target, header, json);
+            Check(File.ReadAllText(regularScript).Contains("must-not-exist.h"), $"Non-Debug {target} retains its supplied header path by default");
         }
-        Check(
-            app.TypeModel.ResolvedGenericMethods.Count == methodsBefore && app.AnalysisMethods.Count == 0 && app.AnalysisTypes.Count == 0,
-            "Supplementary output does not build native method or type graphs or materialize constructed methods"
-        );
+        Check(app.TypeModel.ResolvedGenericMethods.Count == methodsBefore && app.AnalysisMethods.Count == 0 && app.AnalysisTypes.Count == 0, "Supplementary output does not build native graphs or materialize constructed methods");
         var support = app.EnumerateNativeSupportMethods().ToArray();
         var registrationSignature = app.GetRegistrationSignature();
         Check(
@@ -54,7 +68,7 @@ internal static class ZzzPythonScriptTests
         var registration = support.Single(m => m.Address == app.Package.Binary.RegistrationFunctionPointer && m.Name == "Morax_MetadataCache_Register");
         Check(
             registration.Signature != null && registration.SignatureComplete && registration.Signature.Arguments.Count == 0,
-            "Native debug symbols cover the game's registration function and APIs omitted from the supplement"
+            "Native debug symbols cover the game's registration function and APIs emptied in the supplement"
         );
         Console.WriteLine($"Supplementary JSON: {new FileInfo(json).Length / 1048576.0:F1} MiB");
     }

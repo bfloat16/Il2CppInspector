@@ -459,15 +459,14 @@ namespace Il2CppInspector.Outputs
 
         private void Array(string name, Action body)
         {
-            if (SupplementDebugInfo && JSONMetadata.IsDebugSymbolSection(name))
-                return;
             writer.WriteStartArray(name);
             if (allowComments)
             {
                 writer.WriteCommentValue(" " + name + " ");
             }
 
-            body();
+            if (!SupplementDebugInfo || !JSONMetadata.IsDebugSymbolSection(name))
+                body();
             writer.WriteEndArray();
         }
 

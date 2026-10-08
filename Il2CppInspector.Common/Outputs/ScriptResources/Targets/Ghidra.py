@@ -100,7 +100,7 @@ class GhidraDisassemblerInterface(BaseDisassemblerInterface):
         self.xrefs = currentProgram.getReferenceManager()
 
         # Check that the user has parsed the C headers first
-        if self.apply_structures and not self.supplement_debug_info and len(getDataTypes("Il2CppObject")) == 0:
+        if self.apply_structures and "%TYPE_HEADER_RELATIVE_PATH%" and len(getDataTypes("Il2CppObject")) == 0:
             print(
                 "STOP! You must import the generated C header file (%TYPE_HEADER_RELATIVE_PATH%) before running this script."
             )
@@ -114,7 +114,7 @@ class GhidraDisassemblerInterface(BaseDisassemblerInterface):
         # Make sure that the base address is 0
         # Without this, Ghidra may not analyze the binary correctly and you will just waste your time
         # If 0 doesn't work for you, replace it with the base address from the output of the CLI or GUI
-        if not self.supplement_debug_info and currentProgram.getExecutableFormat().endswith("(ELF)"):
+        if "%TYPE_HEADER_RELATIVE_PATH%" and currentProgram.getExecutableFormat().endswith("(ELF)"):
             currentProgram.setImageBase(self._to_address(0), True)
 
         # Don't trigger decompiler

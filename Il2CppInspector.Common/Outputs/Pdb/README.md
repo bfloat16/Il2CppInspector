@@ -15,7 +15,7 @@ Enum constants use type-qualified names so IDA keeps enums with different storag
 Functions include available invoker, attribute-generator, API and registration signatures; incomplete signatures remain untyped.
 Known globals use typed `S_GDATA32` records, applying registration structures and pointer caches at their data addresses without a script.
 Load the generated PDB explicitly if the PE points to another PDB, or has no RSDS record.
-Disassembler targets combined with Debug generate only [supplementary scripts](../Dwarf/README.md#scripts-and-limits).
+Disassembler targets combined with Debug omit header generation and import, with [debug symbol arrays emptied in JSON](../Dwarf/README.md#scripts-and-limits).
 IDA may revise inferred prototypes or omit explicit `void()` types on jump wrappers; no user-definite function types or local locations are forced.
 
 ## LLVM References

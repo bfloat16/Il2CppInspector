@@ -34,8 +34,10 @@ Large outputs stream through disposable temporary files rather than retaining al
 
 ## Scripts and Limits
 
-Combining Debug with IDA, Ghidra or Binary Ninja generates supplementary JSON and scripts without a type header.
-Load symbols first; the script adds strings, comments, runtime caches, field values and references without replacing function names or prototypes.
+Combining Debug with IDA, Ghidra or Binary Ninja generates scripts without a type header.
+JSON retains its usual fields, with function boundaries, definitions, invokers, APIs and other debug symbol arrays set to `[]`.
+Load symbols first; the script uses imported debug types and adds strings, comments, runtime caches, field values and references.
+Empty function arrays prevent it from replacing function names or prototypes supplied by debug information.
 Without Debug, scripts retain full header and symbol import.
 IL2CPP metadata does not provide local stack/register locations, source lines or unwind information, so these are not fabricated.
 IDA may revise inferred debug types during decompilation; no script forces user-definite function types.

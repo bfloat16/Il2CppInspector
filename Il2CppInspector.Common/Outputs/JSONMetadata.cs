@@ -384,12 +384,11 @@ namespace Il2CppInspector.Outputs
 
         private void writeArray(string name, Action arrayWriter, string description = null)
         {
-            if (SupplementDebugInfo && IsDebugSymbolSection(name))
-                return;
             writer.WriteStartArray(name);
             if (AllowComments && description != null)
                 writer.WriteCommentValue(" " + description + " ");
-            arrayWriter();
+            if (!SupplementDebugInfo || !IsDebugSymbolSection(name))
+                arrayWriter();
             writer.WriteEndArray();
         }
 

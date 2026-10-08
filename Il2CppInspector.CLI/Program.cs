@@ -391,7 +391,7 @@ Output structure:
   <output>/<binary>.pdb    Native PDB symbols and types (Debug on PE)
   <output>/<input-name>    ELF/Mach-O binary with embedded DWARF symbols and types
 
-Disassembler targets with Debug emit only supplementary metadata, without a type header."
+Disassembler targets with Debug omit type headers; debug symbol arrays in JSON are empty."
             );
         }
 
@@ -572,24 +572,20 @@ Disassembler targets with Debug emit only supplementary metadata, without a type
                     ProgressBar.Run("Building application model", () => appModel = new AppModel(model, false).Build(targetUnity));
 
                     var scriptTargets = options.Targets.Where(t => t != "Debug").ToArray();
-                    var supplementScripts = options.Targets.Contains("Debug");
+                    var supplementMetadata = options.Targets.Contains("Debug");
                     if (scriptTargets.Length > 0 || options.Targets.Count == 0)
                     {
                         var header = Path.Combine(output, "il2cpp.h");
                         var json = Path.Combine(output, "il2cpp.json");
-                        if (!supplementScripts)
-                        {
+                        if (!supplementMetadata)
                             ProgressBar.Run("Generating C++ types", () => new CppScaffolding(appModel, useBetterArraySize: true).WriteTypes(header));
-                            ProgressBar.Run("Generating JSON metadata", () => new JSONMetadata(appModel).Write(json));
-                        }
-                        else
-                            ProgressBar.Run("Generating supplementary disassembler metadata", () => new JSONMetadata(appModel) { SupplementDebugInfo = true }.Write(json));
+                        ProgressBar.Run("Generating JSON metadata", () => new JSONMetadata(appModel) { SupplementDebugInfo = supplementMetadata }.Write(json));
                         foreach (var target in scriptTargets)
                         {
                             var pyOut = Path.Combine(output, scriptTargets.Length == 1 ? "il2cpp.py" : $"il2cpp-{target}.py");
                             ProgressBar.Run(
                                 $"Generating {target} Python script -> {pyOut}",
-                                () => new PythonScript(appModel).WriteScriptToFile(pyOut, target, supplementScripts ? null : header, json, supplementScripts)
+                                () => new PythonScript(appModel).WriteScriptToFile(pyOut, target, header, json, includeTypeHeader: !supplementMetadata)
                             );
                         }
                     }

@@ -23,7 +23,7 @@ namespace Il2CppInspector.Outputs
         }
 
         // Output script file
-        public void WriteScriptToFile(string outputFile, string target, string existingTypeHeaderFIle = null, string existingJsonMetadataFile = null, bool supplementDebugInfo = false)
+        public void WriteScriptToFile(string outputFile, string target, string existingTypeHeaderFIle = null, string existingJsonMetadataFile = null, bool includeTypeHeader = true)
         {
             // Check that target script API is valid
             if (!GetAvailableTargets().Contains(target))
@@ -32,7 +32,7 @@ namespace Il2CppInspector.Outputs
             // Write types file first if it hasn't been specified
             var typeHeaderFile = Path.Combine(Path.GetDirectoryName(outputFile), Path.GetFileNameWithoutExtension(outputFile) + ".h");
 
-            if (supplementDebugInfo)
+            if (!includeTypeHeader)
                 typeHeaderFile = null;
             else if (string.IsNullOrEmpty(existingTypeHeaderFIle))
                 writeTypes(typeHeaderFile);
@@ -45,7 +45,7 @@ namespace Il2CppInspector.Outputs
             var jsonMetadataFile = Path.Combine(Path.GetDirectoryName(outputFile), Path.GetFileNameWithoutExtension(outputFile) + ".json");
 
             if (string.IsNullOrEmpty(existingJsonMetadataFile))
-                new JSONMetadata(model) { SupplementDebugInfo = supplementDebugInfo }.Write(jsonMetadataFile);
+                new JSONMetadata(model) { SupplementDebugInfo = !includeTypeHeader }.Write(jsonMetadataFile);
             else
                 jsonMetadataFile = existingJsonMetadataFile;
 
@@ -56,7 +56,6 @@ namespace Il2CppInspector.Outputs
             var impl = ResourceHelper.GetText($"{ns}.Targets.{target}.py");
 
             var script = string.Join("\n", baseScipt, impl)
-                .Replace("%SUPPLEMENT_DEBUG_INFO%", supplementDebugInfo ? "True" : "False")
                 .Replace("%SCRIPTFILENAME%", Path.GetFileName(outputFile))
                 .Replace("%TYPE_HEADER_RELATIVE_PATH%", typeHeaderRelativePath.ToEscapedString())
                 .Replace("%JSON_METADATA_RELATIVE_PATH%", jsonMetadataRelativePath.ToEscapedString())

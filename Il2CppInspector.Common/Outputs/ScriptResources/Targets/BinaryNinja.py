@@ -111,7 +111,7 @@ class BinaryNinjaDisassemblerInterface(BaseDisassemblerInterface):
             "little" if self._view.endianness == Endianness.LittleEndian else "big"
         )
 
-        if not self.apply_structures or self.supplement_debug_info:
+        if not self.apply_structures or not "%TYPE_HEADER_RELATIVE_PATH%":
             return
 
         self._status.update_step("Parsing header")
@@ -189,7 +189,7 @@ class BinaryNinjaDisassemblerInterface(BaseDisassemblerInterface):
 
         if var is not None:
             var.name = name
-        elif not self.apply_structures or self.supplement_debug_info:
+        elif not self.apply_structures or not "%TYPE_HEADER_RELATIVE_PATH%":
             self._view.define_user_symbol(Symbol(SymbolType.DataSymbol, address, name))
 
     def set_function_name(self, address: int, name: str):
