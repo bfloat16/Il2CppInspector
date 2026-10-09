@@ -538,7 +538,9 @@ namespace Il2CppInspector
         // Some binaries have functions starting "il2cpp_z_" - ignore these too
         private void DiscoverAPIExports()
         {
-            var exports = Image.GetExports()?.Where(e => (e.Name.StartsWith("il2cpp_") || e.Name.StartsWith("_il2cpp_") || e.Name.StartsWith("__il2cpp_")) && !e.Name.Contains("il2cpp_z_"));
+            var exports = Image
+                .GetExports()
+                ?.Where(e => e.Name != null && (e.Name.StartsWith("il2cpp_") || e.Name.StartsWith("_il2cpp_") || e.Name.StartsWith("__il2cpp_")) && !e.Name.Contains("il2cpp_z_"));
 
             if (exports == null)
                 return;

@@ -286,7 +286,7 @@ namespace Il2CppInspector.Outputs
                 "exports",
                 () =>
                 {
-                    foreach (var export in exports)
+                    foreach (var export in exports.Where(e => e.Name != null))
                     {
                         writeObject(() => writeName(export.VirtualAddress, export.Name));
                     }
