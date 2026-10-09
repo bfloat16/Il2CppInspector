@@ -12,6 +12,7 @@
     <ProjectReference Include="../Il2CppInspector.Common/Il2CppInspector.Common.csproj" />
     <ProjectReference Include="../Il2CppInspector.Plugin/Endfield/Il2CppInspector.Plugin.Endfield.csproj" />
     <ProjectReference Include="../Il2CppInspector.Plugin/ZZZ/Il2CppInspector.Plugin.ZZZ.csproj" />
+    <ProjectReference Include="../Il2CppInspector.Plugin/BH3/Il2CppInspector.Plugin.BH3.csproj" />
     <ProjectReference Include="../Il2CppInspector.Plugin/TOT/Il2CppInspector.Plugin.TOT.csproj" />
   </ItemGroup>
 </Project>

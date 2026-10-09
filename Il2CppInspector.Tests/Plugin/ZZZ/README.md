@@ -1,5 +1,11 @@
 # ZZZ Tests
 
+Validate binary metadata and reflection without exporting files:
+
+```bash
+dotnet run --project Il2CppInspector.Tests -c Release -- '<ZZZ Native directory>' --explicit-game --reflection-only
+```
+
 Verify stock type naming and collision handling, then compile the key empty-object, packed-layout, pointer-field and runtime-member checks:
 
 ```bash

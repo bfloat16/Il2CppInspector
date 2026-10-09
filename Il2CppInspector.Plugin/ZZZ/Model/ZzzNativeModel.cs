@@ -13,7 +13,7 @@ namespace Il2CppInspector.Model
         internal ZzzNativeModel(TypeModel model)
             : base(model)
         {
-            var layouts = (ZzzSharedTypeLayouts)model.GameLayouts;
+            var layouts = (SharedTypeLayouts)model.GameLayouts;
             GenericOrdinals = layouts.GenericOrdinals;
             GenericTypes = layouts.GenericTypes;
         }

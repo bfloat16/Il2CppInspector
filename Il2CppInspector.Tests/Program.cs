@@ -21,6 +21,10 @@ namespace Il2CppInspector.Tests
 
             switch (args[0])
             {
+                case "--bh3":
+                    RequireArguments(args, 2);
+                    Plugin.BH3.Bh3Tests.Run(args);
+                    break;
                 case "--cpp-layout":
                     Common.Cpp.CppTypeTests.Run(args.Length > 1 ? args[1] : null);
                     break;

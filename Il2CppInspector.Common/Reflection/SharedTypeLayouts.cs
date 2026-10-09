@@ -2,21 +2,19 @@ using Il2CppInspector.Next.BinaryMetadata;
 
 namespace Il2CppInspector.Reflection
 {
-    // Matches GetSharedGenericInst / GetSharedType before the runtime's layout lookup
-    // (sub_18028E0E0 -> sub_18028D670 -> sub_18028D410). Type identity stays unchanged.
-    internal sealed class ZzzSharedTypeLayouts : Plugins.IGameTypeLayouts
+    // Standard IL2CPP generic sharing applied to recorded native layout groups. Identity and
+    // construction stay in TypeModel; only the layout lookup arguments are normalized.
+    internal sealed class SharedTypeLayouts : Plugins.IGameTypeLayouts
     {
-        private readonly TypeModel model;
-        private readonly ZzzMorax adapter;
+        private readonly IReadOnlyDictionary<int, int> layoutGroups;
         private readonly GenericTypeSharing sharing;
         public Dictionary<TypeInfo, int> GenericOrdinals { get; } = [];
         public Dictionary<int, TypeInfo> GenericTypes { get; } = [];
 
-        internal ZzzSharedTypeLayouts(TypeModel model)
+        internal SharedTypeLayouts(TypeModel model, IReadOnlyDictionary<int, int> layoutGroups, bool enableEnumSharing)
         {
-            this.model = model;
-            adapter = (ZzzMorax)model.Package.Metadata.GameAdapter;
-            sharing = new GenericTypeSharing(model, adapter.EnableEnumSharing);
+            this.layoutGroups = layoutGroups;
+            sharing = new GenericTypeSharing(model, enableEnumSharing);
             for (var i = 0; i < model.Package.TypeReferences.Length; i++)
             {
                 var raw = model.Package.TypeReferences[i];
@@ -71,7 +69,7 @@ namespace Il2CppInspector.Reflection
         private bool TryGroup(TypeInfo type, out int group)
         {
             group = 0;
-            return GenericOrdinals.TryGetValue(type, out var ordinal) && adapter.GenericLayoutGroups.TryGetValue(ordinal, out group);
+            return GenericOrdinals.TryGetValue(type, out var ordinal) && layoutGroups.TryGetValue(ordinal, out group);
         }
     }
 }

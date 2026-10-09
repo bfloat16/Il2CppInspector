@@ -7,6 +7,8 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ
             var context = new ZzzTestContext(args);
             IL2CPP.ZenlessZoneZero.ZzzBinaryTests.Run(context);
             Reflection.ZzzReflectionTests.Run(context);
+            if (args.Contains("--reflection-only"))
+                return;
 
             if (args.Contains("--native-names"))
             {
