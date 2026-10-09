@@ -97,7 +97,9 @@ class ScriptResourcesTests(unittest.TestCase):
 
     def test_enabled_types_and_incomplete_signatures(self):
         self.assertTrue(BASE["BaseDisassemblerInterface"].apply_structures)
+        self.assertTrue(BASE["BaseDisassemblerInterface"].import_type_header)
         backend = Backend(True, False)
+        backend.import_type_header = False
         context = BASE["ScriptContext"](backend, Mock(spec=BASE["BaseStatusHandler"]))
         context.process_metadata(metadata())
         calls = {name for name, _ in backend.calls}
@@ -127,8 +129,8 @@ class ScriptResourcesTests(unittest.TestCase):
         self.assertEqual(ida.inf_set_genflags.call_count, 2)
 
     def test_ida_imports_header_only_when_a_header_path_is_generated(self):
-        for header, use_clang in itertools.product(("", "il2cpp.h"), (False, True)):
-            with self.subTest(header=header, use_clang=use_clang):
+        for header, use_clang, import_header in itertools.product(("", "il2cpp.h"), (False, True), (False, True)):
+            with self.subTest(header=header, use_clang=use_clang, import_header=import_header):
                 ida = Mock(INFFL_AUTO=1, DEMNAM_GCC3=1, DEMNAM_NAME=2)
                 ida.inf_get_genflags.return_value = 1
                 typeinfo, clang, segment = Mock(), Mock(), Mock()
@@ -139,10 +141,12 @@ class ScriptResourcesTests(unittest.TestCase):
                                            ida_segment=segment, IDACLANG_AVAILABLE=use_clang, FOLDERS_AVAILABLE=False,
                                            DEFAULT_TIL=None, TINFO_DEFINITE=1, __file__=str(SCRIPTS / "fixture.py"))
                 backend = namespace["IDADisassemblerInterface"](Mock(spec=BASE["BaseStatusHandler"]))
+                backend.import_type_header = import_header
                 backend.on_start()
-                self.assertEqual(clang.parse_decls_with_parser.call_count, int(bool(header) and use_clang))
-                self.assertEqual(typeinfo.idc_parse_types.call_count, int(bool(header) and not use_clang))
-                self.assertEqual(typeinfo.del_til.called, bool(header))
+                self.assertEqual(clang.parse_decls_with_parser.call_count, int(bool(header) and import_header and use_clang))
+                self.assertEqual(typeinfo.idc_parse_types.call_count, int(bool(header) and import_header and not use_clang))
+                self.assertEqual(typeinfo.del_til.called, bool(header) and import_header)
+                self.assertTrue(backend.apply_structures)
                 backend.set_data_type(0x1000, "struct Type *")
                 typeinfo.apply_type.assert_called_once()
                 backend.on_finish()
@@ -175,32 +179,42 @@ class ScriptResourcesTests(unittest.TestCase):
         program.setImageBase.assert_not_called()
         self.assertEqual(backend._get_data_type("struct Type **"), ("pointer", ("pointer", "loaded-type")))
 
-    def test_binary_ninja_disabled_initializes_without_opening_header(self):
-        view = Mock(address_size=8, endianness="little")
-        parser = Mock()
-        namespace = target_classes("BinaryNinja", bv=view, Endianness=types.SimpleNamespace(LittleEndian="little"), open=Mock(side_effect=AssertionError("Header was opened")),
-                                   TypeParser=parser, Symbol=lambda *args: args, SymbolType=types.SimpleNamespace(DataSymbol="data"))
-        backend = namespace["BinaryNinjaDisassemblerInterface"](Mock(spec=BASE["BaseStatusHandler"]))
-        backend.apply_structures = False
-        backend.on_start()
-        parser.default.parse_types_from_source.assert_not_called()
-        view.define_user_types.assert_not_called()
-        view.get_data_var_at.return_value = None
-        backend.set_data_name(0x1000, "field")
-        view.define_user_symbol.assert_called_once_with(("data", 0x1000, "field"))
-        backend.on_finish()
-        view.commit_undo_actions.assert_called_once()
+    def test_binary_ninja_skips_header_with_types_enabled_or_disabled(self):
+        for apply_types in (False, True):
+            with self.subTest(apply_types=apply_types):
+                view = Mock(address_size=8, endianness="little")
+                parser = Mock()
+                namespace = target_classes("BinaryNinja", bv=view, Endianness=types.SimpleNamespace(LittleEndian="little"), open=Mock(side_effect=AssertionError("Header was opened")),
+                                           TypeParser=parser, Symbol=lambda *args: args, SymbolType=types.SimpleNamespace(DataSymbol="data"))
+                backend = namespace["BinaryNinjaDisassemblerInterface"](Mock(spec=BASE["BaseStatusHandler"]))
+                backend.apply_structures = apply_types
+                backend.import_type_header = False
+                backend.on_start()
+                parser.default.parse_types_from_source.assert_not_called()
+                view.define_user_types.assert_not_called()
+                loaded_var = Mock() if apply_types else None
+                view.get_data_var_at.return_value = loaded_var
+                backend.set_data_name(0x1000, "field")
+                if apply_types:
+                    self.assertEqual(loaded_var.name, "field")
+                else:
+                    view.define_user_symbol.assert_called_once_with(("data", 0x1000, "field"))
+                backend.on_finish()
+                view.commit_undo_actions.assert_called_once()
 
-    def test_ghidra_disabled_does_not_require_imported_types(self):
-        program = Mock()
-        program.getExecutableFormat.return_value = "Portable Executable"
-        get_types = Mock(side_effect=AssertionError("Types were queried"))
-        namespace = target_classes("Ghidra", currentProgram=program, getDataTypes=get_types, setAnalysisOption=Mock())
-        backend = namespace["GhidraDisassemblerInterface"].__new__(namespace["GhidraDisassemblerInterface"])
-        backend.apply_structures = False
-        backend.on_start()
-        get_types.assert_not_called()
-        self.assertIs(backend.xrefs, program.getReferenceManager.return_value)
+    def test_ghidra_skips_header_check_with_types_enabled_or_disabled(self):
+        for apply_types in (False, True):
+            with self.subTest(apply_types=apply_types):
+                program = Mock()
+                program.getExecutableFormat.return_value = "Portable Executable"
+                get_types = Mock(side_effect=AssertionError("Types were queried"))
+                namespace = target_classes("Ghidra", currentProgram=program, getDataTypes=get_types, setAnalysisOption=Mock())
+                backend = namespace["GhidraDisassemblerInterface"].__new__(namespace["GhidraDisassemblerInterface"])
+                backend.apply_structures = apply_types
+                backend.import_type_header = False
+                backend.on_start()
+                get_types.assert_not_called()
+                self.assertIs(backend.xrefs, program.getReferenceManager.return_value)
 
 
 if __name__ == "__main__":

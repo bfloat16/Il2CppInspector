@@ -111,7 +111,7 @@ class BinaryNinjaDisassemblerInterface(BaseDisassemblerInterface):
             "little" if self._view.endianness == Endianness.LittleEndian else "big"
         )
 
-        if not self.apply_structures or not "%TYPE_HEADER_RELATIVE_PATH%":
+        if not self.apply_structures or not self.import_type_header or not "%TYPE_HEADER_RELATIVE_PATH%":
             return
 
         self._status.update_step("Parsing header")

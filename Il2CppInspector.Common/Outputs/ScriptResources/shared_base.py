@@ -31,6 +31,8 @@ class BaseStatusHandler(abc.ABC):
 class BaseDisassemblerInterface(abc.ABC):
     supports_fake_string_segment: bool = True
     apply_structures: bool = True
+    # Set False to reuse loaded types while still applying all metadata types.
+    import_type_header: bool = True
 
     @abc.abstractmethod
     def get_script_directory(self) -> str:

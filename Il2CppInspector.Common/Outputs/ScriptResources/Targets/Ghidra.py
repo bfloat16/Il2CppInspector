@@ -100,7 +100,7 @@ class GhidraDisassemblerInterface(BaseDisassemblerInterface):
         self.xrefs = currentProgram.getReferenceManager()
 
         # Check that the user has parsed the C headers first
-        if self.apply_structures and "%TYPE_HEADER_RELATIVE_PATH%" and len(getDataTypes("Il2CppObject")) == 0:
+        if self.apply_structures and self.import_type_header and "%TYPE_HEADER_RELATIVE_PATH%" and len(getDataTypes("Il2CppObject")) == 0:
             print(
                 "STOP! You must import the generated C header file (%TYPE_HEADER_RELATIVE_PATH%) before running this script."
             )
