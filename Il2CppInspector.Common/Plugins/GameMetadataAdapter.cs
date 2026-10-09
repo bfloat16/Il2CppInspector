@@ -3,7 +3,13 @@ using Il2CppInspector.Reflection;
 
 namespace Il2CppInspector.Plugins
 {
-    public sealed record AdditionalMetadataUsage(string Section, int TypeIndex, ulong Address, string Name, string Type);
+    // TypeIndex == -1 denotes native data without a corresponding managed type reference.
+    public sealed record AdditionalMetadataUsage(string Section, int TypeIndex, ulong Address, string Name, string Type)
+    {
+        public int? Length { get; init; }
+        public string Value { get; init; }
+        public uint? Subtype { get; init; }
+    }
 
     public abstract class GameMetadataAdapter
     {

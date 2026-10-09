@@ -367,7 +367,14 @@ namespace Il2CppInspector.Outputs
                             writeObject(() =>
                             {
                                 writeTypedName(usage.Address, usage.Type, usage.Name);
-                                writeDotNetTypeName(model.TypeModel.TypesByReferenceIndex[usage.TypeIndex]);
+                                if (usage.TypeIndex >= 0)
+                                    writeDotNetTypeName(model.TypeModel.TypesByReferenceIndex[usage.TypeIndex]);
+                                if (usage.Length is int length)
+                                    writer.WriteNumber("length", length);
+                                if (usage.Value != null)
+                                    writer.WriteString("value", usage.Value);
+                                if (usage.Subtype is uint subtype)
+                                    writer.WriteNumber("subtype", subtype);
                             });
                     }
                 );
