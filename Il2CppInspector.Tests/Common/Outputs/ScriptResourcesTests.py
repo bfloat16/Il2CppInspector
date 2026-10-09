@@ -67,6 +67,39 @@ def target_classes(name, header_path="il2cpp.h", **globals):
 
 
 class ScriptResourcesTests(unittest.TestCase):
+    def test_native_fields_with_null_managed_types_preserve_names_and_types(self):
+        for enabled in (False, True):
+            with self.subTest(enabled=enabled):
+                backend = Backend(enabled, False)
+                context = BASE["ScriptContext"](backend, Mock(spec=BASE["BaseStatusHandler"]))
+                native = {"virtualAddress": "0x4000", "name": "NativeString_Tick", "type": "char *", "dotNetType": None}
+                context.define_field_from_json(native)
+                self.assertIn(("set_data_name", (0x4000, "NativeString_Tick")), backend.calls)
+                self.assertEqual(("set_data_type", (0x4000, "char *")) in backend.calls, enabled)
+                self.assertNotIn("set_data_comment", {name for name, _ in backend.calls})
+                context.define_field_from_json(metadata()["typeInfoPointers"][0])
+                self.assertIn(("set_data_comment", (0x2000, "Type")), backend.calls)
+                with self.assertRaises(KeyError):
+                    context.define_field_from_json({key: value for key, value in native.items() if key != "dotNetType"})
+
+    def test_genshin_native_caches_continue_to_type_references(self):
+        processor = (ROOT / "Il2CppInspector.Plugin/Genshin/Outputs/RuntimeCaches.py").read_text()
+        source = (SCRIPTS / "shared_base.py").read_text(encoding="utf-8-sig")
+        namespace = {}
+        exec(compile(source.replace("        # %GAME_METADATA_PROCESSOR%", processor), "genshin.py", "exec"), namespace)
+        for enabled in (False, True):
+            with self.subTest(enabled=enabled):
+                data = metadata()
+                data["genshinNativeStrings"] = [{"virtualAddress": "0x4000", "name": "NativeString_Tick", "type": "char *", "dotNetType": None, "length": 4, "value": "Tick"}]
+                data["genshinEmptyArrays"] = [{"virtualAddress": "0x5000", "name": "EmptyArray_Int32", "type": "struct Int32__Array *", "dotNetType": "System.Int32[]", "length": 0, "subtype": 0}]
+                data["typeRefPointers"][0].update(virtualAddress="0x6000", name="FollowingTypeRef")
+                backend = Backend(enabled, False)
+                namespace["ScriptContext"](backend, Mock(spec=namespace["BaseStatusHandler"])).process_metadata(data)
+                names = [args for name, args in backend.calls if name == "set_data_name"]
+                self.assertLess(names.index((0x5000, "EmptyArray_Int32")), names.index((0x4000, "NativeString_Tick")))
+                self.assertLess(names.index((0x4000, "NativeString_Tick")), names.index((0x6000, "FollowingTypeRef")))
+                self.assertIn(("set_data_comment", (0x5000, "System.Int32[]")), backend.calls)
+
     def test_empty_debug_symbol_arrays_preserve_data_application(self):
         data = metadata()
         for key in ("methodDefinitions", "constructedGenericMethods", "customAttributesGenerators", "methodInvokers", "functionAddresses", "functionMetadata", "apis"):
