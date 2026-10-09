@@ -7,9 +7,12 @@ namespace Il2CppInspector.Tests.Plugin.Endfield
     {
         internal static void Run()
         {
-            var plugin = GamePlugins.Get("endfield_cn");
-            Check(plugin.GameId == "Endfield_CN" && plugin.GetType().Assembly.GetName().Name == "Il2CppInspector.Plugin.Endfield", "Endfield_CN is discovered and selected case-insensitively");
-            Common.Plugins.GamePluginsTests.Run(["Endfield", "Endfield_", "Endfield_CN_bad", "Endfield_CN_1.0", "Endfield_CN_1.0_extra"]);
+            var plugin = GamePlugins.Get("endfield_cn_android_x.x.x");
+            Check(
+                plugin.GameId == "Endfield_CN_Android_x.x.x" && plugin.GetType().Assembly.GetName().Name == "Il2CppInspector.Plugin.Endfield",
+                "Endfield_CN_Android_x.x.x is discovered and selected case-insensitively"
+            );
+            Common.Plugins.GamePluginsTests.Run(["Endfield", "Endfield_CN", "Endfield_CN_Android_bad", "Endfield_CN_Android_1.5.4", "Endfield_CN_Windows_1.5.3"]);
 
             var data = CreateMetadata();
             var original = data.ToArray();

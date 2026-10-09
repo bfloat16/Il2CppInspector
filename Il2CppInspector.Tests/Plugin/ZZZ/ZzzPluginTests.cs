@@ -4,8 +4,8 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ
     {
         internal static void Run()
         {
-            var plugin = GamePlugins.Get("ZZZ_CN_3.2.0");
-            Common.Plugins.GamePluginsTests.Run(["ZZZ_CN_3.2.1", "ZZZ_OS_3.2.0", "ZZZ", "ZZZ_CN_bad"]);
+            var plugin = GamePlugins.Get("ZZZ_CN_Windows_3.2.0");
+            Common.Plugins.GamePluginsTests.Run(["ZZZ_CN_Windows_3.2.1", "ZZZ_OS_Windows_3.2.0", "ZZZ", "ZZZ_CN_Windows_bad", "ZZZ_CN_3.2.0", "ZZZ_CN_Android_3.2.0"]);
             var stderr = Console.Error;
             using var errors = new StringWriter();
             try

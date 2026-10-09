@@ -21,7 +21,7 @@ namespace Il2CppInspector.Plugin.Endfield
             var (typeOffset, typeSize) = ReadSection(data, TypeDefinitions);
             var (imageOffset, imageSize) = ReadSection(data, Images);
             if (imageSize % 40 != 0)
-                throw new InvalidDataException("Endfield_CN image definitions must use 40-byte records.");
+                throw new InvalidDataException("Endfield_CN_Android_x.x.x image definitions must use 40-byte records.");
 
             long typeCount = 0;
             for (var i = 0; i < imageSize / 40; i++)
@@ -30,16 +30,16 @@ namespace Il2CppInspector.Plugin.Endfield
                 var start = BinaryPrimitives.ReadInt32LittleEndian(image[8..]);
                 var count = BinaryPrimitives.ReadUInt32LittleEndian(image[12..]);
                 if (start < 0)
-                    throw new InvalidDataException("Endfield_CN image type range is invalid.");
+                    throw new InvalidDataException("Endfield_CN_Android_x.x.x image type range is invalid.");
                 typeCount = Math.Max(typeCount, start + (long)count);
             }
 
             if (typeSize == typeCount * 88)
                 return data;
             if (typeSize != typeCount * 92)
-                throw new InvalidDataException("Endfield_CN type definitions do not match the image type ranges.");
+                throw new InvalidDataException("Endfield_CN_Android_x.x.x type definitions do not match the image type ranges.");
 
-            status?.Invoke(null, $"Normalizing Endfield_CN type definitions ({typeCount} records, 92 -> 88 bytes)");
+            status?.Invoke(null, $"Normalizing Endfield_CN_Android_x.x.x type definitions ({typeCount} records, 92 -> 88 bytes)");
             var delta = checked((int)typeCount * 4);
             var typeEnd = checked(typeOffset + typeSize);
             var output = new byte[data.Length - delta];
@@ -48,7 +48,7 @@ namespace Il2CppInspector.Plugin.Endfield
             {
                 var record = data.AsSpan(typeOffset + i * 92, 92);
                 if (BinaryPrimitives.ReadUInt32LittleEndian(record[88..]) >> 24 != 2)
-                    throw new InvalidDataException($"Endfield_CN type definition {i} has an invalid token.");
+                    throw new InvalidDataException($"Endfield_CN_Android_x.x.x type definition {i} has an invalid token.");
 
                 // Endfield inserts a 32-bit field before the stock member counts at byte 64.
                 record[..64].CopyTo(output.AsSpan(typeOffset + i * 88));
@@ -64,7 +64,7 @@ namespace Il2CppInspector.Plugin.Endfield
                     continue;
                 }
                 if (offset != 0 && offset < typeEnd && (offset >= typeOffset || offset + (long)size > typeOffset))
-                    throw new InvalidDataException($"Endfield_CN metadata section {i} overlaps type definitions.");
+                    throw new InvalidDataException($"Endfield_CN_Android_x.x.x metadata section {i} overlaps type definitions.");
                 WriteSection(output, i, offset >= typeEnd ? offset - delta : offset, size);
             }
             return output;
@@ -80,7 +80,7 @@ namespace Il2CppInspector.Plugin.Endfield
         {
             if (!Matches(data))
             {
-                throw new InvalidDataException("Endfield_CN requires decoded v29 metadata with a 0x108-byte header.");
+                throw new InvalidDataException("Endfield_CN_Android_x.x.x requires decoded v29 metadata with a 0x108-byte header.");
             }
 
             // The two Windows Runtime entries are replaced by the original repair algorithm.
@@ -92,7 +92,7 @@ namespace Il2CppInspector.Plugin.Endfield
                 var (offset, size) = ReadSection(data, i);
                 if (size < 0 || offset < 0 || offset > data.Length || size > data.Length - offset || (offset != 0 && offset < ModifiedHeaderSize) || (offset == 0 && size != 0))
                 {
-                    throw new InvalidDataException($"Endfield_CN metadata section {i} is outside the payload.");
+                    throw new InvalidDataException($"Endfield_CN_Android_x.x.x metadata section {i} is outside the payload.");
                 }
             }
 

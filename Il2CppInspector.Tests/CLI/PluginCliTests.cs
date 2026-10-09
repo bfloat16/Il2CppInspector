@@ -5,8 +5,8 @@ namespace Il2CppInspector.Tests.CLI
         internal static void Run(string[] args)
         {
             var cli = Path.GetFullPath(args[1]);
-            var available = RunCli(cli, "ZZZ_CN_3.2.1");
-            Check(available.Contains("Available games:") && available.Contains("ZZZ_CN_3.2.0"), "Published CLI discovers game DLLs through the plugin loader library");
+            var available = RunCli(cli, "ZZZ_CN_Windows_3.2.1");
+            Check(available.Contains("Available games:") && available.Contains("ZZZ_CN_Windows_3.2.0"), "Published CLI discovers game DLLs through the plugin loader library");
             var isolated = Path.GetFullPath(args[2]);
             Directory.CreateDirectory(isolated);
             foreach (var file in Directory.EnumerateFiles(Path.GetDirectoryName(cli)))
@@ -16,9 +16,9 @@ namespace Il2CppInspector.Tests.CLI
                     File.Copy(file, Path.Combine(isolated, Path.GetFileName(file)), true);
                 }
             }
-            var missing = RunCli(Path.Combine(isolated, Path.GetFileName(cli)), "ZZZ_CN_3.2.0");
+            var missing = RunCli(Path.Combine(isolated, Path.GetFileName(cli)), "ZZZ_CN_Windows_3.2.0");
             Check(
-                missing.Contains("No installed plugin supports ZZZ_CN_3.2.0") && missing.TrimEnd().EndsWith("Available games:", StringComparison.Ordinal),
+                missing.Contains("No installed plugin supports ZZZ_CN_Windows_3.2.0") && missing.TrimEnd().EndsWith("Available games:", StringComparison.Ordinal),
                 "CLI without game DLLs reports the missing plugin clearly"
             );
 

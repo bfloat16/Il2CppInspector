@@ -1,4 +1,4 @@
-# Endfield_CN
+# Endfield_CN_Android_x.x.x
 
 Ports the supplied `GlobalMetadata.cs` repair for decoded v29 metadata with a
 0x108-byte header. The plugin removes the extra 8 bytes, shifts section offsets,
@@ -12,7 +12,7 @@ in memory through the stock reader, binary registration discovery and exports.
 
 ```bash
 dotnet build Il2CppInspector.slnx -c Release
-dotnet Il2CppInspector.CLI/bin/Release/net10.0/Il2CppInspector.dll --game Endfield_CN -i libil2cpp.so -m global-metadata.dat -o output/Endfield_CN -t IDA --unity-version 2021.3.0f1
+dotnet Il2CppInspector.CLI/bin/Release/net10.0/Il2CppInspector.dll --game Endfield_CN_Android_x.x.x -i libil2cpp.so -m global-metadata.dat -o output/Endfield_CN_Android_x.x.x -t IDA --unity-version 2021.3.0f1
 ```
 
 Set `--unity-version` to the actual player version when exporting C++ headers.

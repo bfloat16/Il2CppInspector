@@ -1,4 +1,4 @@
-# Endfield_CN Checks
+# Endfield_CN_Android_x.x.x Checks
 
 ```bash
 dotnet run --project Il2CppInspector.Tests -c Release -- --plugins
@@ -17,7 +17,7 @@ Validated on 2026-10-07 using these existing tprt-restored inputs:
 - `H:/Project/Game/CN/明日方舟：终末地/1.5.3_Android/Native/global-metadata.clean.dat`
 
 ```bash
-dotnet Il2CppInspector.CLI/bin/Release/net10.0/Il2CppInspector.dll --game Endfield_CN -i '<Native>/libil2cpp.clean.so' -m '<Native>/global-metadata.clean.dat' -t IDA -o '<temporary output>'
+dotnet Il2CppInspector.CLI/bin/Release/net10.0/Il2CppInspector.dll --game Endfield_CN_Android_x.x.x -i '<Native>/libil2cpp.clean.so' -m '<Native>/global-metadata.clean.dat' -t IDA -o '<temporary output>'
 ```
 
 The type table contains 58,328 records of 92 bytes. Reading it as stock v29

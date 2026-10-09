@@ -8,19 +8,20 @@ namespace Il2CppInspector.Plugin.Endfield
 {
     public sealed class EndfieldPlugin : GamePlugin
     {
-        public override string GameId => "Endfield_CN";
+        public override string GameId => "Endfield_CN_Android_x.x.x";
         public override string RegistrationSignature => "";
 
         public override bool Matches(ReadOnlySpan<byte> metadata) => EndfieldMetadata.Matches(metadata);
 
         public override Il2CppInspector Load(Stream binary, byte[] metadata, byte[] startupMetadata, LoadOptions options, EventHandler<string> status)
         {
-            status?.Invoke(this, "Repairing Endfield_CN metadata header");
+            status?.Invoke(this, "Repairing Endfield_CN_Android_x.x.x metadata header");
             var repaired = EndfieldMetadata.NormalizeTypeDefinitions(EndfieldMetadata.Fix(metadata), status);
             using var stream = new MemoryStream(repaired, writable: false);
             var decoded = Metadata.FromStream(stream, status);
             var image = FileFormatStream.Load(binary, options, status) ?? throw new InvalidDataException("Unsupported executable file format.");
-            var il2cppBinary = Il2CppBinary.Load(image, decoded, status) ?? throw new InvalidDataException("Could not locate the Endfield_CN IL2CPP registration structures in the binary.");
+            var il2cppBinary =
+                Il2CppBinary.Load(image, decoded, status) ?? throw new InvalidDataException("Could not locate the Endfield_CN_Android_x.x.x IL2CPP registration structures in the binary.");
 
             // Repaired records use the stock pipeline, so no game metadata adapter is attached.
             return new Il2CppInspector(il2cppBinary, decoded);
@@ -45,6 +46,6 @@ namespace Il2CppInspector.Plugin.Endfield
 
         public override void WriteApplicationPointers(AppModel model, string path) => throw StockPipelineOnly();
 
-        private static InvalidOperationException StockPipelineOnly() => new("Endfield_CN uses the stock analysis and output pipeline.");
+        private static InvalidOperationException StockPipelineOnly() => new("Endfield_CN_Android_x.x.x uses the stock analysis and output pipeline.");
     }
 }

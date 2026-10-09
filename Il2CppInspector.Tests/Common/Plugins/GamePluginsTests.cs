@@ -4,6 +4,12 @@ namespace Il2CppInspector.Tests.Common.Plugins
     {
         internal static void Run(string[] unsupportedIds)
         {
+            foreach (var plugin in GamePlugins.Installed)
+            {
+                var parts = plugin.GameId.Split('_');
+                Check(parts.Length == 4 && (parts[3] == "x.x.x" || Version.TryParse(parts[3], out _)), "Installed game ID includes name, region, platform and version: " + plugin.GameId);
+                Check(ReferenceEquals(GamePlugins.Get(plugin.GameId.ToLowerInvariant()), plugin), "Game selection remains case-insensitive: " + plugin.GameId);
+            }
             var availableGames = $"Available games: {string.Join(", ", GamePlugins.Installed.Select(p => p.GameId))}";
             foreach (var unsupported in unsupportedIds)
             {

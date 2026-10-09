@@ -8,7 +8,11 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ
         {
             var game = args[0];
             Input = Inspector
-                .LoadFromFile(Path.Combine(game, "GameAssembly.dll"), Path.Combine(game, "global-metadata.dat"), args.Contains("--explicit-game") ? new LoadOptions { Game = "ZZZ_CN_3.2.0" } : null)
+                .LoadFromFile(
+                    Path.Combine(game, "GameAssembly.dll"),
+                    Path.Combine(game, "global-metadata.dat"),
+                    args.Contains("--explicit-game") ? new LoadOptions { Game = "ZZZ_CN_Windows_3.2.0" } : null
+                )
                 ?.Single();
         }
 

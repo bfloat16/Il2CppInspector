@@ -7,7 +7,7 @@ namespace Il2CppInspector.Plugin.ZZZ
 {
     public sealed class ZzzPlugin : GamePlugin
     {
-        public override string GameId => "ZZZ_CN_3.2.0";
+        public override string GameId => "ZZZ_CN_Windows_3.2.0";
         public override string StartupMetadataFileName => "startup-metadata.dat";
         public override bool StreamExports => true;
         public override UnityVersion DefaultUnityVersion => new("2019.4.40f1");

@@ -12,7 +12,12 @@ namespace Il2CppInspector.Plugins
         public static GamePlugin Get(string gameId)
         {
             var parts = gameId?.Split('_');
-            if (parts == null || (parts.Length != 2 && parts.Length != 3) || parts.Any(string.IsNullOrWhiteSpace) || (parts.Length == 3 && !Version.TryParse(parts[2], out _)))
+            if (
+                parts == null
+                || parts.Length != 4
+                || parts.Any(string.IsNullOrWhiteSpace)
+                || (!string.Equals(parts[3], "x.x.x", StringComparison.OrdinalIgnoreCase) && !Version.TryParse(parts[3], out _))
+            )
             {
                 throw new ArgumentException($"Available games: {string.Join(", ", Installed.Select(p => p.GameId))}");
             }

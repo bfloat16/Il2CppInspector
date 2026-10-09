@@ -22,7 +22,7 @@ namespace Il2CppInspector.Plugin.TOT
     /// </summary>
     public sealed class TotPlugin : GamePlugin
     {
-        public override string GameId => "TOT_CN_6.1.0";
+        public override string GameId => "TOT_CN_Android_6.1.0";
         public override UnityVersion DefaultUnityVersion => new("2018.4.36f1");
         public override string RegistrationSignature => "";
 

@@ -16,7 +16,7 @@ namespace Il2CppInspector
         // Optional auxiliary metadata; the selected plugin can discover it beside global metadata.
         public string StartupMetadataPath { get; set; }
 
-        // NAME_REGION_VERSION. Null selects an installed plugin automatically or uses the stock reader.
+        // NAME_REGION_PLATFORM_VERSION. Null selects an installed plugin automatically or uses the stock reader.
         public string Game { get; set; }
 
         public Action<OperationProgress> ProgressCallback { get; set; }

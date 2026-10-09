@@ -6,7 +6,7 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.IL2CPP.ZenlessZoneZero
         {
             var input = context.Input;
             Check(input?.Metadata.IsZenlessZoneZero == true, "MORAX automatically selects the C# ZZZ loader");
-            Check(input.Metadata.GamePlugin.GameId == "ZZZ_CN_3.2.0", "The loaded package retains its selected game plugin");
+            Check(input.Metadata.GamePlugin.GameId == "ZZZ_CN_Windows_3.2.0", "The loaded package retains its selected game plugin");
             var exports = input.BinaryImage.GetExports().ToDictionary(e => e.Name, e => e.VirtualAddress);
             Check(
                 exports["DllCanUnloadNow"] == 0x1802779A0 && exports["DllGetActivationFactory"] == 0x18026D900 && exports["il2cpp_get_api_table"] == 0x1802B7040,

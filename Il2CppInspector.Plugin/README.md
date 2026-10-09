@@ -11,16 +11,23 @@ Each loaded package retains its plugin instance, so loading another game does no
 
 ```bash
 dotnet build Il2CppInspector.slnx -c Release
-dotnet Il2CppInspector.CLI/bin/Release/net10.0/Il2CppInspector.dll --game NAME_REGION_VERSION -i GameAssembly.dll -m global-metadata.dat -o output/game -t IDA
+dotnet Il2CppInspector.CLI/bin/Release/net10.0/Il2CppInspector.dll --game NAME_REGION_PLATFORM_VERSION -i GameAssembly.dll -m global-metadata.dat -o output/game -t IDA
 ```
 
-`--game NAME_REGION[_VERSION]` selects an installed plugin's exact supported ID, case-insensitively.
+`--game NAME_REGION_PLATFORM_VERSION` selects an installed plugin's exact supported ID, case-insensitively.
+The literal version `x.x.x` identifies a plugin that supports multiple game versions.
 Without it, metadata detection selects the plugin; ambiguous matches require an explicit ID, while ordinary metadata uses the stock loader.
+
+| Game | Supported ID |
+| --- | --- |
+| ZZZ | `ZZZ_CN_Windows_3.2.0` |
+| Endfield | `Endfield_CN_Android_x.x.x` |
+| TOT | `TOT_CN_Android_6.1.0` |
 
 ## Adding a Game
 
 1. Add `<game>/Il2CppInspector.Plugin.<game>.csproj` targeting .NET 10 with `EnableDynamicLoading=true`, a Common reference and the default assembly name.
-2. Implement a public, parameterless `GamePlugin` subclass with a supported `NAME_REGION` or `NAME_REGION_VERSION` identifier.
+2. Implement a public, parameterless `GamePlugin` subclass with a supported `NAME_REGION_PLATFORM_VERSION` identifier.
 3. Decode stock metadata/binary records and attach a `GameMetadataAdapter` through `Metadata.CreateForPlugin`; game projects receive friend access while public record setters remain read-only.
 4. Reuse the stock analysis and outputs after normalization. If the binary has a different runtime layout, supply only its layout hooks; `NativeLayoutAnalysisModel` shares the stock method traversal and declaration naming. `StreamExports` keeps reflection data lazy.
 5. Add the project to the solution and tests for the supported inputs.
