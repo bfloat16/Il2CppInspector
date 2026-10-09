@@ -2,7 +2,7 @@
 
 Tests mirror production modules under `Common/`, `CLI/` and `Plugin/<game>/`.
 `Program.cs` selects a test mode and `TestAssert` supplies shared assertions.
-Real input files are supplied locally; game-specific modes are documented with [ZZZ](Plugin/ZZZ/README.md) and [TOT](Plugin/TOT/README.md).
+Real input files are supplied locally; game-specific modes are documented with [ZZZ](Plugin/ZZZ/README.md), [TOT](Plugin/TOT/README.md) and [Genshin](Plugin/Genshin/README.md).
 
 ```bash
 dotnet run --project Il2CppInspector.Tests -c Release -- --plugins

@@ -13,7 +13,7 @@ namespace Il2CppInspector.Tests
                         + "<ZZZ Native directory> [output directory] [options], --plugins, "
                         + "--plugin-cli <CLI DLL> <isolated directory>, --assembly-resolution <ZZZ DummyDll directory>, "
                         + "--pdb-fixture <output directory> [llvm-pdbutil] [idat], --dwarf-fixture <output directory> [readelf] [gdb] [idat] [llvm-symbolizer], "
-                        + "--tot-native <Native directory> <output directory>, "
+                        + "--tot-native <Native directory> <output directory>, --genshin <Native directory> [output directory] [options], "
                         + "--dwarf-globals <Android sample directory> <output directory> [idat], "
                         + "--debug-routing, --cli-targets <CLI DLL>, --progress [binary metadata output directory], or --stock <Unity player directory>."
                 );
@@ -21,6 +21,10 @@ namespace Il2CppInspector.Tests
 
             switch (args[0])
             {
+                case "--genshin":
+                    RequireArguments(args, 2);
+                    Plugin.Genshin.GenshinTests.Run(args);
+                    break;
                 case "--bh3":
                     RequireArguments(args, 2);
                     Plugin.BH3.Bh3Tests.Run(args);
