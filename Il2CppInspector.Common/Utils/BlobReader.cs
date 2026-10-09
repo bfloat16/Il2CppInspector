@@ -21,8 +21,10 @@ public static class BlobReader
                 value = blob.ReadBoolean();
                 break;
             case Il2CppTypeEnum.IL2CPP_TYPE_U1:
-            case Il2CppTypeEnum.IL2CPP_TYPE_I1:
                 value = blob.ReadByte();
+                break;
+            case Il2CppTypeEnum.IL2CPP_TYPE_I1:
+                value = blob.ReadPrimitive<sbyte>();
                 break;
             case Il2CppTypeEnum.IL2CPP_TYPE_CHAR:
                 // UTF-8 character assumed
