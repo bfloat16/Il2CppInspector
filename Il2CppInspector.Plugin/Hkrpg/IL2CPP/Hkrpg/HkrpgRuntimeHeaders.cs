@@ -16,9 +16,7 @@ internal static class HkrpgRuntimeHeaders
                 : $"typedef struct {name} {name};";
             stock = Regex.Replace(stock, pattern, _ => replacement, RegexOptions.Singleline);
         }
-        return "// HSR CN Windows 4.6.51 physical runtime records. Encoded members require decoding.\n"
-            + "// Class records expose the verified 0xC0 prefix; variable vtable tails are not described.\n"
-            + "// Unknown members retain their physical offsets; unrecovered records remain opaque.\n" + stock;
+        return "// Hkrpg 4.6.0 Windows MORAX physical runtime records. Encoded members require decoding.\n" + stock;
     }
 
     // Class construction: RVA 0x208E1787; field initialization: RVA 0x3F0E560.

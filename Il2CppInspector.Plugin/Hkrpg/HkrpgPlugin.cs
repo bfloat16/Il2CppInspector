@@ -5,9 +5,9 @@ using Il2CppInspector.Reflection;
 
 namespace Il2CppInspector.Plugin.Hkrpg;
 
-public sealed class HkrpgPlugin : GamePlugin
+public class HkrpgPlugin : GamePlugin
 {
-    public override string GameId => "HSR_CN_Windows_4.6.51";
+    public override string GameId => "HSR_OS_Windows_4.6.0";
     public override string StartupMetadataFileName => "startup-metadata.dat";
     public override bool StreamExports => true;
     public override string RegistrationSignature => "void* (*Morax_MetadataCache_Register)()";
@@ -36,4 +36,9 @@ public sealed class HkrpgPlugin : GamePlugin
         model.BuildMetadataDataUsages();
         return new NativeLayoutAnalysisModel(model);
     }
+}
+
+public class Hkrpg4651Plugin : HkrpgPlugin
+{
+    public override string GameId => "HSR_CN_Windows_4.6.51";
 }

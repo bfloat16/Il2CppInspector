@@ -1,11 +1,36 @@
+using System.Buffers.Binary;
+using System.Collections.Immutable;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using Il2CppInspector.Next.Metadata;
-using static Il2CppInspector.HkrpgMorax;
 
 namespace Il2CppInspector;
 
 internal static class HkrpgRecords
 {
+    internal static ushort U16(ReadOnlySpan<byte> data, int offset) => BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(offset, 2));
+    internal static uint U32(ReadOnlySpan<byte> data, int offset) => BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(offset, 4));
+    internal static int I32(ReadOnlySpan<byte> data, int offset) => unchecked((int)U32(data, offset));
+    internal static ulong U64(ReadOnlySpan<byte> data, int offset) => BinaryPrimitives.ReadUInt64LittleEndian(data.Slice(offset, 8));
+    internal static int Index16(ushort value) => value == ushort.MaxValue ? -1 : value;
+
+    internal delegate T RecordReader<T>(ReadOnlySpan<byte> data, int index);
+
+    internal static ImmutableArray<T> Records<T>(byte[] bytes, int offset, int count, int stride, RecordReader<T> read)
+    {
+        CheckRange(bytes, offset, checked(count * stride));
+        var result = new T[count];
+        for (var i = 0; i < count; i++)
+            result[i] = read(bytes.AsSpan(offset + i * stride, stride), i);
+        return ImmutableCollectionsMarshal.AsImmutableArray(result);
+    }
+
+    internal static void CheckRange(byte[] bytes, int offset, int length)
+    {
+        if (offset < 0 || length < 0 || offset > bytes.Length - length)
+            throw new InvalidDataException($"HSR table outside input: offset 0x{offset:X}, length 0x{length:X}.");
+    }
+
     internal static Il2CppImageDefinition Image(ReadOnlySpan<byte> d, int index)
     {
         var k = unchecked((((uint)index * 0xE07Cu ^ 0x7538159Eu) * 0x120D0703u ^ 0x6032C9D3u) + 0x2EBB0085u);

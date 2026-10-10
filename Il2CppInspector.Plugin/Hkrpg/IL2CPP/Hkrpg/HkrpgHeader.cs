@@ -1,6 +1,6 @@
 namespace Il2CppInspector;
 
-using static HkrpgMorax;
+using static HkrpgRecords;
 
 internal sealed class HkrpgHeader
 {
