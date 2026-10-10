@@ -305,7 +305,11 @@ namespace Il2CppInspector.Model
                             var storage = AsCType(field.FieldType);
                             if (field.FieldType.IsValueType && field.FieldType.IsGenericType && storage.Name == "void *")
                             {
-                                storage = Cpp.GetType("uint8_t").AsArray(Math.Max(0, checked((int)field.FieldType.Sizes.InstanceSize) - 16));
+                                var bytes = checked((int)field.FieldType.Sizes.InstanceSize) - 16;
+                                // Unknown inline storage remains padding in the enclosing recorded layout.
+                                if (bytes <= 0)
+                                    continue;
+                                storage = Cpp.GetType("uint8_t").AsArray(bytes);
                             }
 
                             Add(node, name, storage, offset);

@@ -460,7 +460,10 @@ namespace Il2CppInspector.Reflection
 
             // From v24.1 onwards, token was added to Il2CppCustomAttributeTypeRange and each Il2CppImageDefinition noted the CustomAttributeTypeRanges for the image
             // v29 uses this same system but with CustomAttributeDataRanges instead
-            if (!Package.AttributeIndicesByToken.TryGetValue(asm.ImageDefinition.CustomAttributeStart, out var indices) || !indices.TryGetValue((uint)token, out var index))
+            // An empty image can share its start with the following nonempty image.
+            if (asm.ImageDefinition.CustomAttributeCount == 0
+                || !Package.AttributeIndicesByToken.TryGetValue(asm.ImageDefinition.CustomAttributeStart, out var indices)
+                || !indices.TryGetValue((uint)token, out var index))
                 return -1;
 
             return index;
