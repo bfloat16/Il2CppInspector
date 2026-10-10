@@ -373,6 +373,8 @@ namespace Il2CppInspector.Outputs
                                 writeTypedName(usage.Address, usage.Type, usage.Name);
                                 if (usage.TypeIndex >= 0)
                                     writeDotNetTypeName(model.TypeModel.TypesByReferenceIndex[usage.TypeIndex]);
+                                else
+                                    writer.WriteNull("dotNetType");
                                 if (usage.Length is int length)
                                     writer.WriteNumber("length", length);
                                 if (usage.Value != null)

@@ -119,11 +119,19 @@ internal static class GenshinTests
         using var json = System.Text.Json.JsonDocument.Parse(bytes.ToArray());
         var strings = json.RootElement.GetProperty("genshinNativeStrings");
         var tick = strings.EnumerateArray().Single(s => s.GetProperty("value").GetString() == "Tick");
-        Check(strings.GetArrayLength() == 10 && tick.GetProperty("length").GetInt32() == 4, "Native string JSON preserves text and explicit length without a managed type index");
+        Check(
+            strings.GetArrayLength() == 10
+                && tick.GetProperty("length").GetInt32() == 4
+                && strings.EnumerateArray().All(s => s.GetProperty("dotNetType").ValueKind == System.Text.Json.JsonValueKind.Null),
+            "Native string JSON preserves text, length and explicit null dotNetType for native data"
+        );
         var arrays = json.RootElement.GetProperty("genshinEmptyArrays");
         Check(
-            arrays.GetArrayLength() == 2564 && arrays.EnumerateArray().All(a => a.GetProperty("length").GetInt32() == 0 && a.GetProperty("subtype").GetUInt32() == 0),
-            "Empty-array JSON preserves zero length and subtype"
+            arrays.GetArrayLength() == 2564
+                && arrays
+                    .EnumerateArray()
+                    .All(a => a.GetProperty("length").GetInt32() == 0 && a.GetProperty("subtype").GetUInt32() == 0 && a.GetProperty("dotNetType").ValueKind == System.Text.Json.JsonValueKind.String),
+            "Empty-array JSON preserves managed type, zero length and subtype"
         );
     }
 }
