@@ -18,5 +18,7 @@ internal sealed class HkrpgNativeModel : NativeTypeModel
 
     internal override int Alignment(TypeInfo type) => Adapter.LayoutAlignment(Adapter.DefinitionLayoutGroup(type.Index));
 
-    internal override CppComplexType CreateClass(NativeLayoutAnalysisModel layouts, TypeInfo type) => layouts.Declare(Name(type) + "__Class", -1, _ => { });
+    internal override CppComplexType CreateClass(NativeLayoutAnalysisModel layouts, TypeInfo type) =>
+        layouts.Declare(Name(type) + "__Class", 0xC0,
+            node => NativeLayoutAnalysisModel.Add(node, "header", layouts.Cpp.GetType("Il2CppClass_0"), 0));
 }

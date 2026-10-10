@@ -11,6 +11,7 @@ internal sealed partial class HkrpgMorax
     private Il2CppTypeDefinition[] definitions;
     private Il2CppMethodDefinition[] methods;
     private Il2CppFieldDefinition[] fields;
+    private Il2CppCustomAttributeTypeRange[] attributeRanges;
 
     private void ReadMetadata()
     {
@@ -65,8 +66,7 @@ internal sealed partial class HkrpgMorax
         Metadata.ParameterDefaultValues = Records(global, Base(header.ParameterDefaultsOffset), checked((int)header.ParameterDefaultCount), 12,
             (d, _) => new Il2CppParameterDefaultValue { TypeIndex = I32(d, 0), ParameterIndex = I32(d, 4), DataIndex = I32(d, 8) });
         Metadata.Assemblies = BuildAssemblies();
-        Metadata.AttributeTypeRanges = [];
-        Metadata.AttributeTypeIndices = [];
+        ReadCustomAttributes();
         Metadata.AttributeDataRanges = [];
         Metadata.InterfaceOffsets = [];
         Metadata.VTableMethodIndices = [];
@@ -82,6 +82,50 @@ internal sealed partial class HkrpgMorax
     }
 
     private readonly Dictionary<int, int> declaringDefinitions = [];
+
+    private void ReadCustomAttributes()
+    {
+        // Runtime image initialization (RVA 0x3F31FB7) supplies exact ranges, including empty images.
+        var count = 0;
+        foreach (var image in Metadata.Images)
+        {
+            if (image.CustomAttributeStart != count)
+                throw new InvalidDataException("HSR image custom attribute ranges are not contiguous.");
+            count = checked(count + (int)image.CustomAttributeCount);
+        }
+        attributeRanges = Records(global, Base(header.AttributeRangesOffset), count, 8,
+            (d, _) => new Il2CppCustomAttributeTypeRange { Start = (int)(U32(d, 0) & 0xFFFFFF), Count = d[3], Token = U32(d, 4) }).ToArray();
+        var typeCount = 0;
+        foreach (var image in Metadata.Images)
+        {
+            uint previousToken = 0;
+            for (var i = image.CustomAttributeStart; i < image.CustomAttributeStart + image.CustomAttributeCount; i++)
+            {
+                var range = attributeRanges[i];
+                var index = (int)(range.Token & 0xFFFFFF);
+                var validToken = (range.Token >> 24) switch
+                {
+                    0x02 => index >= image.TypeStart && index < image.TypeStart + image.TypeCount,
+                    0x04 => index < fields.Length,
+                    0x06 => index < methods.Length,
+                    0x08 => index < Metadata.Params.Length,
+                    0x14 => index < Metadata.Events.Length,
+                    0x17 => index < Metadata.Properties.Length,
+                    0x20 => index == 1,
+                    _ => false,
+                };
+                if (!validToken || range.Token <= previousToken || range.Count == 0 || range.Start != typeCount)
+                    throw new InvalidDataException($"Invalid HSR custom attribute range {i}.");
+                previousToken = range.Token;
+                typeCount = checked(typeCount + range.Count);
+            }
+        }
+        Metadata.AttributeTypeRanges = ImmutableCollectionsMarshal.AsImmutableArray(attributeRanges);
+        Metadata.AttributeTypeIndices = Records(global, Base(header.AttributeTypesOffset), typeCount, 4, (d, _) => I32(d, 0));
+        if (Metadata.AttributeTypeIndices.Any(i => i < 0))
+            throw new InvalidDataException("HSR custom attribute type index is negative.");
+        status?.Invoke(this, $"HSR: {count} custom attribute ranges, {typeCount} attribute type references.");
+    }
 
     private void ResolveEnumElementTypes()
     {

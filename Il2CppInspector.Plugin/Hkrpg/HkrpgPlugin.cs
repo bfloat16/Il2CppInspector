@@ -23,7 +23,7 @@ public sealed class HkrpgPlugin : GamePlugin
         return HkrpgMorax.Load(image, metadata, startupMetadata, status, this);
     }
 
-    // The source decoder does not verify the runtime ABI. Keep runtime class/member types opaque.
+    // Physical records are verified against this build; unrecovered records remain opaque.
     public override UnityHeaders GetHeaders() => UnityHeaders.ForPlugin(new("2019.4.24"), null, HkrpgRuntimeHeaders.Apply);
 
     public override IGameTypeLayouts CreateTypeLayouts(TypeModel model) => new SharedTypeLayouts(model, new Dictionary<int, int>(), false);

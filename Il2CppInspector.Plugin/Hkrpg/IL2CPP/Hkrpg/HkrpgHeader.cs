@@ -39,6 +39,8 @@ internal sealed class HkrpgHeader
     internal uint FieldDefaultsOffset { get; }
     internal uint ParameterDefaultsOffset { get; }
     internal uint DefaultDataOffset { get; }
+    internal uint AttributeRangesOffset { get; }
+    internal uint AttributeTypesOffset { get; }
 
     internal HkrpgHeader(ReadOnlySpan<byte> data, uint payload)
     {
@@ -79,6 +81,8 @@ internal sealed class HkrpgHeader
             FieldDefaultsOffset = U32(data, 0x1FC) ^ 0x6238CDB0u;
             ParameterDefaultsOffset = U32(data, 0x4C) + 0xE82C6008u;
             DefaultDataOffset = U32(data, 0x3C) - 0x6874185Bu;
+            AttributeRangesOffset = U32(data, 0x18) + 0xE6CD8E6Cu;
+            AttributeTypesOffset = U32(data, 0x1EC) + 0xA75A2A51u;
         }
     }
 }

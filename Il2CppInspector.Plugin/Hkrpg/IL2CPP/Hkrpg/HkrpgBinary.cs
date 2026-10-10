@@ -12,6 +12,7 @@ internal sealed partial class HkrpgMorax
     private readonly List<int[]> instanceArguments = [];
     private (int Definition, int Instance)[] genericClasses;
     private ulong typesAddress;
+    private ulong nativeSizesAddress;
     private int typeStride;
     private uint[] rawFieldOffsets;
     public override int VTableSlotSize => 16;
@@ -21,6 +22,7 @@ internal sealed partial class HkrpgMorax
         ReadUsages();
         status?.Invoke(this, "Decoding HSR type references and generic instances");
         typesAddress = Image.ReadMappedUInt64(MetadataRegistrationAddress + 0x80);
+        nativeSizesAddress = Image.ReadMappedUInt64(MetadataRegistrationAddress + 0x40);
         var probe = Image.ReadMappedBytes(typesAddress, 256);
         var votes8 = Enumerable.Range(0, 16).Count(i => probe[i * 8 + 6] is >= 1 and <= 0x1F);
         var votes16 = Enumerable.Range(0, 16).Count(i => probe[i * 16 + 10] is >= 1 and <= 0x1F);
@@ -54,6 +56,7 @@ internal sealed partial class HkrpgMorax
             .Concat(Metadata.FieldDefaultValues.Select(d => (int)d.TypeIndex))
             .Concat(Metadata.ParameterDefaultValues.Select(d => (int)d.TypeIndex))
             .Concat(Metadata.FieldRefs.Select(f => (int)f.TypeIndex))
+            .Concat(Metadata.AttributeTypeIndices)
             .Concat(usagePairs.Where(p => p.Kind is 1 or 7).Select(p => p.Source))
             .Concat(instanceArguments.SelectMany(a => a)).Max();
         EnsureTypes(maxType);
@@ -137,9 +140,13 @@ internal sealed partial class HkrpgMorax
         {
             InvokerPointers = Image.ReadMappedUInt64(CodeRegistrationAddress + 0x68),
             InvokerPointersCount = (uint)invokerCount,
+            CustomAttributeGenerators = Image.ReadMappedUInt64(CodeRegistrationAddress + 0x78),
+            CustomAttributeCount = attributeRanges.Length,
         };
         binary.MetadataRegistration = new() { TypesCount = types.Count, GenericInstsCount = instances.Count, MethodSpecsCount = specs.Length, GenericClassesCount = genericClasses.Length };
-        binary.CustomAttributeGenerators = [];
+        binary.CustomAttributeGenerators = Image.ReadMappedUWordArray(binary.CodeRegistration.CustomAttributeGenerators, attributeRanges.Length);
+        if (binary.CustomAttributeGenerators.Any(address => !IsCode(address)))
+            throw new InvalidDataException("HSR custom attribute generator outside executable sections.");
         binary.MethodInvokePointers = Image.ReadMappedUWordArray(binary.CodeRegistration.InvokerPointers, invokerCount);
         BuildModules(binary, invokerCount);
         var primary = Image.ReadMappedUInt64(CodeRegistrationAddress + 0x90);
@@ -227,6 +234,16 @@ internal sealed partial class HkrpgMorax
             binary.MethodInvokerIndices.Add(module, invokers[first..last]);
             for (var mi = first; mi < last; mi++)
                 methods[mi].Token = 0x06000000u | (uint)(mi - first + 1);
+            // Preserve range indices: the generator table uses their original global order.
+            for (var ai = image.CustomAttributeStart; ai < image.CustomAttributeStart + image.CustomAttributeCount; ai++)
+            {
+                if ((attributeRanges[ai].Token >> 24) != 0x06)
+                    continue;
+                var mi = (int)(attributeRanges[ai].Token & 0xFFFFFF);
+                if (mi < first || mi >= last)
+                    throw new InvalidDataException("HSR custom attribute method belongs to another image.");
+                attributeRanges[ai].Token = methods[mi].Token;
+            }
         }
     }
 
@@ -235,7 +252,16 @@ internal sealed partial class HkrpgMorax
     public override Il2CppTypeDefinitionSizes LayoutSizes(int group)
     {
         var o = checked(Base(header.FieldGroupsOffset) + group * 12);
-        return new() { InstanceSize = U16(global, o + 2), StaticFieldsSize = U16(global, o), ThreadStaticFieldsSize = U16(global, o + 4), NativeSize = -1 };
+        CheckRange(global, o, 12);
+        // RVA 0x208E1AAD reads the u16 native size by layout group; 0x208E1E07 copies sizes.
+        var native = Image.ReadMappedUInt16(nativeSizesAddress + checked((ulong)group * 2));
+        return new()
+        {
+            InstanceSize = U16(global, o + 2),
+            StaticFieldsSize = U16(global, o + 4),
+            ThreadStaticFieldsSize = global[o],
+            NativeSize = native == ushort.MaxValue ? -1 : native,
+        };
     }
 
     internal int LayoutAlignment(int group)

@@ -14,6 +14,8 @@ internal static class HkrpgRecords
             NameIndex = unchecked((int)(U32(d, 0x0C) ^ k ^ 0x4D648371u)),
             TypeStart = unchecked((int)(U32(d, 0x14) ^ k ^ 0x7BABEEA0u ^ 0x235AEAF5u)),
             TypeCount = U32(d, 4) ^ k ^ 0x10FEA394u ^ 0x7C06D18Cu,
+            CustomAttributeStart = unchecked((int)(U32(d, 0x20) ^ k ^ 0x3E69547Au ^ 0x43633AF4u)),
+            CustomAttributeCount = unchecked(U32(d, 8) + 0xED46492Fu) ^ k,
             AssemblyIndex = index,
             EntryPointIndex = -1,
             ExportedTypeStart = -1,
