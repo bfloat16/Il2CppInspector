@@ -18,7 +18,8 @@ namespace Il2CppInspector.Reflection
     public class TypeInfo : MemberInfo
     {
         // IL2CPP-specific data
-        public Il2CppTypeDefinition Definition { get; }
+        private readonly int definitionIndex = -1;
+        public Il2CppTypeDefinition Definition => definitionIndex < 0 ? default : Assembly.Model.Package.TypeDefinitions[definitionIndex];
         private Il2CppTypeDefinitionSizes sizes;
         private int? gameLayoutGroup;
         private bool gameLayoutResolved;
@@ -85,7 +86,7 @@ namespace Il2CppInspector.Reflection
         }
 
         // Cached derived types
-        private Dictionary<int, TypeInfo> generatedArrayTypes = [];
+        private Dictionary<int, TypeInfo> generatedArrayTypes;
         private TypeInfo generatedByRefType;
         private TypeInfo generatedPointerType;
 
@@ -882,7 +883,7 @@ namespace Il2CppInspector.Reflection
         {
             var pkg = Assembly.Model.Package;
 
-            Definition = pkg.TypeDefinitions[typeIndex];
+            definitionIndex = typeIndex;
             Sizes = pkg.TypeDefinitionSizes[typeIndex];
             MetadataToken = (int)Definition.Token;
             Index = typeIndex;
@@ -1157,6 +1158,7 @@ namespace Il2CppInspector.Reflection
 
         public TypeInfo MakeArrayType(int rank = 1)
         {
+            generatedArrayTypes ??= [];
             TypeInfo type;
             if (generatedArrayTypes.TryGetValue(rank, out type))
                 return type;

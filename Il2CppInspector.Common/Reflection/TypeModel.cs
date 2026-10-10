@@ -15,6 +15,7 @@ namespace Il2CppInspector.Reflection
     public class TypeModel
     {
         public Il2CppInspector Package { get; }
+        internal bool RetainMethodParameters { get; private set; }
         internal Plugins.IGameTypeLayouts GameLayouts { get; private set; }
         public List<Assembly> Assemblies { get; } = [];
 
@@ -121,6 +122,7 @@ namespace Il2CppInspector.Reflection
         public TypeModel(Il2CppInspector package, Action<OperationProgress> progressCallback = null)
         {
             Package = package;
+            RetainMethodParameters = package.Metadata.GamePlugin?.StreamExports != true;
             TypesByDefinitionIndex = new TypeInfo[package.TypeDefinitions.Length];
             TypesByReferenceIndex = new TypeInfo[package.TypeReferences.Length];
             GenericParameterTypes = new TypeInfo[package.GenericParameters.Length];
@@ -224,6 +226,8 @@ namespace Il2CppInspector.Reflection
             Report("Method attributes", force: true);
             var allParameterAttributes = MethodsByDefinitionIndex.SelectMany(m => m.DeclaredParameters).Select(p => p.CustomAttributes).ToList();
             Report("Parameter attributes", force: true);
+            foreach (var method in MethodsByDefinitionIndex)
+                method.ReleaseTransientParameters();
 
             // Populate list of unique custom attribute generators for each type
             CustomAttributeGenerators = AttributesByIndices.Values.GroupBy(a => a.AttributeType).ToDictionary(g => g.Key, g => g.GroupBy(a => a.VirtualAddress.Start).Select(g => g.First()).ToList());
@@ -245,6 +249,7 @@ namespace Il2CppInspector.Reflection
                 {
                     methodInvokers[index] ??= new MethodInvoker(method, index);
                     method.Invoker = methodInvokers[index];
+                    method.ReleaseTransientParameters();
                 }
                 Report("Method invokers");
             }
@@ -291,6 +296,7 @@ namespace Il2CppInspector.Reflection
             {
                 methodInvokers[index] ??= new MethodInvoker(method, index);
                 method.Invoker = methodInvokers[index];
+                method.ReleaseTransientParameters();
             }
             types = null;
             return method;
@@ -298,6 +304,7 @@ namespace Il2CppInspector.Reflection
 
         public void ApplyNameTranslation(ReadOnlySpan<string> nameTranslationLines)
         {
+            RetainMethodParameters = true;
             var info = NameTranslationParserContext.Parse(nameTranslationLines);
             foreach (var assembly in Assemblies)
                 NameTranslationApplierContext.Process(assembly, info);

@@ -24,6 +24,8 @@ namespace Il2CppInspector.Model
                 return;
             }
 
+            // Reuse signature types while building methods without retaining another model-wide index.
+            var signatureTypes = new Dictionary<TypeInfo, (CppType Type, bool Complete)>();
             model.BuildMethodsFromMetadata(AddMethod);
             methodsBuilt = true;
 
@@ -38,13 +40,19 @@ namespace Il2CppInspector.Model
                 var complete = true;
                 CppType Convert(TypeInfo type)
                 {
-                    complete &= Native.IsSignatureTypeComplete(type);
-                    return AsCType(type);
+                    if (!signatureTypes.TryGetValue(type, out var signature))
+                    {
+                        signature = (AsCType(type), Native.IsSignatureTypeComplete(type));
+                        signatureTypes.Add(type, signature);
+                    }
+                    complete &= signature.Complete;
+                    return signature.Type;
                 }
                 var pointer = model.NativeDeclarationGenerator.GenerateMethodDeclaration(method, Convert);
                 pointer.Group = group;
                 var result = new AppMethod(method, pointer) { Group = group, SignatureComplete = complete };
                 model.AnalysisMethods.Add(method, pointer, result);
+                method.ReleaseTransientParameters();
                 return result;
             }
         }
@@ -109,7 +117,7 @@ namespace Il2CppInspector.Model
 
             void AddType(TypeInfo type)
             {
-                if (type == null || type.Name == "<Module>" || model.AnalysisTypes.ContainsKey(type))
+                if (type == null || model.AnalysisTypes.ContainsKey(type) || type.Name == "<Module>")
                 {
                     return;
                 }
@@ -358,6 +366,7 @@ namespace Il2CppInspector.Model
             }
 
             var tags = type.DeclaredFields.Where(f => f.IsStatic && !f.IsLiteral).Select(f => f.StorageTag).Distinct().ToArray();
+            type.ReleaseGeneratedFields();
             foreach (var tag in tags)
             {
                 var suffix = tag switch
