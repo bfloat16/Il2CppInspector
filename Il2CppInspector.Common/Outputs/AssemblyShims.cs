@@ -6,8 +6,10 @@
 */
 
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using dnlib.DotNet;
 using dnlib.DotNet.Emit;
+using dnlib.DotNet.Writer;
 using Il2CppInspector.Next;
 using Il2CppInspector.Next.Metadata;
 using Il2CppInspector.Reflection;
@@ -19,6 +21,33 @@ namespace Il2CppInspector.Outputs
 {
     public static class dnlibExtensions
     {
+        private static readonly ConditionalWeakTable<ModuleDef, Dictionary<TypeDef, MemberRef>> attributeConstructors = new();
+        private static readonly ConditionalWeakTable<ModuleDef, AnnotationBuffer> annotationBuffers = new();
+        private static readonly ConditionalWeakTable<ModuleDef, Dictionary<(TypeDef Type, string Offset), CustomAttribute>> fieldOffsets = new();
+
+        internal static void ReleaseAnnotationCache(ModuleDef module)
+        {
+            fieldOffsets.Remove(module);
+            annotationBuffers.Remove(module);
+        }
+
+        private sealed class AnnotationBuffer
+        {
+            internal readonly CustomAttribute Attribute = new((ICustomAttributeType)null);
+            internal readonly List<CANamedArgument> Arguments = [];
+        }
+        private static readonly Dictionary<string, UTF8String> attributeArgumentNames = new[]
+        {
+            "RVA", "Offset", "VA", "Slot", "Spec", "Flags", "ThreadStatic", "StorageTag", "StorageBase", "Data", "Token", "Name",
+        }.ToDictionary(name => name, name => (UTF8String)name);
+
+        private sealed class AttributeWriterHelper : ICustomAttributeWriterHelper
+        {
+            internal static readonly AttributeWriterHelper Instance = new();
+            public bool MustUseAssemblyName(IType type) => true;
+            public void Error(string message) => throw new InvalidOperationException(message);
+        }
+
         // Add a default parameterless constructor that calls a specified base constructor
         public static MethodDef AddDefaultConstructor(this TypeDef type, IMethod @base)
         {
@@ -46,18 +75,49 @@ namespace Il2CppInspector.Outputs
             if (attrTypeDef == null)
                 return null;
 
-            var attRef = module.Import(attrTypeDef);
-            var attCtorRef = new MemberRefUser(attrTypeDef.Module, ".ctor", MethodSig.CreateInstance(module.CorLibTypes.Void), attRef);
-
-            // Attribute arguments
-            var attrArgs = args.Select(a =>
+            Dictionary<(TypeDef Type, string Offset), CustomAttribute> offsets = null;
+            (TypeDef Type, string Offset) offsetKey = default;
+            if (attrTypeDef.Name == "FieldOffsetAttribute" && args is [{ prop: "Offset", value: string offset }])
+            {
+                offsets = fieldOffsets.GetOrCreateValue(module);
+                offsetKey = (attrTypeDef, offset);
+                if (offsets.TryGetValue(offsetKey, out var known))
                 {
-                    var arg = ToArgument(a.value);
-                    return new CANamedArgument(true, arg.Type, a.prop, arg);
-                })
-                .ToList();
+                    def.CustomAttributes.Add(known);
+                    return known;
+                }
+            }
 
-            var attr = new CustomAttribute(attCtorRef, null, attrArgs);
+            var constructors = attributeConstructors.GetOrCreateValue(module);
+            if (!constructors.TryGetValue(attrTypeDef, out var attCtorRef))
+            {
+                var attRef = module.Import(attrTypeDef);
+                attCtorRef = new MemberRefUser(module, ".ctor", MethodSig.CreateInstance(module.CorLibTypes.Void), attRef);
+                constructors.Add(attrTypeDef, attCtorRef);
+            }
+
+            var buffer = annotationBuffers.GetOrCreateValue(module);
+            var scratch = buffer.Attribute;
+            scratch.Constructor = attCtorRef;
+            scratch.NamedArguments.Clear();
+            for (var i = 0; i < args.Length; i++)
+            {
+                var arg = ToArgument(args[i].value);
+                var name = attributeArgumentNames.TryGetValue(args[i].prop, out var known) ? known : (UTF8String)args[i].prop;
+                if (i == buffer.Arguments.Count)
+                    buffer.Arguments.Add(new CANamedArgument());
+                var named = buffer.Arguments[i];
+                named.IsField = true;
+                named.Type = arg.Type;
+                named.Name = name;
+                named.Argument = arg;
+                scratch.NamedArguments.Add(named);
+            }
+
+            // dnlib snapshots the values; the reusable argument graph never enters the output model.
+            var attr = new CustomAttribute(attCtorRef, CustomAttributeWriter.Write(AttributeWriterHelper.Instance, scratch));
+            if (offsets?.Count < 4096)
+                offsets.Add(offsetKey, attr);
 
             def.CustomAttributes.Add(attr);
             return attr;
@@ -106,6 +166,7 @@ namespace Il2CppInspector.Outputs
         private Dictionary<Assembly, ModuleDef> modules = [];
         private Dictionary<ModuleDef, Dictionary<TypeInfo, TypeDefUser>> types = [];
         private readonly Dictionary<ModuleDef, Dictionary<TypeInfo, TypeSig>> signatureCache = [];
+        private readonly Dictionary<ModuleDef, Dictionary<TypeSig, CilBody>> defaultBodies = [];
 
         // Custom attributes we will apply directly instead of with a custom attribute function pointer
         private Dictionary<TypeInfo, TypeDef> directApplyAttributes;
@@ -282,8 +343,9 @@ namespace Il2CppInspector.Outputs
             foreach (var nestedType in type.DeclaredNestedTypes)
                 mType.NestedTypes.Add(CreateTypeShallow(module, nestedType));
 
-            if (!types.TryAdd(module, new Dictionary<TypeInfo, TypeDefUser> { [type] = mType }))
-                types[module][type] = mType;
+            if (!types.TryGetValue(module, out var moduleTypes))
+                types.Add(module, moduleTypes = []);
+            moduleTypes.Add(type, mType);
 
             // Add to attribute apply list if we're looking for it
             if (directApplyAttributes.ContainsKey(type))
@@ -507,7 +569,7 @@ namespace Il2CppInspector.Outputs
                 mMethod.ParamDefs.Add(p);
             }
 
-            if (method is MethodInfo { ReturnParameter: not null } methodInfo && methodInfo.ReturnParameter.MetadataToken != 0)
+            if (method is MethodInfo methodInfo && method.Definition.ReturnParameterToken != 0)
             {
                 mMethod.Parameters.ReturnParameter.CreateParamDef();
                 var returnParam = mMethod.Parameters.ReturnParameter.ParamDef;
@@ -519,30 +581,7 @@ namespace Il2CppInspector.Outputs
             // Everything that's not extern, abstract or a delegate type should have a method body
             if ((method.Attributes & System.Reflection.MethodAttributes.PinvokeImpl) == 0 && method.DeclaringType.BaseType?.FullName != "System.MulticastDelegate" && !method.IsAbstract)
             {
-                mMethod.Body = new CilBody();
-                var inst = mMethod.Body.Instructions;
-
-                // Return nothing if return type is void
-                if (mMethod.ReturnType.FullName == "System.Void")
-                    inst.Add(OpCodes.Ret.ToInstruction());
-                // Return default for value type or enum
-                else if (mMethod.ReturnType.IsValueType || ((MethodInfo)method).ReturnType.IsEnum)
-                {
-                    var result = new Local(mMethod.ReturnType);
-                    mMethod.Body.Variables.Add(result);
-
-                    inst.Add(OpCodes.Ldloca_S.ToInstruction(result));
-                    // NOTE: This line creates a reference to an external mscorlib.dll, which we'd prefer to avoid
-                    inst.Add(OpCodes.Initobj.ToInstruction(mMethod.ReturnType.ToTypeDefOrRef()));
-                    inst.Add(OpCodes.Ldloc_0.ToInstruction());
-                    inst.Add(OpCodes.Ret.ToInstruction());
-                }
-                // Return null for reference types
-                else
-                {
-                    inst.Add(OpCodes.Ldnull.ToInstruction());
-                    inst.Add(OpCodes.Ret.ToInstruction());
-                }
+                mMethod.Body = GetDefaultBody(module, mMethod.ReturnType, mMethod.ReturnType.IsValueType || method is MethodInfo { ReturnType.IsEnum: true });
             }
 
             // Add token attribute
@@ -578,7 +617,37 @@ namespace Il2CppInspector.Outputs
 
             // Add method to type
             mType.Methods.Add(mMethod);
+            method.ReleaseTransientParameters();
             return mMethod;
+        }
+
+        private CilBody GetDefaultBody(ModuleDef module, TypeSig returnType, bool valueType)
+        {
+            var isVoid = returnType.ElementType == ElementType.Void;
+            var key = isVoid || valueType ? returnType : module.CorLibTypes.Object;
+            if (!defaultBodies.TryGetValue(module, out var bodies))
+                defaultBodies.Add(module, bodies = []);
+            if (bodies.TryGetValue(key, out var known))
+                return known;
+
+            // 存根不包含特定于方法的参数、分支或调试信息。
+            var body = new CilBody();
+            if (!isVoid)
+            {
+                if (valueType)
+                {
+                    var result = new Local(returnType);
+                    body.Variables.Add(result);
+                    body.Instructions.Add(OpCodes.Ldloca_S.ToInstruction(result));
+                    body.Instructions.Add(OpCodes.Initobj.ToInstruction(returnType.ToTypeDefOrRef()));
+                    body.Instructions.Add(OpCodes.Ldloc_0.ToInstruction());
+                }
+                else
+                    body.Instructions.Add(OpCodes.Ldnull.ToInstruction());
+            }
+            body.Instructions.Add(OpCodes.Ret.ToInstruction());
+            bodies.Add(key, body);
+            return body;
         }
 
         private MethodSig GetMethodSig(ModuleDef module, MethodBase method)
@@ -761,6 +830,7 @@ namespace Il2CppInspector.Outputs
         // Generate and save all DLLs
         public void Write(string outputPath, EventHandler<string> statusCallback = null)
         {
+            var stream = model.Package.Metadata.GamePlugin?.StreamExports == true;
             long completed = 0;
             long total = model.Assemblies.Count * 3L;
             void Report(string detail) => ProgressCallback?.Invoke(new OperationProgress("Generating DummyDlls", completed, total, detail));
@@ -831,7 +901,10 @@ namespace Il2CppInspector.Outputs
                 Report("Preparing " + asm.ShortName);
             }
 
-            foreach (var asm in model.Assemblies)
+            var exportAssemblies = stream
+                ? model.Assemblies.OrderByDescending(a => a.DefinedTypes.Sum(t => (long)t.Definition.MethodCount + t.Definition.FieldCount)).ToArray()
+                : model.Assemblies.ToArray();
+            foreach (var asm in exportAssemblies)
             {
                 statusCallback?.Invoke(this, "Populating " + asm.ShortName);
                 Report("Populating " + asm.ShortName);
@@ -853,10 +926,26 @@ namespace Il2CppInspector.Outputs
                         PopulateType(module, typeDef, typeInfo);
                 completed++;
                 Report("Populating " + asm.ShortName);
+
+                if (stream)
+                {
+                    WriteModule(module);
+                    ReleaseModuleMembers(module);
+                }
             }
 
             // Write all assemblies to disk
-            foreach (var asm in modules.Values)
+            if (!stream)
+            {
+                foreach (var module in modules.Values)
+                {
+                    WriteModule(module);
+                }
+            }
+
+            return;
+
+            void WriteModule(ModuleDef asm)
             {
                 statusCallback?.Invoke(this, "Generating " + asm.Name);
                 Report("Generating " + asm.Name);
@@ -865,9 +954,32 @@ namespace Il2CppInspector.Outputs
                 Report("Generating " + asm.Name);
             }
 
-            return;
-
             static bool IsAttributeType(TypeInfo type) => type != null && (type.FullName == "System.Attribute" || (type.BaseType != null && IsAttributeType(type.BaseType)));
+        }
+
+        private void ReleaseModuleMembers(ModuleDef module)
+        {
+            // 其他模块仍会导入类型和属性标识，但绝不会导入这些成员。
+            // 保留浅层类型树、枚举存储和泛型参数，以用于类型解析。
+            if (types.TryGetValue(module, out var definitions))
+            {
+                foreach (var definition in definitions.Values)
+                {
+                    var enumStorage = definition.IsEnum ? definition.Fields.FirstOrDefault(f => !f.IsStatic && !f.IsLiteral) : null;
+                    definition.Fields.Clear();
+                    if (enumStorage != null)
+                        definition.Fields.Add(enumStorage);
+                    definition.Methods.Clear();
+                    definition.Properties.Clear();
+                    definition.Events.Clear();
+                    definition.CustomAttributes.Clear();
+                }
+            }
+            module.CustomAttributes.Clear();
+            module.Assembly.CustomAttributes.Clear();
+            signatureCache.Remove(module);
+            defaultBodies.Remove(module);
+            dnlibExtensions.ReleaseAnnotationCache(module);
         }
     }
 }

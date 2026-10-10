@@ -13,7 +13,8 @@ namespace Il2CppInspector.Reflection
     public class FieldInfo : MemberInfo // L-TODO: Add support for [ThreadLocal] fields
     {
         // IL2CPP-specific data
-        public Il2CppFieldDefinition Definition { get; }
+        private readonly int definitionIndex = -1;
+        public Il2CppFieldDefinition Definition => definitionIndex < 0 ? default : Assembly.Model.Package.Fields[definitionIndex];
         public int Index { get; }
 
         // Root definition: the field with Definition != null
@@ -98,7 +99,7 @@ namespace Il2CppInspector.Reflection
         public FieldInfo(Il2CppInspector pkg, int fieldIndex, TypeInfo declaringType)
             : base(declaringType)
         {
-            Definition = pkg.Fields[fieldIndex];
+            definitionIndex = fieldIndex;
             MetadataToken = (int)Definition.Token;
             Index = fieldIndex;
             Name = pkg.Strings[Definition.NameIndex];

@@ -146,8 +146,11 @@ namespace Il2CppInspector.Reflection
             }
         }
 
-        public static IList<CustomAttributeData> GetCustomAttributes(Assembly asm, int token, int customAttributeIndex) =>
-            getCustomAttributes(asm, asm.Model.GetCustomAttributeIndex(asm, token, customAttributeIndex)).ToList();
+        public static IList<CustomAttributeData> GetCustomAttributes(Assembly asm, int token, int customAttributeIndex)
+        {
+            var index = asm.Model.GetCustomAttributeIndex(asm, token, customAttributeIndex);
+            return index < 0 ? Array.Empty<CustomAttributeData>() : getCustomAttributes(asm, index).ToList();
+        }
 
         public static IList<CustomAttributeData> GetCustomAttributes(Assembly asm) => GetCustomAttributes(asm, asm.MetadataToken, asm.AssemblyDefinition.CustomAttributeIndex);
 

@@ -37,7 +37,8 @@ namespace Il2CppInspector.Outputs
         public void Write(string outputFile)
         {
             using var fs = new FileStream(outputFile, FileMode.Create);
-            writer = new Utf8JsonWriter(fs, options: new JsonWriterOptions { Indented = true });
+            using var jsonWriter = new Utf8JsonWriter(fs, options: new JsonWriterOptions { Indented = true });
+            writer = jsonWriter;
             writer.WriteStartObject();
 
             // Output address map of everything in the binary that we recognize
@@ -60,7 +61,6 @@ namespace Il2CppInspector.Outputs
             );
 
             writer.WriteEndObject();
-            writer.Dispose();
         }
 
         private void writeMethods()
@@ -107,6 +107,7 @@ namespace Il2CppInspector.Outputs
                     var groupString = $"{method.Method.DeclaringType.Assembly.ShortName}/{method.Method.DeclaringType.FullName.Replace(".", "/")}";
                     writer.WriteString("group", groupString);
                 });
+                method.Method.ReleaseTransientParameters();
             }
         }
 
@@ -205,7 +206,10 @@ namespace Il2CppInspector.Outputs
                 () =>
                 {
                     foreach (var func in model.Package.FunctionAddresses)
+                    {
                         writer.WriteStringValue(func.Key.ToAddressString());
+                        FlushPending();
+                    }
                 },
                 "Function boundaries"
             );
@@ -383,6 +387,13 @@ namespace Il2CppInspector.Outputs
         }
 
         // JSON helpers
+        private void FlushPending()
+        {
+            // Keep large exports from buffering the entire document in managed memory.
+            if (writer.BytesPending >= 1024 * 1024)
+                writer.Flush();
+        }
+
         private void writeObject(Action objectWriter) => writeObject(null, objectWriter);
 
         private void writeObject(string name, Action objectWriter, string description = null)
@@ -395,6 +406,7 @@ namespace Il2CppInspector.Outputs
                 writer.WriteStartObject();
             objectWriter();
             writer.WriteEndObject();
+            FlushPending();
         }
 
         private void writeArray(string name, Action arrayWriter, string description = null)
@@ -405,6 +417,7 @@ namespace Il2CppInspector.Outputs
             if (!SupplementDebugInfo || !IsDebugSymbolSection(name))
                 arrayWriter();
             writer.WriteEndArray();
+            FlushPending();
         }
 
         private void writeName(ulong address, string name)
