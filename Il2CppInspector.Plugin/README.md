@@ -23,6 +23,7 @@ Without it, metadata detection selects the plugin; ambiguous matches require an 
 | BH3 | `BH3_CN_Windows_9.1.0` |
 | Genshin | `Genshin_CN_Windows_7.1.0` |
 | ZZZ | `ZZZ_CN_Windows_3.2.0` |
+| HSR | `HSR_OS_Windows_4.6.0` |
 | Endfield | `Endfield_CN_Android_x.x.x` |
 | TOT | `TOT_CN_Android_6.1.0` |
 

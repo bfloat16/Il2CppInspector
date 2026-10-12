@@ -16,6 +16,7 @@ namespace Il2CppInspector.Cpp;
 public class CppDeclarationGenerator
 {
     private readonly AppModel appModel;
+    private CppType methodInfoPointer;
 
     private TypeModel model => appModel.TypeModel;
     private CppTypeCollection types => appModel.RuntimeCppTypes;
@@ -622,7 +623,8 @@ public class CppDeclarationGenerator
         paramNs.ReserveName("method");
         var paramNamer = paramNs.MakeNamer<ParameterInfo>((pi) => pi.Name == "" ? "arg" : pi.Name.ToCIdentifier());
 
-        var paramList = new List<(string, CppType)>();
+        var hasThis = !method.IsStatic || UnityVersion.CompareTo("2018.3.0") < 0;
+        var paramList = new List<(string, CppType)>(method.DeclaredParameters.Count + (hasThis ? 2 : 1));
         // Figure out the "this" param
         if (method.IsStatic)
         {
@@ -648,7 +650,7 @@ public class CppDeclarationGenerator
             paramList.Add((paramNamer.GetName(pi), convert(pi.ParameterType)));
         }
 
-        paramList.Add(("method", types.GetType("MethodInfo *")));
+        paramList.Add(("method", methodInfoPointer ??= types.GetType("MethodInfo *")));
 
         return new CppFnPtrType(types.WordSize, retType, paramList) { Name = name };
     }
@@ -806,7 +808,11 @@ public class CppDeclarationGenerator
     ];
 
     // Reserve C/C++ keywords and built-in names
-    private static CppNamespace CreateNamespace()
+    private static readonly IReadOnlySet<string> reservedNames = new HashSet<string>(CreateReservedNamespace().Names, StringComparer.Ordinal);
+
+    private static CppNamespace CreateNamespace() => new(reservedNames);
+
+    private static CppNamespace CreateReservedNamespace()
     {
         var ns = new CppNamespace();
         /* Reserve C/C++ keywords */
