@@ -14,10 +14,22 @@ namespace Il2CppInspector.Reflection
         public override MemberTypes MemberType => MemberTypes.Method;
 
         // Info about the return parameter
-        public ParameterInfo ReturnParameter { get; }
+        private ParameterInfo returnParameter;
+        public ParameterInfo ReturnParameter => returnParameter ??= Definition.IsValid
+            ? new ParameterInfo(Assembly.Model.Package, -1, this)
+            : ((MethodInfo)rootDefinition).ReturnParameter.SubstituteGenericArguments(this, DeclaringType.GetGenericArguments(), GetGenericArguments());
 
         // Return type of the method
-        public TypeInfo ReturnType => ReturnParameter.ParameterType;
+        public TypeInfo ReturnType => returnParameter?.ParameterType ?? (Definition.IsValid
+            ? Assembly.Model.TypesByReferenceIndex[Definition.ReturnType]
+            : ((MethodInfo)rootDefinition).ReturnType.SubstituteGenericArguments(DeclaringType.GetGenericArguments(), GetGenericArguments()));
+
+        internal override void ReleaseTransientParameters()
+        {
+            base.ReleaseTransientParameters();
+            if (!Assembly.Model.RetainMethodParameters)
+                returnParameter = null;
+        }
 
         public override bool RequiresUnsafeContext => base.RequiresUnsafeContext || ReturnType.RequiresUnsafeContext;
 
@@ -26,20 +38,16 @@ namespace Il2CppInspector.Reflection
         public MethodInfo(Il2CppInspector pkg, int methodIndex, TypeInfo declaringType)
             : base(pkg, methodIndex, declaringType)
         {
-            // Add return parameter
-            ReturnParameter = new ParameterInfo(pkg, -1, this);
         }
 
         public MethodInfo(MethodInfo methodDef, TypeInfo declaringType)
             : base(methodDef, declaringType)
         {
-            ReturnParameter = ((MethodInfo)rootDefinition).ReturnParameter.SubstituteGenericArguments(this, DeclaringType.GetGenericArguments(), GetGenericArguments());
         }
 
         private MethodInfo(MethodInfo methodDef, TypeInfo[] typeArguments)
             : base(methodDef, typeArguments)
         {
-            ReturnParameter = ((MethodInfo)rootDefinition).ReturnParameter.SubstituteGenericArguments(this, DeclaringType.GetGenericArguments(), GetGenericArguments());
         }
 
         protected override MethodBase MakeGenericMethodImpl(TypeInfo[] typeArguments) => new MethodInfo(this, typeArguments);

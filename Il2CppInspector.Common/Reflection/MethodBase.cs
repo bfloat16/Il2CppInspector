@@ -14,7 +14,8 @@ namespace Il2CppInspector.Reflection
     public abstract class MethodBase : MemberInfo
     {
         // IL2CPP-specific data
-        public Il2CppMethodDefinition Definition { get; }
+        private readonly int definitionIndex = -1;
+        public Il2CppMethodDefinition Definition => definitionIndex < 0 ? default : Assembly.Model.Package.Methods[definitionIndex];
         public int Index { get; }
         public (ulong Start, ulong End)? VirtualAddress { get; set; }
 
@@ -36,7 +37,33 @@ namespace Il2CppInspector.Reflection
         // Custom attributes for this member
         public override IEnumerable<CustomAttributeData> CustomAttributes => CustomAttributeData.GetCustomAttributes(rootDefinition);
 
-        public List<ParameterInfo> DeclaredParameters { get; } = [];
+        private List<ParameterInfo> declaredParameters;
+        public List<ParameterInfo> DeclaredParameters
+        {
+            get
+            {
+                if (declaredParameters != null)
+                    return declaredParameters;
+                if (Definition.IsValid)
+                {
+                    var parameters = new List<ParameterInfo>(Definition.ParameterCount);
+                    for (var p = Definition.ParameterStart; p < Definition.ParameterStart + Definition.ParameterCount; p++)
+                        parameters.Add(new ParameterInfo(Assembly.Model.Package, p, this));
+                    return declaredParameters = parameters;
+                }
+                return declaredParameters = rootDefinition.DeclaredParameters
+                    .Select(p => p.SubstituteGenericArguments(this, DeclaringType.GetGenericArguments(), genericArguments)).ToList();
+            }
+        }
+
+        internal virtual void ReleaseTransientParameters()
+        {
+            if (Assembly.Model.RetainMethodParameters)
+                return;
+            declaredParameters = null;
+            if (rootDefinition != this)
+                rootDefinition.ReleaseTransientParameters();
+        }
 
         public bool IsAbstract => (Attributes & MethodAttributes.Abstract) == MethodAttributes.Abstract;
         public bool IsAssembly => (Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Assembly;
@@ -126,7 +153,7 @@ namespace Il2CppInspector.Reflection
         protected MethodBase(Il2CppInspector pkg, int methodIndex, TypeInfo declaringType)
             : base(declaringType)
         {
-            Definition = pkg.Methods[methodIndex];
+            definitionIndex = methodIndex;
             MetadataToken = (int)Definition.Token;
             Index = methodIndex;
             Name = pkg.Strings[Definition.NameIndex];
@@ -153,10 +180,6 @@ namespace Il2CppInspector.Reflection
             // Copy attributes
             Attributes = (MethodAttributes)Definition.Flags;
             MethodImplementationFlags = (MethodImplAttributes)Definition.ImplFlags;
-
-            // Add arguments
-            for (var p = Definition.ParameterStart; p < Definition.ParameterStart + Definition.ParameterCount; p++)
-                DeclaredParameters.Add(new ParameterInfo(pkg, p, this));
         }
 
         protected MethodBase(MethodBase methodDef, TypeInfo declaringType)
@@ -173,11 +196,6 @@ namespace Il2CppInspector.Reflection
 
             IsGenericMethod = methodDef.IsGenericMethod;
             genericArguments = methodDef.GetGenericArguments();
-            var genericTypeArguments = declaringType.GetGenericArguments();
-
-            genericMethodInstances = new Dictionary<TypeInfo[], MethodBase>(new TypeInfo.TypeArgumentsComparer()) { [genericArguments] = this };
-
-            DeclaredParameters = rootDefinition.DeclaredParameters.Select(p => p.SubstituteGenericArguments(this, genericTypeArguments, genericArguments)).ToList();
         }
 
         protected MethodBase(MethodBase methodDef, TypeInfo[] typeArguments)
@@ -195,9 +213,6 @@ namespace Il2CppInspector.Reflection
 
             IsGenericMethod = true;
             genericArguments = typeArguments;
-            var genericTypeArguments = DeclaringType.GetGenericArguments();
-
-            DeclaredParameters = rootDefinition.DeclaredParameters.Select(p => p.SubstituteGenericArguments(this, genericTypeArguments, genericArguments)).ToList();
         }
 
         // Strictly speaking, this should live in MethodInfo; constructors cannot have generic arguments.
@@ -211,6 +226,7 @@ namespace Il2CppInspector.Reflection
             }
 
             MethodBase result;
+            genericMethodInstances ??= new Dictionary<TypeInfo[], MethodBase>(new TypeInfo.TypeArgumentsComparer()) { [genericArguments] = this };
             if (genericMethodInstances.TryGetValue(typeArguments, out result))
                 return result;
             result = MakeGenericMethodImpl(typeArguments);

@@ -18,11 +18,19 @@ namespace Il2CppInspector.Cpp
         // and give it a suffix. For example, if we have three different objects all named X,
         // we'd name them X, X_1, and X_2, and renameCount["X"] would be 2.
         private readonly Dictionary<string, int> renameCount = [];
+        private readonly IReadOnlySet<string> reservedNames;
+        internal IEnumerable<string> Names => renameCount.Keys;
+
+        public CppNamespace() { }
+
+        internal CppNamespace(IReadOnlySet<string> reservedNames) => this.reservedNames = reservedNames;
+
+        private bool ContainsName(string name) => renameCount.ContainsKey(name) || reservedNames?.Contains(name) == true;
 
         // Mark a name as reserved without assigning an object to it (e.g. for keywords and built-in names)
         public void ReserveName(string name)
         {
-            if (!renameCount.TryAdd(name, 0))
+            if (!TryReserveName(name))
             {
                 throw new Exception($"Can't reserve {name}: already taken!");
             }
@@ -31,7 +39,7 @@ namespace Il2CppInspector.Cpp
         // Try to mark a name as reserved without assigning an object to it (e.g. for keywords and built-in names)
         public bool TryReserveName(string name)
         {
-            return renameCount.TryAdd(name, 0);
+            return reservedNames?.Contains(name) != true && renameCount.TryAdd(name, 0);
         }
 
         // Create a Namer object which will give names to objects of type T which are unique within this namespace
@@ -78,10 +86,10 @@ namespace Il2CppInspector.Cpp
                 // Each iteration tacks on another suffix - so we normally expect this to only take
                 // a single iteration. (It might take multiple iterations in rare cases, e.g.
                 // another object had the mangled name X_1).
-                if (ns.renameCount.ContainsKey(name))
+                if (ns.ContainsName(name))
                 {
-                    int v = ns.renameCount[name] + 1;
-                    while (ns.renameCount.ContainsKey(name + "_" + v))
+                    int v = ns.renameCount.GetValueOrDefault(name) + 1;
+                    while (ns.ContainsName(name + "_" + v))
                         v++;
                     ns.renameCount[name] = v;
                     name = name + "_" + v;
