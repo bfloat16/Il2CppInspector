@@ -3,12 +3,12 @@
     <File Path=".editorconfig" />
   </Folder>
   <Folder Name="/Plugins/">
-    <Project Path="Il2CppInspector.Plugin/BH3/Il2CppInspector.Plugin.BH3.csproj" />
-    <Project Path="Il2CppInspector.Plugin/Endfield/Il2CppInspector.Plugin.Endfield.csproj" />
-    <Project Path="Il2CppInspector.Plugin/Genshin/Il2CppInspector.Plugin.Genshin.csproj" />
+    <Project Path="Il2CppInspector.Plugin/Genshin_CN_Windows_7.1.0/Il2CppInspector.Plugin.Genshin.csproj" />
+    <Project Path="Il2CppInspector.Plugin/BH3_CN_Windows_9.1.0/Il2CppInspector.Plugin.BH3.csproj" />
+    <Project Path="Il2CppInspector.Plugin/Endfield_CN_Android_x.x.x/Il2CppInspector.Plugin.Endfield.csproj" />
     <Project Path="Il2CppInspector.Plugin/Hkrpg/Il2CppInspector.Plugin.Hkrpg.csproj" Id="45b53450-5b27-4aae-8bc6-87d7b062a3ac" />
-    <Project Path="Il2CppInspector.Plugin/TOT/Il2CppInspector.Plugin.TOT.csproj" />
-    <Project Path="Il2CppInspector.Plugin/ZZZ/Il2CppInspector.Plugin.ZZZ.csproj" />
+    <Project Path="Il2CppInspector.Plugin/TOT_CN_Android_6.1.0/Il2CppInspector.Plugin.TOT.csproj" />
+    <Project Path="Il2CppInspector.Plugin/ZZZ_CN_Windows_3.2.0/Il2CppInspector.Plugin.ZZZ.csproj" />
   </Folder>
   <Project Path="Bin2Object/Bin2Object.csproj" Id="82d6fb7e-0af2-4724-a937-3f59e9541e28" />
   <Project Path="Il2CppInspector.CLI/Il2CppInspector.CLI.csproj" Id="00b38e4c-b0da-4a10-a090-ca619672ef32" />
