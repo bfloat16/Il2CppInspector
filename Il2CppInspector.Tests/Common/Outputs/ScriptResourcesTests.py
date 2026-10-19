@@ -9,7 +9,7 @@ from unittest.mock import Mock
 ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = ROOT / "Il2CppInspector.Common/Outputs/ScriptResources"
 shared = (SCRIPTS / "shared_base.py").read_text(encoding="utf-8-sig")
-processor = (ROOT / "Il2CppInspector.Plugin/ZZZ/Outputs/RuntimeCaches.py").read_text()
+processor = (ROOT / "Il2CppInspector.Plugin/ZZZ_CN_Windows_3.2.0/Outputs/RuntimeCaches.py").read_text()
 shared = shared.replace("        # %GAME_METADATA_PROCESSOR%", processor)
 BASE = {}
 exec(compile(shared, "shared_base.py", "exec"), BASE)
@@ -83,7 +83,7 @@ class ScriptResourcesTests(unittest.TestCase):
                     context.define_field_from_json({key: value for key, value in native.items() if key != "dotNetType"})
 
     def test_genshin_native_caches_continue_to_type_references(self):
-        processor = (ROOT / "Il2CppInspector.Plugin/Genshin/Outputs/RuntimeCaches.py").read_text()
+        processor = (ROOT / "Il2CppInspector.Plugin/Genshin_CN_Windows_7.1.0/Outputs/RuntimeCaches.py").read_text()
         source = (SCRIPTS / "shared_base.py").read_text(encoding="utf-8-sig")
         namespace = {}
         exec(compile(source.replace("        # %GAME_METADATA_PROCESSOR%", processor), "genshin.py", "exec"), namespace)

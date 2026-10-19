@@ -1,6 +1,6 @@
 # Game Plugins
 
-Game implementations live under `Il2CppInspector.Plugin/<game>/`, with one project and managed plugin DLL per game.
+Game implementations live under `Il2CppInspector.Plugin/<GameId>/`, with each directory named after its plugin's exact `GameId` and one project and managed plugin DLL per game.
 
 Common owns plugin, metadata, layout and analysis contracts; it does not reference game projects.
 Game directories own decoding, keys and binary-verified runtime layout differences. Common owns reflection, declaration generation, dependency ordering and exports.
@@ -29,7 +29,7 @@ Without it, metadata detection selects the plugin; ambiguous matches require an 
 
 ## Adding a Game
 
-1. Add `<game>/Il2CppInspector.Plugin.<game>.csproj` targeting .NET 10 with `EnableDynamicLoading=true`, a Common reference and the default assembly name.
+1. Add `<GameId>/Il2CppInspector.Plugin.<game>.csproj` targeting .NET 10 with `EnableDynamicLoading=true`, a Common reference and the default assembly name.
 2. Implement a public, parameterless `GamePlugin` subclass with a supported `NAME_REGION_PLATFORM_VERSION` identifier.
 3. Decode stock metadata/binary records and attach a `GameMetadataAdapter` through `Metadata.CreateForPlugin`; game projects receive friend access while public record setters remain read-only.
 4. Reuse the stock analysis and outputs after normalization. If the binary has a different runtime layout, supply only its layout hooks; `NativeLayoutAnalysisModel` shares the stock method traversal and declaration naming. `StreamExports` keeps reflection data lazy.
@@ -41,7 +41,7 @@ Normalize reordered or encrypted records into the stock model before exporting. 
 
 ZZZ uses `AssemblyShims`, `CppScaffolding` and `JSONMetadata` directly. Its remaining adapters cover the decoded registration/metadata records, descriptor lookup and class/vtable layout. `0x19F266500` reads precomputed layout descriptors and allocates one or two vtable arrays; `0x180277C50` allocates both arrays for constructed classes. These verified differences prevent simply suppressing the adapter as TOT does. The ordinary generic sharing rules live in Common, not in the game plugin.
 
-Build/publish packaging includes `Il2CppInspector.Plugin/*/*.csproj` automatically under `plugins/<game>/`, with dependency files.
+Build/publish packaging includes `Il2CppInspector.Plugin/*/*.csproj` automatically under `plugins/<GameId>/`, with dependency files.
 Adding a game does not require a CLI switch or decoding branch in Common.
 
 ## Checks

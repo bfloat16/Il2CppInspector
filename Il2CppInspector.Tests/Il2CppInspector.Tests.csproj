@@ -10,10 +10,10 @@
   <ItemGroup>
     <Compile Include="../Il2CppInspector.CLI/ProgressBar.cs" Link="CLI/ProgressBar.cs" />
     <ProjectReference Include="../Il2CppInspector.Common/Il2CppInspector.Common.csproj" />
-    <ProjectReference Include="../Il2CppInspector.Plugin/Endfield/Il2CppInspector.Plugin.Endfield.csproj" />
-    <ProjectReference Include="../Il2CppInspector.Plugin/ZZZ/Il2CppInspector.Plugin.ZZZ.csproj" />
-    <ProjectReference Include="../Il2CppInspector.Plugin/BH3/Il2CppInspector.Plugin.BH3.csproj" />
-    <ProjectReference Include="../Il2CppInspector.Plugin/Genshin/Il2CppInspector.Plugin.Genshin.csproj" />
-    <ProjectReference Include="../Il2CppInspector.Plugin/TOT/Il2CppInspector.Plugin.TOT.csproj" />
+    <ProjectReference Include="../Il2CppInspector.Plugin/Endfield_CN_Android_x.x.x/Il2CppInspector.Plugin.Endfield.csproj" />
+    <ProjectReference Include="../Il2CppInspector.Plugin/ZZZ_CN_Windows_3.2.0/Il2CppInspector.Plugin.ZZZ.csproj" />
+    <ProjectReference Include="../Il2CppInspector.Plugin/BH3_CN_Windows_9.1.0/Il2CppInspector.Plugin.BH3.csproj" />
+    <ProjectReference Include="../Il2CppInspector.Plugin/Genshin_CN_Windows_7.1.0/Il2CppInspector.Plugin.Genshin.csproj" />
+    <ProjectReference Include="../Il2CppInspector.Plugin/TOT_CN_Android_6.1.0/Il2CppInspector.Plugin.TOT.csproj" />
   </ItemGroup>
 </Project>
