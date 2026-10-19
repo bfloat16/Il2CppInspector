@@ -22,11 +22,11 @@ namespace Il2CppInspector.Plugin.TOT
     /// </summary>
     public sealed class TotPlugin : GamePlugin
     {
-        public override string GameId => "TOT_CN_Android_6.1.0";
+        public override string GameId => TotBuild.GameId;
         public override UnityVersion DefaultUnityVersion => new("2018.4.36f1");
         public override string RegistrationSignature => "";
 
-        public override bool Matches(ReadOnlySpan<byte> metadata) => TotMetadataDetector.IsTot(metadata);
+        public override bool Matches(ReadOnlySpan<byte> metadata) => metadata.Length == TotBuild.MetadataSize && TotMetadataDetector.IsTot(metadata);
 
         public override Il2CppInspector Load(Stream binary, byte[] metadata, byte[] startupMetadata, LoadOptions options, EventHandler<string> status)
         {
