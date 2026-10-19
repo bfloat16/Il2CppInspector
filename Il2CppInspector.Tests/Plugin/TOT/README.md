@@ -1,5 +1,7 @@
 # TOT Tests
 
+This page covers CN 6.1.0. See [OS 5.8.1 tests](OS/README.md) for the OS fixture and automatic CN/OS selection checks.
+
 Decode metadata and verify the standard analysis/output pipeline:
 
 ```bash

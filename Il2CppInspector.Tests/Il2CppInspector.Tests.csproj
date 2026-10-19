@@ -15,5 +15,6 @@
     <ProjectReference Include="../Il2CppInspector.Plugin/BH3_CN_Windows_9.1.0/Il2CppInspector.Plugin.BH3.csproj" />
     <ProjectReference Include="../Il2CppInspector.Plugin/Genshin_CN_Windows_7.1.0/Il2CppInspector.Plugin.Genshin.csproj" />
     <ProjectReference Include="../Il2CppInspector.Plugin/TOT_CN_Android_6.1.0/Il2CppInspector.Plugin.TOT.csproj" />
+    <ProjectReference Include="../Il2CppInspector.Plugin/TOT_OS_Android_5.8.1/Il2CppInspector.Plugin.TOT.OS.csproj" Aliases="tot_os" />
   </ItemGroup>
 </Project>
