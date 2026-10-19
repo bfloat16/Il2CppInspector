@@ -11,21 +11,12 @@ namespace Il2CppInspector
     /// </summary>
     public static class TotMetadataDetector
     {
-        internal const int TailSize = 0x4000;
-        internal const int GateOffset = 0xC8;
-        internal const ushort GateA = 0xFC2E;
-        internal const ushort GateB = 0x2CFE;
+        internal const int TailSize = TotMetadataGate.TailSize;
+        internal const int GateOffset = TotMetadataGate.GateOffset;
+        internal const ushort GateA = TotMetadataGate.GateA;
+        internal const ushort GateB = TotMetadataGate.GateB;
 
-        internal static bool IsTot(ReadOnlySpan<byte> bytes)
-        {
-            if (bytes.Length < TailSize)
-            {
-                return false;
-            }
-
-            var tail = bytes.Slice(bytes.Length - TailSize);
-            return BinaryPrimitives.ReadUInt16LittleEndian(tail.Slice(GateOffset, 2)) == GateA && BinaryPrimitives.ReadUInt16LittleEndian(tail.Slice(GateOffset + 2, 2)) == GateB;
-        }
+        internal static bool IsTot(ReadOnlySpan<byte> bytes) => TotMetadataGate.IsTot(bytes);
 
         public static bool IsTot(string metadataPath)
         {

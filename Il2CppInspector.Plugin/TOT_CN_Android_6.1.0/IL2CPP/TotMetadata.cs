@@ -10,7 +10,7 @@ using VersionedSerialization;
 namespace Il2CppInspector
 {
     /// <summary>
-    /// C# adapter for the 未定事件簿 (TOT) 6.1.0 Android build.
+    /// C# adapter for the supported TOT Android builds, with per-build offsets from TotBuild.
     ///
     /// The decrypted global-metadata.dat is stock IL2CPP v24.1 at the record level, but its 0x158-byte
     /// header is packer-permuted: sections are stored as (offset, size) pairs at non-stock slots, ~23
@@ -52,7 +52,7 @@ namespace Il2CppInspector
         private const int SlotMetadataUsageLists = 0x150;
 
         // The string (names) table offset is baked into libunity's string getter, not stored in the header.
-        private const int StringTableOffset = 0xA15068;
+        private const int StringTableOffset = TotBuild.StringTableOffset;
 
         internal readonly Metadata Metadata;
         private readonly byte[] data;
@@ -64,7 +64,7 @@ namespace Il2CppInspector
         {
             data = decrypted;
             Metadata = Metadata.CreateForPlugin(decrypted, this, MetadataVersions.V241, status);
-            status?.Invoke(this, "Decoding Tears of Themis 6.1.0 metadata in C#");
+            status?.Invoke(this, $"Decoding {TotBuild.GameId} metadata in C#");
             ReadMetadata();
         }
 
@@ -168,12 +168,12 @@ namespace Il2CppInspector
         }
 
         /// <summary>
-        /// stringLiteralData blob lives at 0x158; its index table at 0xEBC7C stores {dataIndex, length}
+        /// stringLiteralData blob lives at 0x158; its build-specific index table stores {dataIndex, length}
         /// (swapped relative to stock). The literal bytes were already decrypted by the inner layer.
         /// </summary>
         private void ReadLiterals()
         {
-            // Slot 0x24 stores the index table's byte size (36670 * 8), not the literal count.
+            // Slot 0x24 stores the index table's byte size, not the literal count.
             var count = TotRecords.U32(data, SlotStringLiteralCount) / 8;
             var indexOffset = TotMetadataDecryptor.LiteralIndexOffset;
             if (indexOffset + (long)count * 8 > data.Length)

@@ -4,22 +4,23 @@ using System.Numerics;
 namespace Il2CppInspector
 {
     /// <summary>
-    /// Static decryption of the 未定事件簿 (TOT) 6.1.0 Android global-metadata.dat container.
+    /// Static decryption shared by the supported TOT Android builds; TotBuild supplies version constants.
     ///
     /// Two layers are applied in order (outer then inner), matching the analysis report:
-    ///   L1 - 256 independent 64-byte CBC units, unit k at file offset k*0x25EC0. Each unit is
+    ///   L1 - 256 independent 64-byte CBC units, unit k at file offset k*TotBuild.UnitStride. Each unit is
     ///        pt_0 = D(ct_0) ^ IV, pt_i = D(ct_i) ^ ct_{i-1} (i = 1..3). D is an 11-round
     ///        AES-decryption-shaped block cipher whose four 1 KiB Td tables are byte-scrambled and
     ///        whose 16-byte InvShiftRows index table lives in libunity.so (see below).
-    ///   L2 - a per-string-literal stream cipher over the 0x158..0xEBC7A stringLiteralData range.
+    ///   L2 - a per-string-literal stream cipher over the build's stringLiteralData range at 0x158.
     ///        Its keystream comes from a metadata-seeded MT19937-64 table.
     ///
     /// Binary-derived constants
     /// ------------------------
     /// D needs 4224 bytes that are only present in libunity.so (a file the plugin's Load(Stream, ...)
     /// never receives, since the CLI supplies libil2cpp.so):
-    ///   T0..T3 : libunity.so file offsets 0x15DD5D8 / 0x15DD9D8 / 0x15DDDD8 / 0x15DE1D8 (1024 B each)
-    ///   IDX    : libunity.so file offset 0x15DD458 (16 little-endian qwords)
+    ///   T0..T3 : CN 6.1.0 libunity.so offsets 0x15DD5D8 / 0x15DD9D8 / 0x15DDDD8 / 0x15DE1D8
+    ///   IDX    : CN 6.1.0 libunity.so offset 0x15DD458 (16 little-endian qwords)
+    /// OS 5.8.1 has byte-identical tables at 0x15D3FF8 / 43F8 / 47F8 / 4BF8 and IDX at 0x15D3E78.
     /// They are embedded as the resource "Il2CppInspector.Plugin.TOT.TotWhiteboxTables.bin"
     /// (4*1024 + 128 = 4224 bytes, sha256 3ce5c225e242c7f637c37e8a22859455a716bcc751699a3732695a50e72894bc).
     /// This is a deliberate trade-off: the alternative would be to make the caller supply libunity.so,
@@ -31,10 +32,10 @@ namespace Il2CppInspector
     internal static class TotMetadataDecryptor
     {
         // ---- L1 framing ----
-        private const int UnitStride = 0x25EC0;
+        private const int UnitStride = TotBuild.UnitStride;
         private const int UnitCount = 256;
         private const int UnitSize = 64;
-        private static readonly byte[] Iv = Convert.FromHexString("a55ab39932c7a7ebb53e9bfeb0a22c51");
+        private static readonly byte[] Iv = Convert.FromHexString(TotBuild.Iv);
 
         // ---- tail key material ----
         private const int TailSize = 0x4000;
@@ -42,9 +43,9 @@ namespace Il2CppInspector
 
         // ---- L2 framing ----
         internal const int LiteralDataOffset = 0x158;
-        internal const int LiteralIndexOffset = 0xEBC7C;
-        internal const int LiteralCount = 36670;
-        internal const int LiteralBlobSize = 965410; // 0xEBC7A - 0x158
+        internal const int LiteralIndexOffset = TotBuild.LiteralIndexOffset;
+        internal const int LiteralCount = TotBuild.LiteralCount;
+        internal const int LiteralBlobSize = TotBuild.LiteralBlobSize;
         private const int LiteralIndexStride = 8;
         private const int LiteralClassPeriod = 10240;
         private const int TableBytePeriod = 0x5000; // 20480
@@ -215,7 +216,7 @@ namespace Il2CppInspector
                 throw new ArgumentException("TOT key-schedule tail must be exactly 0x4000 bytes.", nameof(tail));
             }
 
-            if (BinaryPrimitives.ReadUInt16LittleEndian(tail.AsSpan(0xC8)) != TotMetadataDetector.GateA || BinaryPrimitives.ReadUInt16LittleEndian(tail.AsSpan(0xCA)) != TotMetadataDetector.GateB)
+            if (BinaryPrimitives.ReadUInt16LittleEndian(tail.AsSpan(0xC8)) != TotMetadataGate.GateA || BinaryPrimitives.ReadUInt16LittleEndian(tail.AsSpan(0xCA)) != TotMetadataGate.GateB)
             {
                 return FallbackKeySchedule();
             }
