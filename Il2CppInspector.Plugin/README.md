@@ -26,6 +26,9 @@ Without it, metadata detection selects the plugin; ambiguous matches require an 
 | HSR | `HSR_OS_Windows_4.6.0` |
 | Endfield | `Endfield_CN_Android_x.x.x` |
 | TOT | `TOT_CN_Android_6.1.0` |
+| TOT OS | `TOT_OS_Android_5.8.1` |
+
+The TOT builds share decoder source and byte-identical white-box tables. Each project supplies its own `TotBuild` constants and produces an independent plugin DLL. Their metadata-size and keybox-gate checks distinguish the supported builds during automatic selection.
 
 ## Adding a Game
 

@@ -8,6 +8,7 @@
     <Project Path="Il2CppInspector.Plugin/Endfield_CN_Android_x.x.x/Il2CppInspector.Plugin.Endfield.csproj" />
     <Project Path="Il2CppInspector.Plugin/Hkrpg/Il2CppInspector.Plugin.Hkrpg.csproj" Id="45b53450-5b27-4aae-8bc6-87d7b062a3ac" />
     <Project Path="Il2CppInspector.Plugin/TOT_CN_Android_6.1.0/Il2CppInspector.Plugin.TOT.csproj" />
+    <Project Path="Il2CppInspector.Plugin/TOT_OS_Android_5.8.1/Il2CppInspector.Plugin.TOT.OS.csproj" />
     <Project Path="Il2CppInspector.Plugin/ZZZ_CN_Windows_3.2.0/Il2CppInspector.Plugin.ZZZ.csproj" />
   </Folder>
   <Project Path="Bin2Object/Bin2Object.csproj" Id="82d6fb7e-0af2-4724-a937-3f59e9541e28" />

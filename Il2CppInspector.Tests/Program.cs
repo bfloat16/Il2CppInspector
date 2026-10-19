@@ -13,7 +13,7 @@ namespace Il2CppInspector.Tests
                         + "<ZZZ Native directory> [output directory] [options], --plugins, "
                         + "--plugin-cli <CLI DLL> <isolated directory>, --assembly-resolution <ZZZ DummyDll directory>, "
                         + "--pdb-fixture <output directory> [llvm-pdbutil] [idat], --dwarf-fixture <output directory> [readelf] [gdb] [idat] [llvm-symbolizer], "
-                        + "--tot-native <Native directory> <output directory>, --genshin <Native directory> [output directory] [options], "
+                        + "--tot-native <Native directory> <output directory>, --tot-os <Native directory>, --genshin <Native directory> [output directory] [options], "
                         + "--dwarf-globals <Android sample directory> <output directory> [idat], "
                         + "--debug-routing, --cli-targets <CLI DLL>, --progress [binary metadata output directory], or --stock <Unity player directory>."
                 );
@@ -67,6 +67,11 @@ namespace Il2CppInspector.Tests
                 case "--plugins":
                     ZzzPluginTests.Run();
                     Plugin.Endfield.EndfieldPluginTests.Run();
+                    Plugin.TOT.OS.TotOsTests.RunSelection();
+                    break;
+                case "--tot-os":
+                    RequireArguments(args, 2);
+                    Plugin.TOT.OS.TotOsTests.Run(args[1]);
                     break;
                 case "--tot":
                     RequireArguments(args, 2);
