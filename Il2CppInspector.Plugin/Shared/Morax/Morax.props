@@ -1,0 +1,7 @@
+<Project>
+  <!-- Shared MORAX sources; import from each MORAX game project. -->
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)*.cs" Link="Shared/Morax/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)RuntimeCaches.py" LogicalName="Il2CppInspector.Plugin.Morax.RuntimeCaches.py" />
+  </ItemGroup>
+</Project>

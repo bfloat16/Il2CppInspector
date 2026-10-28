@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>Il2CppInspector.Plugin.ZZZ</RootNamespace>
+  </PropertyGroup>
+  <Import Project="../Shared/Morax/Morax.props" />
+  <ItemGroup>
+    <ProjectReference Include="../../Il2CppInspector.Common/Il2CppInspector.Common.csproj" />
+  </ItemGroup>
+</Project>
