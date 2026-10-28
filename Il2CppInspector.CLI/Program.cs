@@ -549,9 +549,8 @@ Disassembler targets with Debug omit type headers; debug symbol arrays in JSON a
                 Console.WriteLine($"Generating DummyDlls -> {dllOut}");
                 ProgressBar.Run("Generating DummyDlls", progress => new AssemblyShims(model) { ProgressCallback = progress }.Write(dllOut));
 
-                // C# export is intentionally disabled.
-                /*
-                if (il2cpp.Metadata.GamePlugin?.StreamExports == true)
+                var streamExports = il2cpp.Metadata.GamePlugin?.StreamExports == true;
+                if (streamExports)
                 {
                     string csOut = Path.Combine(output, "dump.cs");
                     ProgressBar.Run($"Generating C# stubs -> {csOut}", () => new CSharpCodeStubs(model).WriteSingleFile(csOut));
@@ -561,9 +560,8 @@ Disassembler targets with Debug omit type headers; debug symbol arrays in JSON a
                     string csOut = Path.Combine(output, "CS");
                     ProgressBar.Run($"Generating C# stubs -> {csOut}", () => new CSharpCodeStubs(model).WriteFilesByClassTree(csOut, false));
                 }
-                */
 
-                if (options.Targets.Count > 0 || il2cpp.Metadata.GamePlugin?.StreamExports == true)
+                if (options.Targets.Count > 0 || streamExports)
                 {
                     AppModel appModel = null;
                     var targetUnity = unityVersion ?? il2cpp.Metadata.GamePlugin?.DefaultUnityVersion;
