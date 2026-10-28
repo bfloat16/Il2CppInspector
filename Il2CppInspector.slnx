@@ -23,6 +23,9 @@
     <Project Path="Il2CppInspector.Plugin/HSR_CN_Windows_4.6.51/Il2CppInspector.Plugin.HSR_CN_Windows_4.6.51.csproj" />
     <Project Path="Il2CppInspector.Plugin/HSR_OS_Windows_4.6.0/Il2CppInspector.Plugin.HSR_OS_Windows_4.6.0.csproj" />
   </Folder>
+  <Folder Name="/Plugins/LAD/">
+    <Project Path="Il2CppInspector.Plugin/LAD_CN_Android_6.0.0/Il2CppInspector.Plugin.LAD_CN_Android_6.0.0.csproj" />
+  </Folder>
   <Folder Name="/Plugins/TOT/">
     <Project Path="Il2CppInspector.Plugin/TOT_CN_Android_6.1.0/Il2CppInspector.Plugin.TOT_CN_Android_6.1.0.csproj" />
     <Project Path="Il2CppInspector.Plugin/TOT_OS_Android_5.8.1/Il2CppInspector.Plugin.TOT_OS_Android_5.8.1.csproj" />
