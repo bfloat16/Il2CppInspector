@@ -4,9 +4,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>Il2CppInspector.Plugin.TOT</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../Il2CppInspector.Common/Il2CppInspector.Common.csproj" />
+    <!-- Sources identical to CN 6.1.0; only TotBuild.cs differs. Copy a file here before giving it OS-specific changes. -->
+    <Compile Include="../TOT_CN_Android_6.1.0/TotPlugin.cs" Link="TotPlugin.cs" />
     <Compile Include="../TOT_CN_Android_6.1.0/IL2CPP/*.cs" Link="IL2CPP/%(Filename)%(Extension)" />
     <Compile Include="../TOT_CN_Android_6.1.0/Next/Metadata/*.cs" Link="Next/Metadata/%(Filename)%(Extension)" />
     <Compile Include="../TOT_CN_Android_6.1.0/Model/*.cs" Link="Model/%(Filename)%(Extension)" />
@@ -15,6 +18,5 @@
       Include="../TOT_CN_Android_6.1.0/Resources/TotWhiteboxTables.bin"
       LogicalName="Il2CppInspector.Plugin.TOT.TotWhiteboxTables.bin"
     />
-    <InternalsVisibleTo Include="Il2CppInspector.Tests" />
   </ItemGroup>
 </Project>

@@ -3,8 +3,7 @@ using Il2CppInspector.Reflection;
 namespace Il2CppInspector.Plugin.TOT
 {
     /// <summary>
-    /// Minimal native-model implementation for TOT. The game uses the stock IL2CPP naming layout, so
-    /// type names map directly to C identifiers and no runtime-specific storage naming is required.
+    /// TOT uses stock IL2CPP naming, so no runtime-specific storage naming is needed.
     /// </summary>
     internal sealed class TotNativeModel : Plugins.GameNativeModel
     {
