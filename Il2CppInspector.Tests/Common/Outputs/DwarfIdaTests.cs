@@ -36,25 +36,41 @@ internal static class DwarfIdaTests
         string patched;
         using ((IDisposable)image)
             patched = DwarfOutput.CreateDebugLinkImage(image, input, debugFile);
-        Check(patched != null && File.ReadAllBytes(input).SequenceEqual(original), "Debuglink repair produces a loadable ELF copy without modifying the original stale link");
+        Check(
+            patched != null && File.ReadAllBytes(input).SequenceEqual(original),
+            "Debuglink repair produces a loadable ELF copy without modifying the original stale link"
+        );
         var log = Path.Combine(directory, "ida-dwarf.log");
-        RunTool(idat, ["-A", "-c", "-L" + log, "-o" + Path.Combine(directory, "ida-target.i64"), "-S" + Path.Combine(fixtures, "VerifyDwarfInIda.py"), patched]);
+        RunTool(
+            idat,
+            ["-A", "-c", "-L" + log, "-o" + Path.Combine(directory, "ida-target.i64"), "-S" + Path.Combine(fixtures, "VerifyDwarfInIda.py"), patched]
+        );
         var report = File.ReadLines(log).Last(line => line.StartsWith("DWARF_IDA_RESULT=", StringComparison.Ordinal));
         using var json = JsonDocument.Parse(report["DWARF_IDA_RESULT=".Length..]);
         var result = json.RootElement;
         var functions = result.GetProperty("functions").EnumerateArray().ToArray();
         var function = functions.Single(f => f.GetProperty("address").GetString() == "0x140001020");
-        Check(function.GetProperty("name").GetString() is "Vector3_Length" or "SharedAddress", "IDA imports a function name from the standalone .sym file, not from the stripped ELF");
+        Check(
+            function.GetProperty("name").GetString() is "Vector3_Length" or "SharedAddress",
+            "IDA imports a function name from the standalone .sym file, not from the stripped ELF"
+        );
         Check(function.GetProperty("type").GetString()?.Contains("Vector3") == true, "IDA imports the DWARF function prototype and argument types");
-        Check(result.GetProperty("vector_size").GetUInt64() == 12 && result.GetProperty("types").EnumerateArray().Any(t => t.GetString() == "Vector3"), "IDA imports Vector3 as a 12-byte structure");
+        Check(
+            result.GetProperty("vector_size").GetUInt64() == 12 && result.GetProperty("types").EnumerateArray().Any(t => t.GetString() == "Vector3"),
+            "IDA imports Vector3 as a 12-byte structure"
+        );
         Check(
             result.GetProperty("recursive_owner_size").GetUInt64() == 8 && result.GetProperty("recursive_union_size").GetUInt64() == 8,
             "IDA imports a union value member whose structure points back to the union"
         );
-        Check(functions.Single(f => f.GetProperty("address").GetString() == "0x140001030").GetProperty("name").GetString() == "Incomplete", "IDA imports untyped native function symbols too");
+        Check(
+            functions.Single(f => f.GetProperty("address").GetString() == "0x140001030").GetProperty("name").GetString() == "Incomplete",
+            "IDA imports untyped native function symbols too"
+        );
         Check(
             functions.Single(f => f.GetProperty("address").GetString() == "0x140001040").GetProperty("name").GetString() == "_ZN7Vector36LengthEf"
-                && functions.Single(f => f.GetProperty("address").GetString() == "0x140001050").GetProperty("name").GetString() == "_ZN7Vector35ResetEv",
+                && functions.Single(f => f.GetProperty("address").GetString() == "0x140001050").GetProperty("name").GetString()
+                    == "_ZN7Vector35ResetEv",
             "IDA uses mangled DW_AT_linkage_name for both typed and untyped functions, not their plain source names"
         );
         var globals = result.GetProperty("globals").EnumerateArray().ToArray();

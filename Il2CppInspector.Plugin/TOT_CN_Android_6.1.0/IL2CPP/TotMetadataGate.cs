@@ -17,7 +17,8 @@ namespace Il2CppInspector
             }
 
             var tail = bytes[^TailSize..];
-            return BinaryPrimitives.ReadUInt16LittleEndian(tail[GateOffset..]) == GateA && BinaryPrimitives.ReadUInt16LittleEndian(tail[(GateOffset + 2)..]) == GateB;
+            return BinaryPrimitives.ReadUInt16LittleEndian(tail[GateOffset..]) == GateA
+                && BinaryPrimitives.ReadUInt16LittleEndian(tail[(GateOffset + 2)..]) == GateB;
         }
     }
 }

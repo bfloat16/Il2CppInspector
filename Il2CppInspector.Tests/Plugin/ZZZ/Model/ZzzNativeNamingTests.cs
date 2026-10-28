@@ -10,8 +10,15 @@ internal static class ZzzNativeNamingTests
         Check(native.Name(context.Model.TypesByFullName["System.DayOfWeek"]) == "DayOfWeek__Enum", "ZZZ uses the stock enum naming convention");
         var list = context.List.MakeGenericType(context.Vector);
         Check(native.Name(list).Contains("List_1_UnityEngine_Vector3"), "Constructed type names preserve the generic type and argument names");
-        Check(native.ArrayName(context.Vector.MakeArrayType()) == native.Name(context.Vector) + "__Array", "Arrays use the stock element-name suffix");
-        var sameNames = context.Model.TypesByDefinitionIndex.Where(t => t is { IsGenericType: false }).GroupBy(t => t.Name).First(g => g.Count() > 1).ToArray();
+        Check(
+            native.ArrayName(context.Vector.MakeArrayType()) == native.Name(context.Vector) + "__Array",
+            "Arrays use the stock element-name suffix"
+        );
+        var sameNames = context
+            .Model.TypesByDefinitionIndex.Where(t => t is { IsGenericType: false })
+            .GroupBy(t => t.Name)
+            .First(g => g.Count() > 1)
+            .ToArray();
         Check(sameNames.Select(native.Name).Distinct().Count() == sameNames.Length, "Types with the same metadata name are disambiguated");
         Check(
             app.RuntimeCppTypes.GetComplexType("FieldInfo")["type"].Type is CppPointerType

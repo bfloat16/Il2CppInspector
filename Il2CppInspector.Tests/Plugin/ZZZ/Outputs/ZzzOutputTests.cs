@@ -43,7 +43,12 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                     {
                         new CppScaffolding(app, useBetterArraySize: true).WriteTypes(Path.Combine(output, "il2cpp.h"));
                     }
-                    new PythonScript(app).WriteScriptToFile(Path.Combine(output, "il2cpp.py"), "IDA", Path.Combine(output, "il2cpp.h"), Path.Combine(output, "il2cpp.json"));
+                    new PythonScript(app).WriteScriptToFile(
+                        Path.Combine(output, "il2cpp.py"),
+                        "IDA",
+                        Path.Combine(output, "il2cpp.h"),
+                        Path.Combine(output, "il2cpp.json")
+                    );
                 }
                 if (args.Contains("--write-json"))
                 {

@@ -74,7 +74,11 @@ namespace Il2CppInspector.Model
             BuildMethods();
             return model
                 .AnalysisMethods.Values.Where(m => m.HasCompiledCode)
-                .Select(m => new NativeMethod(m.CppFnPtrType.Name, m.MethodCodeAddress, m.CppFnPtrType, m.SignatureComplete) { SourceName = m.Method.Name, LinkageName = m.ToMangledString() });
+                .Select(m => new NativeMethod(m.CppFnPtrType.Name, m.MethodCodeAddress, m.CppFnPtrType, m.SignatureComplete)
+                {
+                    SourceName = m.Method.Name,
+                    LinkageName = m.ToMangledString(),
+                });
         }
 
         private void RegisterTypes()
@@ -85,7 +89,13 @@ namespace Il2CppInspector.Model
             }
 
             group = "unused_concrete_types";
-            foreach (var type in Reflection.TypesByDefinitionIndex.Concat(Reflection.TypesByReferenceIndex).Concat(Native.GenericTypes.Values).Concat(Native.ArrayTypes.Values.ToArray()).Distinct())
+            foreach (
+                var type in Reflection
+                    .TypesByDefinitionIndex.Concat(Reflection.TypesByReferenceIndex)
+                    .Concat(Native.GenericTypes.Values)
+                    .Concat(Native.ArrayTypes.Values.ToArray())
+                    .Distinct()
+            )
             {
                 AddType(type);
             }
@@ -124,7 +134,12 @@ namespace Il2CppInspector.Model
 
                 CppComplexType value = null,
                     boxed = null;
-                if (!type.ContainsGenericParameters && !type.IsPointer && !type.IsByRef && (!type.IsGenericType || type.IsGenericTypeDefinition || Native.GenericOrdinals.ContainsKey(type)))
+                if (
+                    !type.ContainsGenericParameters
+                    && !type.IsPointer
+                    && !type.IsByRef
+                    && (!type.IsGenericType || type.IsGenericTypeDefinition || Native.GenericOrdinals.ContainsKey(type))
+                )
                 {
                     if (type.IsArray)
                     {
@@ -321,7 +336,8 @@ namespace Il2CppInspector.Model
             if (type.IsValueType && InstanceSize(type) > 0)
             {
                 result.AlignmentBytes = Native.Alignment(type);
-                ((CppRecordedLayoutType)result).ExplicitLayout = (type.Attributes & System.Reflection.TypeAttributes.LayoutMask) == System.Reflection.TypeAttributes.ExplicitLayout;
+                ((CppRecordedLayoutType)result).ExplicitLayout =
+                    (type.Attributes & System.Reflection.TypeAttributes.LayoutMask) == System.Reflection.TypeAttributes.ExplicitLayout;
             }
             return result;
         }

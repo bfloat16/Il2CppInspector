@@ -23,7 +23,9 @@ namespace Il2CppInspector.Plugins
             }
 
             return Installed.SingleOrDefault(p => string.Equals(p.GameId, gameId, StringComparison.OrdinalIgnoreCase))
-                ?? throw new NotSupportedException($"No installed plugin supports {gameId}. Available games: {string.Join(", ", Installed.Select(p => p.GameId))}");
+                ?? throw new NotSupportedException(
+                    $"No installed plugin supports {gameId}. Available games: {string.Join(", ", Installed.Select(p => p.GameId))}"
+                );
         }
 
         internal static GamePlugin Select(string gameId, ReadOnlySpan<byte> metadata)
@@ -59,7 +61,9 @@ namespace Il2CppInspector.Plugins
         private static IReadOnlyList<GamePlugin> Discover()
         {
             var assemblies = new HashSet<Assembly>(
-                AppDomain.CurrentDomain.GetAssemblies().Where(a => !a.IsDynamic && a.GetName().Name.StartsWith("Il2CppInspector.Plugin.", StringComparison.Ordinal))
+                AppDomain
+                    .CurrentDomain.GetAssemblies()
+                    .Where(a => !a.IsDynamic && a.GetName().Name.StartsWith("Il2CppInspector.Plugin.", StringComparison.Ordinal))
             );
             foreach (var directory in new[] { AppContext.BaseDirectory, Path.Combine(AppContext.BaseDirectory, "plugins") })
             {
@@ -69,13 +73,19 @@ namespace Il2CppInspector.Plugins
                 }
 
                 var search = directory == AppContext.BaseDirectory ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories;
-                foreach (var path in Directory.EnumerateFiles(directory, "Il2CppInspector.Plugin.*.dll", search).OrderBy(p => p, StringComparer.Ordinal))
+                foreach (
+                    var path in Directory.EnumerateFiles(directory, "Il2CppInspector.Plugin.*.dll", search).OrderBy(p => p, StringComparer.Ordinal)
+                )
                 {
                     var name = AssemblyName.GetAssemblyName(path);
                     var assembly = assemblies.FirstOrDefault(a => AssemblyName.ReferenceMatchesDefinition(a.GetName(), name));
                     if (assembly == null)
                     {
-                        var loader = PluginLoader.CreateFromAssemblyFile(Path.GetFullPath(path), sharedTypes: [typeof(GamePlugin)], configure: config => config.PreferSharedTypes = true);
+                        var loader = PluginLoader.CreateFromAssemblyFile(
+                            Path.GetFullPath(path),
+                            sharedTypes: [typeof(GamePlugin)],
+                            configure: config => config.PreferSharedTypes = true
+                        );
                         loaders.Add(loader);
                         assembly = loader.LoadDefaultAssembly();
                     }

@@ -9,7 +9,11 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
             using var inputJson = File.OpenRead(path);
             var prefix = new byte[1024];
             inputJson.ReadExactly(prefix);
-            var tokenReader = new Utf8JsonReader(prefix, false, new JsonReaderState(new JsonReaderOptions { CommentHandling = JsonCommentHandling.Allow }));
+            var tokenReader = new Utf8JsonReader(
+                prefix,
+                false,
+                new JsonReaderState(new JsonReaderOptions { CommentHandling = JsonCommentHandling.Allow })
+            );
             var foundComment = false;
             while (tokenReader.Read())
                 foundComment |= tokenReader.TokenType == JsonTokenType.Comment;
@@ -39,13 +43,17 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                 var index = input.TypeDefinitions[definition].FieldIndex + reference.FieldIndex;
                 var storage = input.TypeReferences[input.Fields[index].TypeIndex];
                 var size =
-                    storage.Type == Il2CppTypeEnum.IL2CPP_TYPE_VALUETYPE ? checked((int)input.TypeDefinitionSizes[storage.Data.KlassIndex].InstanceSize - 16)
+                    storage.Type == Il2CppTypeEnum.IL2CPP_TYPE_VALUETYPE
+                        ? checked((int)input.TypeDefinitionSizes[storage.Data.KlassIndex].InstanceSize - 16)
                     : storage.Type == Il2CppTypeEnum.IL2CPP_TYPE_I8 ? 8
                     : 4;
                 var bytes = input.Metadata.ReadBytes((long)input.FieldDefaultValue[index].Item1, size);
                 if (records[i].GetProperty("value").GetString() != Convert.ToHexString(bytes))
                     throw new InvalidOperationException("JSON FieldInfo payload differs from metadata");
-                if (records[i].GetProperty("storageTag").GetUInt32() != rawOffsets[index] >> 24 || records[i].GetProperty("offset").GetUInt32() != (rawOffsets[index] & 0xFFFFFF))
+                if (
+                    records[i].GetProperty("storageTag").GetUInt32() != rawOffsets[index] >> 24
+                    || records[i].GetProperty("offset").GetUInt32() != (rawOffsets[index] & 0xFFFFFF)
+                )
                     throw new InvalidOperationException("JSON field storage tag/offset differs from its runtime region");
             }
             Pass("All JSON payload bytes match metadata, including the 24 scalar initializers");

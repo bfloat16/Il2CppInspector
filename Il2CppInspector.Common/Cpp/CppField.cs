@@ -57,7 +57,9 @@ namespace Il2CppInspector.Cpp
             var field = Type switch
             {
                 // nested anonymous types (trim semi-colon and newline from end)
-                CppComplexType t when string.IsNullOrEmpty(t.Name) => (format == "o" ? "\n" : "") + t.ToString(format)[..^2] + (Name.Length > 0 ? " " + Name : ""),
+                CppComplexType t when string.IsNullOrEmpty(t.Name) => (format == "o" ? "\n" : "")
+                    + t.ToString(format)[..^2]
+                    + (Name.Length > 0 ? " " + Name : ""),
                 // function pointers
                 CppFnPtrType t when string.IsNullOrEmpty(t.Name) => t.ToFieldString(Name, format),
                 // regular fields

@@ -36,15 +36,29 @@ namespace Il2CppInspector.Outputs
             internal readonly CustomAttribute Attribute = new((ICustomAttributeType)null);
             internal readonly List<CANamedArgument> Arguments = [];
         }
+
         private static readonly Dictionary<string, UTF8String> attributeArgumentNames = new[]
         {
-            "RVA", "Offset", "VA", "Slot", "Spec", "Flags", "ThreadStatic", "StorageTag", "StorageBase", "Data", "Token", "Name",
+            "RVA",
+            "Offset",
+            "VA",
+            "Slot",
+            "Spec",
+            "Flags",
+            "ThreadStatic",
+            "StorageTag",
+            "StorageBase",
+            "Data",
+            "Token",
+            "Name",
         }.ToDictionary(name => name, name => (UTF8String)name);
 
         private sealed class AttributeWriterHelper : ICustomAttributeWriterHelper
         {
             internal static readonly AttributeWriterHelper Instance = new();
+
             public bool MustUseAssemblyName(IType type) => true;
+
             public void Error(string message) => throw new InvalidOperationException(message);
         }
 
@@ -69,7 +83,12 @@ namespace Il2CppInspector.Outputs
 
         // Add custom attribute to item with named property arguments
         // 'module' is the module that owns 'type'; type.Module may still be null when this is called
-        public static CustomAttribute AddAttribute(this IHasCustomAttribute def, ModuleDef module, TypeDef attrTypeDef, params (string prop, object value)[] args)
+        public static CustomAttribute AddAttribute(
+            this IHasCustomAttribute def,
+            ModuleDef module,
+            TypeDef attrTypeDef,
+            params (string prop, object value)[] args
+        )
         {
             // If SuppressMetadata is set, our own attributes will never be generated so attrTypeDef will be null
             if (attrTypeDef == null)
@@ -184,7 +203,12 @@ namespace Il2CppInspector.Outputs
             var attributeType = model.TypesByFullName["System.Attribute"];
             var attributeCtor = attributeType.DeclaredConstructors.First(c => !c.IsPublic && !c.IsStatic);
             var attributeTypeRef = GetTypeRef(module, attributeType);
-            var attributeCtorRef = new MemberRefUser(attributeTypeRef.Module, ".ctor", MethodSig.CreateInstance(module.CorLibTypes.Void), attributeTypeRef);
+            var attributeCtorRef = new MemberRefUser(
+                attributeTypeRef.Module,
+                ".ctor",
+                MethodSig.CreateInstance(module.CorLibTypes.Void),
+                attributeTypeRef
+            );
 
             var stringField = new FieldSig(module.CorLibTypes.String);
             var boolField = new FieldSig(module.CorLibTypes.Boolean);
@@ -336,7 +360,10 @@ namespace Il2CppInspector.Outputs
             {
                 var packing = (int)type.Definition.Bitfield.PackingSize;
                 var size = model.Package.Metadata.HasGameAdapter ? Math.Max(0, (long)type.Sizes.InstanceSize - 16) : type.Sizes.NativeSize;
-                mType.ClassLayout = new ClassLayoutUser((ushort)(type.Definition.Bitfield.DefaultPackingSize || packing == 0 ? 0 : 1 << (packing - 1)), (uint)size);
+                mType.ClassLayout = new ClassLayoutUser(
+                    (ushort)(type.Definition.Bitfield.DefaultPackingSize || packing == 0 ? 0 : 1 << (packing - 1)),
+                    (uint)size
+                );
             }
 
             // Add nested types
@@ -403,8 +430,15 @@ namespace Il2CppInspector.Outputs
                 if (type.HasInlineArray && inlineArrayAttribute != null)
                 {
                     var typeRef = GetTypeRef(module, inlineArrayAttribute);
-                    var ctorRef = new MemberRefUser(typeRef.Module, ".ctor", MethodSig.CreateInstance(module.CorLibTypes.Void, module.CorLibTypes.Int32), typeRef);
-                    mType.CustomAttributes.Add(new CustomAttribute(ctorRef, new CAArgument[] { new(module.CorLibTypes.Int32, type.InlineArrayLength) }));
+                    var ctorRef = new MemberRefUser(
+                        typeRef.Module,
+                        ".ctor",
+                        MethodSig.CreateInstance(module.CorLibTypes.Void, module.CorLibTypes.Int32),
+                        typeRef
+                    );
+                    mType.CustomAttributes.Add(
+                        new CustomAttribute(ctorRef, new CAArgument[] { new(module.CorLibTypes.Int32, type.InlineArrayLength) })
+                    );
                 }
             }
 
@@ -435,7 +469,10 @@ namespace Il2CppInspector.Outputs
                 // Attempt to get field size
 
                 var fieldSize = model.Package.Metadata.HasGameAdapter
-                    ? model.Package.Metadata.GameAdapter.FieldRvaSize(model.Package.TypeReferences[model.Package.Fields[field.Index].TypeIndex], model.Package.Binary)
+                    ? model.Package.Metadata.GameAdapter.FieldRvaSize(
+                        model.Package.TypeReferences[model.Package.Fields[field.Index].TypeIndex],
+                        model.Package.Binary
+                    )
                     : field.FieldType.Sizes.NativeSize;
                 var preview = model.Package.Metadata.ReadBytes((long)field.DefaultValueMetadataAddress, fieldSize);
 
@@ -536,7 +573,12 @@ namespace Il2CppInspector.Outputs
             var s = GetMethodSig(module, method);
 
             // Definition
-            var mMethod = new MethodDefUser(method.Name, s, (MethodImplAttributes)method.MethodImplementationFlags, (MethodAttributes)method.Attributes);
+            var mMethod = new MethodDefUser(
+                method.Name,
+                s,
+                (MethodImplAttributes)method.MethodImplementationFlags,
+                (MethodAttributes)method.Attributes
+            );
 
             // Generic type parameters
             foreach (var gp in method.GetGenericArguments())
@@ -579,9 +621,17 @@ namespace Il2CppInspector.Outputs
             }
 
             // Everything that's not extern, abstract or a delegate type should have a method body
-            if ((method.Attributes & System.Reflection.MethodAttributes.PinvokeImpl) == 0 && method.DeclaringType.BaseType?.FullName != "System.MulticastDelegate" && !method.IsAbstract)
+            if (
+                (method.Attributes & System.Reflection.MethodAttributes.PinvokeImpl) == 0
+                && method.DeclaringType.BaseType?.FullName != "System.MulticastDelegate"
+                && !method.IsAbstract
+            )
             {
-                mMethod.Body = GetDefaultBody(module, mMethod.ReturnType, mMethod.ReturnType.IsValueType || method is MethodInfo { ReturnType.IsEnum: true });
+                mMethod.Body = GetDefaultBody(
+                    module,
+                    mMethod.ReturnType,
+                    mMethod.ReturnType.IsValueType || method is MethodInfo { ReturnType.IsEnum: true }
+                );
             }
 
             // Add token attribute
@@ -696,10 +746,19 @@ namespace Il2CppInspector.Outputs
                 attr.ConstructorArguments.Add(GetArgument(argument));
 
             foreach (var field in ctorInfo.Fields)
-                attr.NamedArguments.Add(new CANamedArgument(true, GetTypeSig(module, field.Field.FieldType), field.Field.CSharpName, GetArgument(field)));
+                attr.NamedArguments.Add(
+                    new CANamedArgument(true, GetTypeSig(module, field.Field.FieldType), field.Field.CSharpName, GetArgument(field))
+                );
 
             foreach (var property in ctorInfo.Properties)
-                attr.NamedArguments.Add(new CANamedArgument(false, GetTypeSig(module, property.Property.PropertyType), property.Property.CSharpName, GetArgument(property)));
+                attr.NamedArguments.Add(
+                    new CANamedArgument(
+                        false,
+                        GetTypeSig(module, property.Property.PropertyType),
+                        property.Property.CSharpName,
+                        GetArgument(property)
+                    )
+                );
 
             def.CustomAttributes.Add(attr);
 
@@ -849,7 +908,10 @@ namespace Il2CppInspector.Outputs
                 // We'll add these directly to objects instead of the attribute generator function pointer
                 directApplyAttributes = model
                     .TypesByDefinitionIndex.Where(t =>
-                        IsAttributeType(t) && t.DeclaredFields.Count == 0 && t.DeclaredProperties.Count == 0 && t.DeclaredConstructors.Any(c => !c.IsStatic && c.DeclaredParameters.Count == 0)
+                        IsAttributeType(t)
+                        && t.DeclaredFields.Count == 0
+                        && t.DeclaredProperties.Count == 0
+                        && t.DeclaredConstructors.Any(c => !c.IsStatic && c.DeclaredParameters.Count == 0)
                     )
                     .ToDictionary(t => t, t => (TypeDef)null);
             }
@@ -954,7 +1016,8 @@ namespace Il2CppInspector.Outputs
                 Report("Generating " + asm.Name);
             }
 
-            static bool IsAttributeType(TypeInfo type) => type != null && (type.FullName == "System.Attribute" || (type.BaseType != null && IsAttributeType(type.BaseType)));
+            static bool IsAttributeType(TypeInfo type) =>
+                type != null && (type.FullName == "System.Attribute" || (type.BaseType != null && IsAttributeType(type.BaseType)));
         }
 
         private void ReleaseModuleMembers(ModuleDef module)

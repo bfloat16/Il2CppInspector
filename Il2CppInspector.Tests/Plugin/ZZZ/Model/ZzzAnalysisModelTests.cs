@@ -10,8 +10,14 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Model
             var list = context.List;
             var genericMethod = context.GenericMethod;
             var app = new AppModel(model, false).Build(new UnityVersion("2019.4.40f1"));
-            Check(app.Fields.Count == 1020 && app.Fields.Values.All(f => f.Value.Length > 0), "Application model exposes all FieldInfo payloads, including managed structure bytes");
-            Check(app.Methods.Count >= 1600000 && app.Methods.Values.Any(m => m.Group == "types_from_usages"), "Public application method collections contain compiled and usage-only methods");
+            Check(
+                app.Fields.Count == 1020 && app.Fields.Values.All(f => f.Value.Length > 0),
+                "Application model exposes all FieldInfo payloads, including managed structure bytes"
+            );
+            Check(
+                app.Methods.Count >= 1600000 && app.Methods.Values.Any(m => m.Group == "types_from_usages"),
+                "Public application method collections contain compiled and usage-only methods"
+            );
             var allInvokers = model.MethodInvokers;
             Check(
                 input.GenericMethodInvokerIndices.Values.Where(i => i >= 0).Distinct().All(i => allInvokers[i] != null),
@@ -27,7 +33,10 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Model
             );
             var concreteList = list.MakeGenericType(vector);
             var listCpp = app.Types[concreteList].CppType;
-            Check(listCpp.SizeBytes == 32 && ((CppComplexType)listCpp["fields"].Type)["_size"].OffsetBytes == 8, "Public closed generic C++ objects retain named substituted fields");
+            Check(
+                listCpp.SizeBytes == 32 && ((CppComplexType)listCpp["fields"].Type)["_size"].OffsetBytes == 8,
+                "Public closed generic C++ objects retain named substituted fields"
+            );
             var listClass = (CppComplexType)((CppPointerType)listCpp["klass"].Type).ElementType;
             var table = (CppComplexType)listClass["vtable"].Type;
             Check(
@@ -37,13 +46,18 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Model
                 "Public C++ generic class vtables retain the conditional SoA layout"
             );
             Check(
-                cpp.GetComplexType(native.Name(model.TypesByDefinitionIndex[3]) + "__GlobalStaticFields2").Fields.Values.SelectMany(f => f).Min(f => f.OffsetBytes) == 0x210,
+                cpp.GetComplexType(native.Name(model.TypesByDefinitionIndex[3]) + "__GlobalStaticFields2")
+                    .Fields.Values.SelectMany(f => f)
+                    .Min(f => f.OffsetBytes) == 0x210,
                 "Public C++ global-static regions retain the process buffer offsets"
             );
-            var interfaceType = model.TypesByDefinitionIndex.First(t => t is { IsInterface: true, IsGenericType: false } && t.Definition.MethodCount > 0 && t.Definition.VTableCount == 0);
+            var interfaceType = model.TypesByDefinitionIndex.First(t =>
+                t is { IsInterface: true, IsGenericType: false } && t.Definition.MethodCount > 0 && t.Definition.VTableCount == 0
+            );
             var interfaceView = cpp.GetComplexType(native.Name(interfaceType) + "__InterfaceVTable");
             Check(
-                interfaceView.SizeBytes == interfaceType.Definition.MethodCount * 8 && cpp.GetComplexType(native.ClassName(interfaceType)).SizeBytes == 0xD0,
+                interfaceView.SizeBytes == interfaceType.Definition.MethodCount * 8
+                    && cpp.GetComplexType(native.ClassName(interfaceType)).SizeBytes == 0xD0,
                 "Interface callable views expose method slots without changing the physical interface class layout"
             );
             var globalRegion = cpp.GetComplexType(native.Name(model.TypesByDefinitionIndex[3]) + "__GlobalStaticFields2");
@@ -62,27 +76,43 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Model
             if (args.Contains("--analysis-layouts"))
             {
                 var ordered = app.DependencyOrderedCppTypes;
-                Check(ordered.Count > 100000 && app.RequiredForwardDefinitions.Count > 100000, "Public dependency ordering and forward declarations include all materialized native layouts");
-                Console.WriteLine($"Analysis types={app.Types.Count}, methods={app.Methods.Count}, declarations={ordered.Count}, forwards={app.RequiredForwardDefinitions.Count}");
+                Check(
+                    ordered.Count > 100000 && app.RequiredForwardDefinitions.Count > 100000,
+                    "Public dependency ordering and forward declarations include all materialized native layouts"
+                );
+                Console.WriteLine(
+                    $"Analysis types={app.Types.Count}, methods={app.Methods.Count}, declarations={ordered.Count}, forwards={app.RequiredForwardDefinitions.Count}"
+                );
                 return;
             }
             var map = app.GetAddressMap();
             foreach (var metadataUsage in input.MetadataUsages)
             {
-                if (metadataUsage.Type is MetadataUsageType.MethodDef or MetadataUsageType.MethodRef && map[metadataUsage.VirtualAddress] is not AppMethodReference)
+                if (
+                    metadataUsage.Type is MetadataUsageType.MethodDef or MetadataUsageType.MethodRef
+                    && map[metadataUsage.VirtualAddress] is not AppMethodReference
+                )
                     throw new InvalidOperationException("MethodInfo usage missing in address map");
-                if (metadataUsage.Type is MetadataUsageType.Type or MetadataUsageType.TypeInfo && map[metadataUsage.VirtualAddress] is not AppTypeReference)
+                if (
+                    metadataUsage.Type is MetadataUsageType.Type or MetadataUsageType.TypeInfo
+                    && map[metadataUsage.VirtualAddress] is not AppTypeReference
+                )
                     throw new InvalidOperationException("Type usage missing in address map");
             }
             Check(
-                map[genericMethod.VirtualAddress.Value.Start] is AppMethod && map[vector.DeclaredConstructors[0].VirtualAddress.Value.Start] is AppMethod,
+                map[genericMethod.VirtualAddress.Value.Start] is AppMethod
+                    && map[vector.DeclaredConstructors[0].VirtualAddress.Value.Start] is AppMethod,
                 "Address map resolves ordinary and generic compiled methods instead of unknown functions"
             );
             Check(
-                ((CppFnPtrType)map[input.Binary.RegistrationFunctionPointer]).Arguments.Count == 0 && ((CppFnPtrType)map[input.Binary.RegistrationFunctionPointer]).ReturnType.Name == "void *",
+                ((CppFnPtrType)map[input.Binary.RegistrationFunctionPointer]).Arguments.Count == 0
+                    && ((CppFnPtrType)map[input.Binary.RegistrationFunctionPointer]).ReturnType.Name == "void *",
                 "Address map uses the observed pointer return and zero arguments of the MORAX registration initializer"
             );
-            Check(app.GetMethodGroup("types_from_methods").Any() && app.GetTypeGroup("types_from_usages").Any(), "Public application model group queries expose populated collections");
+            Check(
+                app.GetMethodGroup("types_from_methods").Any() && app.GetTypeGroup("types_from_usages").Any(),
+                "Public application model group queries expose populated collections"
+            );
             app.Build(new UnityVersion("2019.4.39f1"));
             Check(app.Fields.Count == 1020, "Rebuilding application models resets derived caches and preserves field data");
         }

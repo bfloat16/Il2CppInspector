@@ -20,7 +20,12 @@ public static class ReaderExtensions
                 return (uint)(((first & ~0b10000000) << 8) | reader.ReadPrimitive<byte>());
 
             if ((first & 0b11100000) == 0b11000000)
-                return (uint)(((first & ~0b11000000) << 24) | (reader.ReadPrimitive<byte>() << 16) | (reader.ReadPrimitive<byte>() << 8) | reader.ReadPrimitive<byte>());
+                return (uint)(
+                    ((first & ~0b11000000) << 24)
+                    | (reader.ReadPrimitive<byte>() << 16)
+                    | (reader.ReadPrimitive<byte>() << 8)
+                    | reader.ReadPrimitive<byte>()
+                );
 
             return first switch
             {

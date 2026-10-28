@@ -283,7 +283,10 @@ internal struct HashCode
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static uint MixState(uint v1, uint v2, uint v3, uint v4)
     {
-        return BitOperations.RotateLeft(v1, 1) + BitOperations.RotateLeft(v2, 7) + BitOperations.RotateLeft(v3, 12) + BitOperations.RotateLeft(v4, 18);
+        return BitOperations.RotateLeft(v1, 1)
+            + BitOperations.RotateLeft(v2, 7)
+            + BitOperations.RotateLeft(v3, 12)
+            + BitOperations.RotateLeft(v4, 18);
     }
 
     private static uint MixEmptyState()
@@ -428,7 +431,10 @@ internal struct HashCode
     //   implementation has to change in the future we don't want to worry
     //   about people who might have incorrectly used this type.
 
-    [Obsolete("HashCode is a mutable struct and should not be compared with other HashCodes. Use ToHashCode to retrieve the computed hash code.", error: true)]
+    [Obsolete(
+        "HashCode is a mutable struct and should not be compared with other HashCodes. Use ToHashCode to retrieve the computed hash code.",
+        error: true
+    )]
     [EditorBrowsable(EditorBrowsableState.Never)]
     public override int GetHashCode() => throw new NotSupportedException(SR.HashCode_HashCodeNotSupported);
 
@@ -440,7 +446,8 @@ internal struct HashCode
 
     private static class SR
     {
-        public static string HashCode_HashCodeNotSupported = "HashCode is a mutable struct and should not be compared with other HashCodes. Use ToHashCode to retrieve the computed hash code.";
+        public static string HashCode_HashCodeNotSupported =
+            "HashCode is a mutable struct and should not be compared with other HashCodes. Use ToHashCode to retrieve the computed hash code.";
         public static string HashCode_EqualityNotSupported = "HashCode is a mutable struct and should not be compared with other HashCodes.";
     }
 

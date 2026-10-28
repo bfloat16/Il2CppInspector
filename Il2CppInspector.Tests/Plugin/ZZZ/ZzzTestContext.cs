@@ -21,15 +21,24 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ
         internal TypeInfo Vector => Model.TypesByFullName["UnityEngine.Vector3"];
         internal TypeInfo List => Model.TypesByFullName["System.Collections.Generic.List`1"];
         internal TypeInfo ObjectType => Model.TypesByFullName["System.Object"];
-        internal TypeInfo NullablePolicy => Model.TypesByFullName["System.Nullable`1"].MakeGenericType(Model.TypesByFullName["Mono.Security.Interface.MonoSslPolicyErrors"]);
+        internal TypeInfo NullablePolicy =>
+            Model.TypesByFullName["System.Nullable`1"].MakeGenericType(Model.TypesByFullName["Mono.Security.Interface.MonoSslPolicyErrors"]);
         internal TypeInfo Blend => Model.TypesByDefinitionIndex[37196].MakeGenericType(Model.TypesByFullName["PipelineCamera.WorldBasicCameraData"]);
         internal TypeInfo CameraTuple =>
-            Model.TypesByDefinitionIndex[119].MakeGenericType(Model.TypesByDefinitionIndex[37197].MakeGenericType(Model.TypesByFullName["PipelineCamera.WorldBasicCameraData"]), Blend);
+            Model
+                .TypesByDefinitionIndex[119]
+                .MakeGenericType(
+                    Model.TypesByDefinitionIndex[37197].MakeGenericType(Model.TypesByFullName["PipelineCamera.WorldBasicCameraData"]),
+                    Blend
+                );
         internal uint[] RawOffsets =>
             (uint[])
                 Input
                     .Metadata.GameAdapter.GetType()
-                    .GetProperty("RawFieldOffsets", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
+                    .GetProperty(
+                        "RawFieldOffsets",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public
+                    )
                     .GetValue(Input.Metadata.GameAdapter);
 
         internal MethodBase GenericMethod

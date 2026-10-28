@@ -29,14 +29,21 @@ internal sealed class HkrpgMorax : GameMetadataAdapter
     public override int VTableSlotSize => 16;
 
     public override Il2CppTypeDefinitionSizes LayoutSizes(int group) => binary.LayoutSizes(group);
+
     public override uint LayoutFieldOffset(int group, int local) => binary.LayoutFieldOffset(group, local);
+
     public override int FieldStorageTag(Reflection.FieldInfo field) => binary.FieldStorageTag(field);
+
     public override string StorageBase(uint tag) => tag == 0 ? "klass->static_fields" : $"MORAX storage region {tag}";
+
     internal int DefinitionLayoutGroup(int definition) => binary.DefinitionLayoutGroup(definition);
+
     internal int LayoutAlignment(int group) => binary.LayoutAlignment(group);
 
     public override Reflection.TypeInfo ResolveGenericType(Reflection.TypeModel model, Il2CppType type) => binary.ResolveGenericType(model, type);
+
     public override (ulong Address, object Value) DecodeDefault(int typeIndex, int dataIndex, Il2CppBinary binary) =>
         HkrpgDefaults.Decode(metadata, typeIndex, dataIndex, binary);
+
     public override int FieldRvaSize(Il2CppType type, Il2CppBinary binary) => HkrpgDefaults.FieldRvaSize(type, binary);
 }

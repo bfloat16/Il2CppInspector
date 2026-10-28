@@ -284,7 +284,9 @@ public class CppDeclarationGenerator
     // "Flush" the list of visited types, generating C structures for each one
     private List<(TypeInfo ilType, CppComplexType valueType, CppComplexType referenceType, CppComplexType fieldsType)> GenerateVisitedFieldStructs()
     {
-        var structs = new List<(TypeInfo ilType, CppComplexType valueType, CppComplexType referenceType, CppComplexType fieldsType)>(_todoTypeStructs.Count);
+        var structs = new List<(TypeInfo ilType, CppComplexType valueType, CppComplexType referenceType, CppComplexType fieldsType)>(
+            _todoTypeStructs.Count
+        );
         foreach (var ti in _todoFieldStructs)
         {
             if (ti.IsEnum || ti.IsValueType)
@@ -545,7 +547,9 @@ public class CppDeclarationGenerator
         CppComplexType staticsType
     )> GenerateRemainingTypeDeclarations()
     {
-        var decl = GenerateVisitedFieldStructs().Select(s => (s.ilType, s.valueType, s.referenceType, s.fieldsType, (CppComplexType)null, (CppComplexType)null)).ToList();
+        var decl = GenerateVisitedFieldStructs()
+            .Select(s => (s.ilType, s.valueType, s.referenceType, s.fieldsType, (CppComplexType)null, (CppComplexType)null))
+            .ToList();
 
         foreach (var ti in _todoTypeStructs)
         {
@@ -822,7 +826,22 @@ public class CppDeclarationGenerator
         }
         /* Reserve commonly defined C++ symbols for MSVC DLL projects */
         /* This is not an exhaustive list! (windows.h etc.) */
-        foreach (var symbol in new[] { "_int8", "_int16", "_int32", "_int64", "DEFAULT_CHARSET", "FILETIME", "NULL", "SYSTEMTIME", "stderr", "stdin", "stdout" })
+        foreach (
+            var symbol in new[]
+            {
+                "_int8",
+                "_int16",
+                "_int32",
+                "_int64",
+                "DEFAULT_CHARSET",
+                "FILETIME",
+                "NULL",
+                "SYSTEMTIME",
+                "stderr",
+                "stdin",
+                "stdout",
+            }
+        )
         {
             ns.ReserveName(symbol);
         }

@@ -39,15 +39,16 @@ internal static class HkrpgDefaults
         return ((ulong)o, value);
     }
 
-    internal static int FieldRvaSize(Il2CppType type, Il2CppBinary binary) => type.Type switch
-    {
-        Il2CppTypeEnum.IL2CPP_TYPE_BOOLEAN or Il2CppTypeEnum.IL2CPP_TYPE_I1 or Il2CppTypeEnum.IL2CPP_TYPE_U1 => 1,
-        Il2CppTypeEnum.IL2CPP_TYPE_CHAR or Il2CppTypeEnum.IL2CPP_TYPE_I2 or Il2CppTypeEnum.IL2CPP_TYPE_U2 => 2,
-        Il2CppTypeEnum.IL2CPP_TYPE_I4 or Il2CppTypeEnum.IL2CPP_TYPE_U4 or Il2CppTypeEnum.IL2CPP_TYPE_R4 => 4,
-        Il2CppTypeEnum.IL2CPP_TYPE_I8 or Il2CppTypeEnum.IL2CPP_TYPE_U8 or Il2CppTypeEnum.IL2CPP_TYPE_R8 => 8,
-        Il2CppTypeEnum.IL2CPP_TYPE_VALUETYPE => Math.Max(0, checked((int)binary.TypeDefinitionSizes[type.Data.KlassIndex].InstanceSize - 16)),
-        _ => 0,
-    };
+    internal static int FieldRvaSize(Il2CppType type, Il2CppBinary binary) =>
+        type.Type switch
+        {
+            Il2CppTypeEnum.IL2CPP_TYPE_BOOLEAN or Il2CppTypeEnum.IL2CPP_TYPE_I1 or Il2CppTypeEnum.IL2CPP_TYPE_U1 => 1,
+            Il2CppTypeEnum.IL2CPP_TYPE_CHAR or Il2CppTypeEnum.IL2CPP_TYPE_I2 or Il2CppTypeEnum.IL2CPP_TYPE_U2 => 2,
+            Il2CppTypeEnum.IL2CPP_TYPE_I4 or Il2CppTypeEnum.IL2CPP_TYPE_U4 or Il2CppTypeEnum.IL2CPP_TYPE_R4 => 4,
+            Il2CppTypeEnum.IL2CPP_TYPE_I8 or Il2CppTypeEnum.IL2CPP_TYPE_U8 or Il2CppTypeEnum.IL2CPP_TYPE_R8 => 8,
+            Il2CppTypeEnum.IL2CPP_TYPE_VALUETYPE => Math.Max(0, checked((int)binary.TypeDefinitionSizes[type.Data.KlassIndex].InstanceSize - 16)),
+            _ => 0,
+        };
 
     private static string DecodeDefaultString(byte[] global, int offset)
     {

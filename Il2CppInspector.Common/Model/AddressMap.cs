@@ -63,7 +63,8 @@ namespace Il2CppInspector.Model
 
         public bool Contains(KeyValuePair<ulong, object> item) => ((ICollection<KeyValuePair<ulong, object>>)Items).Contains(item);
 
-        public void CopyTo(KeyValuePair<ulong, object>[] array, int arrayIndex) => ((ICollection<KeyValuePair<ulong, object>>)Items).CopyTo(array, arrayIndex);
+        public void CopyTo(KeyValuePair<ulong, object>[] array, int arrayIndex) =>
+            ((ICollection<KeyValuePair<ulong, object>>)Items).CopyTo(array, arrayIndex);
 
         public bool Remove(KeyValuePair<ulong, object> item) => ((ICollection<KeyValuePair<ulong, object>>)Items).Remove(item);
 
@@ -95,13 +96,23 @@ namespace Il2CppInspector.Model
 
                 // Method reference (MethodInfo *)
                 if (method.HasMethodInfo && !Model.Package.Metadata.HasGameAdapter)
-                    Add(method.MethodInfoPtrAddress, new AppMethodReference { Field = new CppField($"{method.CppFnPtrType.Name}__MethodInfo", methodInfoPtrType), Method = method });
+                    Add(
+                        method.MethodInfoPtrAddress,
+                        new AppMethodReference { Field = new CppField($"{method.CppFnPtrType.Name}__MethodInfo", methodInfoPtrType), Method = method }
+                    );
             }
             if (Model.Package.Metadata.HasGameAdapter)
                 foreach (var usage in Model.Package.MetadataUsages.Where(u => u.Type is MetadataUsageType.MethodDef or MetadataUsageType.MethodRef))
                 {
                     var method = Model.Methods[Model.TypeModel.GetMetadataUsageMethod(usage)];
-                    Add(usage.VirtualAddress, new AppMethodReference { Field = new CppField($"{method.CppFnPtrType.Name}__MethodInfo_{usage.VirtualAddress:X}", methodInfoPtrType), Method = method });
+                    Add(
+                        usage.VirtualAddress,
+                        new AppMethodReference
+                        {
+                            Field = new CppField($"{method.CppFnPtrType.Name}__MethodInfo_{usage.VirtualAddress:X}", methodInfoPtrType),
+                            Method = method,
+                        }
+                    );
                 }
 
             // Add all custom attributes generators
@@ -137,7 +148,10 @@ namespace Il2CppInspector.Model
                         usage.VirtualAddress,
                         new AppTypeReference
                         {
-                            Field = new CppField($"{type.Name}__{usage.Type}_{usage.VirtualAddress:X}", usage.Type == MetadataUsageType.TypeInfo ? classPtrType : classRefPtrType),
+                            Field = new CppField(
+                                $"{type.Name}__{usage.Type}_{usage.VirtualAddress:X}",
+                                usage.Type == MetadataUsageType.TypeInfo ? classPtrType : classRefPtrType
+                            ),
                             Type = type,
                         }
                     );

@@ -64,5 +64,6 @@ public ref struct SpanReader(ReadOnlySpan<byte> data, int offset = 0) : ISeekabl
     }
 
     [DoesNotReturn]
-    private static void ThrowUnsupportedEncodingException() => throw new InvalidOperationException("Unsupported encoding: Only ASCII/UTF8 is currently supported.");
+    private static void ThrowUnsupportedEncodingException() =>
+        throw new InvalidOperationException("Unsupported encoding: Only ASCII/UTF8 is currently supported.");
 }

@@ -7,7 +7,12 @@ public static class ReadableExtensions
     {
         public static int StructSize(in StructVersion version = default, in ReaderConfig config = default) => TReadable.Size(version, config);
 
-        public static TReadable FromBytes(ReadOnlySpan<byte> data, bool littleEndian = true, ReaderConfig config = default, in StructVersion version = default)
+        public static TReadable FromBytes(
+            ReadOnlySpan<byte> data,
+            bool littleEndian = true,
+            ReaderConfig config = default,
+            in StructVersion version = default
+        )
         {
             if (littleEndian)
             {

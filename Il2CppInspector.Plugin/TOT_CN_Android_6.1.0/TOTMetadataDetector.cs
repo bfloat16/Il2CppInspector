@@ -34,7 +34,9 @@ namespace Il2CppInspector
 
             Span<byte> gate = stackalloc byte[4];
             stream.Position = length - TailSize + GateOffset;
-            return stream.Read(gate) == gate.Length && BinaryPrimitives.ReadUInt16LittleEndian(gate[..2]) == GateA && BinaryPrimitives.ReadUInt16LittleEndian(gate[2..]) == GateB;
+            return stream.Read(gate) == gate.Length
+                && BinaryPrimitives.ReadUInt16LittleEndian(gate[..2]) == GateA
+                && BinaryPrimitives.ReadUInt16LittleEndian(gate[2..]) == GateB;
         }
     }
 }

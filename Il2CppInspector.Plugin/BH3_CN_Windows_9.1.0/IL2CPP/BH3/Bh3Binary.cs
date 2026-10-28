@@ -10,7 +10,13 @@ namespace Il2CppInspector
         public override List<MetadataUsage> Usages { get; } = [];
         private List<(int TypeIndex, ulong Address)> RuntimeCaches { get; } = [];
         public override IEnumerable<Plugins.AdditionalMetadataUsage> AdditionalUsages =>
-            RuntimeCaches.Select(cache => new Plugins.AdditionalMetadataUsage("bh3RuntimeCaches", cache.TypeIndex, cache.Address, $"RuntimeCache_{cache.TypeIndex}_{cache.Address:X}", "void *"));
+            RuntimeCaches.Select(cache => new Plugins.AdditionalMetadataUsage(
+                "bh3RuntimeCaches",
+                cache.TypeIndex,
+                cache.Address,
+                $"RuntimeCache_{cache.TypeIndex}_{cache.Address:X}",
+                "void *"
+            ));
         private uint[] rawFieldOffsets;
         internal Dictionary<int, int> GenericLayoutGroups { get; } = [];
 
@@ -341,7 +347,11 @@ namespace Il2CppInspector
                 (d, i) =>
                 {
                     var key = unchecked((uint)i * 0xEDACE980u) ^ 0x8AE7DC65u;
-                    return new Il2CppFieldRef { TypeIndex = unchecked((int)(U32(d, 0) + key + 0x5A999460u)), FieldIndex = unchecked((int)(U32(d, 4) + key + 0x39293070u)) };
+                    return new Il2CppFieldRef
+                    {
+                        TypeIndex = unchecked((int)(U32(d, 0) + key + 0x5A999460u)),
+                        FieldIndex = unchecked((int)(U32(d, 4) + key + 0x39293070u)),
+                    };
                 }
             );
             Array.Sort(usages, (a, b) => a.VirtualAddress.CompareTo(b.VirtualAddress));

@@ -87,7 +87,9 @@ namespace Il2CppInspector.Reflection
                     // Pre-v29 attribute handling
 
                     // Find a constructor that either has no parameters, or all optional parameters
-                    var parameterlessConstructor = cad.AttributeType.DeclaredConstructors.Any(c => !c.IsStatic && c.IsPublic && c.DeclaredParameters.All(p => p.IsOptional));
+                    var parameterlessConstructor = cad.AttributeType.DeclaredConstructors.Any(c =>
+                        !c.IsStatic && c.IsPublic && c.DeclaredParameters.All(p => p.IsOptional)
+                    );
 
                     // IL2CPP doesn't retain attribute arguments so we have to comment out those with non-optional arguments if we want the output to compile
                     var commentStart =
@@ -122,13 +124,16 @@ namespace Il2CppInspector.Reflection
         }
 
         // Output a ulong as a 32 or 64-bit hexadecimal address
-        public static string ToAddressString(this ulong address) => address <= 0xffff_ffff ? string.Format($"0x{(uint)address:X8}") : string.Format($"0x{address:X16}");
+        public static string ToAddressString(this ulong address) =>
+            address <= 0xffff_ffff ? string.Format($"0x{(uint)address:X8}") : string.Format($"0x{address:X16}");
 
         public static string ToAddressString(this long address) => ((ulong)address).ToAddressString();
 
-        public static string ToAddressString(this (ulong start, ulong end)? address) => ToAddressString(address?.start ?? 0) + "-" + ToAddressString(address?.end ?? 0);
+        public static string ToAddressString(this (ulong start, ulong end)? address) =>
+            ToAddressString(address?.start ?? 0) + "-" + ToAddressString(address?.end ?? 0);
 
-        public static string ToAddressString(this (ulong start, ulong end) address) => ToAddressString(address.start) + "-" + ToAddressString(address.end);
+        public static string ToAddressString(this (ulong start, ulong end) address) =>
+            ToAddressString(address.start) + "-" + ToAddressString(address.end);
 
         // C# string literal escape characters
         // Taken from: https://docs.microsoft.com/en-us/dotnet/csharp/programming-guide/strings/#regular-and-verbatim-string-literals
@@ -272,13 +277,17 @@ namespace Il2CppInspector.Reflection
                 if (value is byte || value is ushort || value is uint || value is ulong)
                 {
                     var flagValue = Convert.ToUInt64(value);
-                    var setFlags = values.Where(x => (Convert.ToUInt64(x.Value) & flagValue) == Convert.ToUInt64(x.Value)).Select(x => typeName + "." + x.Key);
+                    var setFlags = values
+                        .Where(x => (Convert.ToUInt64(x.Value) & flagValue) == Convert.ToUInt64(x.Value))
+                        .Select(x => typeName + "." + x.Key);
                     return string.Join(" | ", setFlags);
                 }
                 else if (value is sbyte || value is short || value is int || value is long)
                 {
                     var flagValue = Convert.ToInt64(value);
-                    var setFlags = values.Where(x => (Convert.ToInt64(x.Value) & flagValue) == Convert.ToInt64(x.Value)).Select(x => typeName + "." + x.Key);
+                    var setFlags = values
+                        .Where(x => (Convert.ToInt64(x.Value) & flagValue) == Convert.ToInt64(x.Value))
+                        .Select(x => typeName + "." + x.Key);
                     return string.Join(" | ", setFlags);
                 }
                 else

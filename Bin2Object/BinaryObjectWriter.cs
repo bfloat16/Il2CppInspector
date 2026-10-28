@@ -233,13 +233,17 @@ public class BinaryObjectWriter : BinaryWriter
             // Array
             else if (i.FieldType.IsArray)
             {
-                var attr = i.GetCustomAttribute<ArrayLengthAttribute>(false) ?? throw new InvalidOperationException("Array field " + i.Name + " must have ArrayLength attribute");
+                var attr =
+                    i.GetCustomAttribute<ArrayLengthAttribute>(false)
+                    ?? throw new InvalidOperationException("Array field " + i.Name + " must have ArrayLength attribute");
 
                 int lengthPrimitive;
 
                 if (attr.FieldName != null)
                 {
-                    var field = type.GetField(attr.FieldName) ?? throw new ArgumentException("Array field " + i.Name + " has invalid FieldName in ArrayLength attribute");
+                    var field =
+                        type.GetField(attr.FieldName)
+                        ?? throw new ArgumentException("Array field " + i.Name + " has invalid FieldName in ArrayLength attribute");
                     lengthPrimitive = Convert.ToInt32(field.GetValue(obj));
                 }
                 else if (attr.FixedSize > 0)
@@ -252,7 +256,10 @@ public class BinaryObjectWriter : BinaryWriter
                 }
 
                 var arr = i.GetValue(obj);
-                var us = GetType().GetMethods().Where(m => m.Name == "WriteArray" && m.GetParameters().Length == 1 && m.IsGenericMethodDefinition).Single();
+                var us = GetType()
+                    .GetMethods()
+                    .Where(m => m.Name == "WriteArray" && m.GetParameters().Length == 1 && m.IsGenericMethodDefinition)
+                    .Single();
                 var mi2 = us.MakeGenericMethod(i.FieldType.GetElementType());
                 mi2.Invoke(this, [arr]);
             }

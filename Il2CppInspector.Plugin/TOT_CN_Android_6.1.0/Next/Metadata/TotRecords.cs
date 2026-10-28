@@ -184,7 +184,8 @@ namespace Il2CppInspector
             };
 
         // Stock v24.1 0x08-byte {interfaceTypeIndex, offset}.
-        internal static Il2CppInterfaceOffsetPair ReadInterfaceOffset(ReadOnlySpan<byte> d) => new() { InterfaceTypeIndex = I32(d, 0), Offset = I32(d, 4) };
+        internal static Il2CppInterfaceOffsetPair ReadInterfaceOffset(ReadOnlySpan<byte> d) =>
+            new() { InterfaceTypeIndex = I32(d, 0), Offset = I32(d, 4) };
 
         // Stock v24.1 0x08-byte {typeIndex, fieldIndex}.
         internal static Il2CppFieldRef ReadFieldRef(ReadOnlySpan<byte> d) => new() { TypeIndex = I32(d, 0), FieldIndex = I32(d, 4) };

@@ -57,13 +57,28 @@ internal sealed class HkrpgBinary
         var votes8 = Enumerable.Range(0, 16).Count(i => probe[i * 8 + 6] is >= 1 and <= 0x1F);
         var votes16 = Enumerable.Range(0, 16).Count(i => probe[i * 16 + 10] is >= 1 and <= 0x1F);
         typeStride = votes16 >= votes8 ? 16 : 8;
-        genericClasses = metadata.ReadStartup(Header.GenericClassesOffset, checked((int)Header.GenericClassCount), 8,
-            (d, _) => (I32(d, 0), I32(d, 4))).ToArray();
-        var genericTable = metadata.ReadGlobal(Header.GenericMethodTableOffset, checked((int)Header.GenericMethodTableCount), 12,
-            (d, _) => (Spec: I32(d, 0), Fallback: I32(d, 4), Method: U16(d, 8)));
+        genericClasses = metadata
+            .ReadStartup(Header.GenericClassesOffset, checked((int)Header.GenericClassCount), 8, (d, _) => (I32(d, 0), I32(d, 4)))
+            .ToArray();
+        var genericTable = metadata.ReadGlobal(
+            Header.GenericMethodTableOffset,
+            checked((int)Header.GenericMethodTableCount),
+            12,
+            (d, _) => (Spec: I32(d, 0), Fallback: I32(d, 4), Method: U16(d, 8))
+        );
         var specCount = Math.Max(genericTable.Max(e => e.Spec + 1), usages.MethodSpecCount);
-        var specs = metadata.ReadGlobal(Header.MethodSpecsOffset, specCount, 12,
-            (d, _) => new Il2CppMethodSpec { MethodDefinitionIndex = I32(d, 0), MethodIndexIndex = I32(d, 4), ClassIndexIndex = I32(d, 8) });
+        var specs = metadata.ReadGlobal(
+            Header.MethodSpecsOffset,
+            specCount,
+            12,
+            (d, _) =>
+                new Il2CppMethodSpec
+                {
+                    MethodDefinitionIndex = I32(d, 0),
+                    MethodIndexIndex = I32(d, 4),
+                    ClassIndexIndex = I32(d, 8),
+                }
+        );
         if (specs.Any(s => (uint)s.MethodDefinitionIndex >= metadata.Methods.Length || s.ClassIndexIndex < -1 || s.MethodIndexIndex < -1))
             throw new InvalidDataException("HSR generic method spec outside decoded tables.");
         var instCount = Math.Max(genericClasses.Max(c => c.Instance + 1), specs.Max(s => Math.Max(s.ClassIndexIndex, s.MethodIndexIndex) + 1));
@@ -78,7 +93,8 @@ internal sealed class HkrpgBinary
             instances.Add(inst);
             instanceArguments.Add(Image.ReadMappedUWordArray(inst.TypeArgv, (int)argc).Select(TypePointerIndex).ToArray());
         }
-        var maxType = metadata.Fields.Select(f => (int)f.TypeIndex)
+        var maxType = metadata
+            .Fields.Select(f => (int)f.TypeIndex)
             .Concat(metadata.Methods.Select(m => (int)m.ReturnType))
             .Concat(metadata.Definitions.Select(t => (int)t.ParentIndex))
             .Concat(metadata.Model.Params.Select(p => (int)p.TypeIndex))
@@ -88,7 +104,8 @@ internal sealed class HkrpgBinary
             .Concat(metadata.Model.FieldRefs.Select(f => (int)f.TypeIndex))
             .Concat(metadata.Model.AttributeTypeIndices)
             .Append(usages.MaxTypeIndex)
-            .Concat(instanceArguments.SelectMany(a => a)).Max();
+            .Concat(instanceArguments.SelectMany(a => a))
+            .Max();
         EnsureTypes(maxType);
         metadata.ResolveEnumElementTypes(types);
         for (var i = 0; i < types.Count; i++)
@@ -108,7 +125,10 @@ internal sealed class HkrpgBinary
         for (var i = 0; i < types.Count; i++)
         {
             var t = types[i];
-            if (t.Type is Il2CppTypeEnum.IL2CPP_TYPE_CLASS or Il2CppTypeEnum.IL2CPP_TYPE_VALUETYPE || t.Type == Il2CppTypeEnum.IL2CPP_TYPE_OBJECT && t.Data.Value < (uint)metadata.Definitions.Length)
+            if (
+                t.Type is Il2CppTypeEnum.IL2CPP_TYPE_CLASS or Il2CppTypeEnum.IL2CPP_TYPE_VALUETYPE
+                || t.Type == Il2CppTypeEnum.IL2CPP_TYPE_OBJECT && t.Data.Value < (uint)metadata.Definitions.Length
+            )
             {
                 if (t.Data.Value >= (uint)metadata.Definitions.Length)
                     throw new InvalidDataException($"HSR type reference {i} has invalid definition {t.Data.Value}.");
@@ -168,8 +188,17 @@ internal sealed class HkrpgBinary
             CustomAttributeGenerators = Image.ReadMappedUInt64(CodeRegistrationAddress + 0x78),
             CustomAttributeCount = metadata.AttributeRangeCount,
         };
-        binary.MetadataRegistration = new() { TypesCount = types.Count, GenericInstsCount = instances.Count, MethodSpecsCount = specs.Length, GenericClassesCount = genericClasses.Length };
-        binary.CustomAttributeGenerators = Image.ReadMappedUWordArray(binary.CodeRegistration.CustomAttributeGenerators, metadata.AttributeRangeCount);
+        binary.MetadataRegistration = new()
+        {
+            TypesCount = types.Count,
+            GenericInstsCount = instances.Count,
+            MethodSpecsCount = specs.Length,
+            GenericClassesCount = genericClasses.Length,
+        };
+        binary.CustomAttributeGenerators = Image.ReadMappedUWordArray(
+            binary.CodeRegistration.CustomAttributeGenerators,
+            metadata.AttributeRangeCount
+        );
         if (binary.CustomAttributeGenerators.Any(address => !IsCode(address)))
             throw new InvalidDataException("HSR custom attribute generator outside executable sections.");
         binary.MethodInvokePointers = Image.ReadMappedUWordArray(binary.CodeRegistration.InvokerPointers, invokerCount);
@@ -178,15 +207,20 @@ internal sealed class HkrpgBinary
         var secondary = Image.ReadMappedUInt64(CodeRegistrationAddress + 0x30);
         foreach (var entry in genericTable)
         {
-            var va = entry.Method != ushort.MaxValue ? Image.ReadMappedUInt64(primary + (ulong)entry.Method * 8)
-                : entry.Fallback >= 0 ? Image.ReadMappedUInt64(secondary + (ulong)entry.Fallback * 8) : 0;
+            var va =
+                entry.Method != ushort.MaxValue ? Image.ReadMappedUInt64(primary + (ulong)entry.Method * 8)
+                : entry.Fallback >= 0 ? Image.ReadMappedUInt64(secondary + (ulong)entry.Fallback * 8)
+                : 0;
             if (va == 0)
                 continue;
             if (!Contains(va, 1))
                 throw new InvalidDataException("HSR generic method pointer outside image.");
             binary.GenericMethodPointers.TryAdd(specs[entry.Spec], va);
         }
-        status?.Invoke(this, $"HSR: {types.Count} {typeStride}-byte type references, {instances.Count} generic instances, {specs.Length} method specs.");
+        status?.Invoke(
+            this,
+            $"HSR: {types.Count} {typeStride}-byte type references, {instances.Count} generic instances, {specs.Length} method specs."
+        );
         return binary;
     }
 
@@ -218,7 +252,13 @@ internal sealed class HkrpgBinary
             var kind = (Il2CppTypeEnum)((bits >> 16) & 0xFF);
             if ((byte)kind is < 1 or > 0x1F)
                 throw new InvalidDataException($"Invalid HSR type kind 0x{(byte)kind:X} at index {i}.");
-            types.Add(new() { Data = new() { Value = unchecked((uint)raw) }, Value = bits & 0xFFFFFF | ((bits & 0x40000000) >> 1) });
+            types.Add(
+                new()
+                {
+                    Data = new() { Value = unchecked((uint)raw) },
+                    Value = bits & 0xFFFFFF | ((bits & 0x40000000) >> 1),
+                }
+            );
         }
     }
 
@@ -253,7 +293,12 @@ internal sealed class HkrpgBinary
                 first = last;
             // ModuleName is an opaque image-name key for this synthetic view, not a native string pointer.
             // Stock dictionaries compare module records by value, so empty/equal-sized views need identity.
-            var module = new Il2CppCodeGenModule { ModuleName = unchecked((uint)image.NameIndex), MethodPointerCount = (uint)(last - first), MethodPointers = pointersAddress + (ulong)first * 8 };
+            var module = new Il2CppCodeGenModule
+            {
+                ModuleName = unchecked((uint)image.NameIndex),
+                MethodPointerCount = (uint)(last - first),
+                MethodPointers = pointersAddress + (ulong)first * 8,
+            };
             var name = metadata.Model.Strings[image.NameIndex];
             binary.Modules.Add(name, module);
             binary.ModuleMethodPointers.Add(module, pointers[first..last]);
@@ -296,9 +341,11 @@ internal sealed class HkrpgBinary
     }
 
     internal uint LayoutFieldOffset(int group, int local) => LayoutRawFieldOffset(group, local) & 0xFFFFFF;
+
     internal int FieldStorageTag(Reflection.FieldInfo field) => (int)(rawFieldOffsets[field.Index] >> 24);
 
-    internal Reflection.TypeInfo ResolveGenericType(Reflection.TypeModel model, Il2CppType type) => HkrpgGenerics.ResolveType(metadata, this, model, type);
+    internal Reflection.TypeInfo ResolveGenericType(Reflection.TypeModel model, Il2CppType type) =>
+        HkrpgGenerics.ResolveType(metadata, this, model, type);
 
     private ulong[] DiscoverRegistration(int metadataLength)
     {
@@ -313,7 +360,14 @@ internal sealed class HkrpgBinary
                 for (var p = 0; p < 5; p++)
                 {
                     var o = i + p * 14;
-                    if (bytes[o] != 0x48 || bytes[o + 1] != 0x8D || bytes[o + 2] != 0x05 || bytes[o + 7] != 0x48 || bytes[o + 8] != 0x89 || bytes[o + 9] != 0x05)
+                    if (
+                        bytes[o] != 0x48
+                        || bytes[o + 1] != 0x8D
+                        || bytes[o + 2] != 0x05
+                        || bytes[o + 7] != 0x48
+                        || bytes[o + 8] != 0x89
+                        || bytes[o + 9] != 0x05
+                    )
                     {
                         valid = false;
                         break;
@@ -326,7 +380,11 @@ internal sealed class HkrpgBinary
                 targets[0] = start;
                 for (var p = 0; p < 5; p++)
                     targets[p + 1] = unchecked((ulong)((long)start + p * 14 + 7 + I32(bytes, i + p * 14 + 3)));
-                if (!Image.TryMapVATR(targets[5] + 0x1FC, out _) || !Image.TryMapVATR(targets[2] + 0x80, out _) || !Image.TryMapVATR(targets[1] + 0x40, out _))
+                if (
+                    !Image.TryMapVATR(targets[5] + 0x1FC, out _)
+                    || !Image.TryMapVATR(targets[2] + 0x80, out _)
+                    || !Image.TryMapVATR(targets[1] + 0x40, out _)
+                )
                     continue;
                 var span = Image.ReadMappedUInt32(targets[5] + 0x1F8) ^ 0x1608C2C8u;
                 if (span <= 1_000_000 || span > metadataLength)
@@ -349,9 +407,18 @@ internal sealed class HkrpgBinary
             var bytes = Image.ReadBytes(section.ImageStart, section.ImageLength);
             for (var i = 0; i <= bytes.Length - 64; i++)
             {
-                if (bytes[i] != 0x48 || bytes[i + 1] != 0x8D || bytes[i + 2] != 0x0D || bytes[i + 7] != 0xE8
-                    || bytes[i + 12] != 0x48 || bytes[i + 13] != 0x89 || bytes[i + 14] != 0xC6
-                    || bytes[i + 15] != 0x48 || bytes[i + 16] != 0x8D || bytes[i + 17] != 0x0D)
+                if (
+                    bytes[i] != 0x48
+                    || bytes[i + 1] != 0x8D
+                    || bytes[i + 2] != 0x0D
+                    || bytes[i + 7] != 0xE8
+                    || bytes[i + 12] != 0x48
+                    || bytes[i + 13] != 0x89
+                    || bytes[i + 14] != 0xC6
+                    || bytes[i + 15] != 0x48
+                    || bytes[i + 16] != 0x8D
+                    || bytes[i + 17] != 0x0D
+                )
                 {
                     continue;
                 }
@@ -367,5 +434,7 @@ internal sealed class HkrpgBinary
     }
 
     internal bool IsCode(ulong address) => address != 0 && sections.Any(s => s.IsExec && address >= s.VirtualStart && address <= s.VirtualEnd);
-    internal bool Contains(ulong address, ulong length) => address != 0 && sections.Any(s => address >= s.VirtualStart && address <= s.VirtualEnd && length <= s.VirtualEnd - address + 1);
+
+    internal bool Contains(ulong address, ulong length) =>
+        address != 0 && sections.Any(s => address >= s.VirtualStart && address <= s.VirtualEnd && length <= s.VirtualEnd - address + 1);
 }

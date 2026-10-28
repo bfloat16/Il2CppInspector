@@ -7,13 +7,16 @@ namespace Il2CppInspector.Next.Metadata;
 // Index-derived keys and narrowing use the exact unsigned machine width.
 internal static class GenshinRecords
 {
-    internal static uint MethodKey(int i) => unchecked(0x39036375u * ((0x7572748Au * ((0x4E94u * (uint)i) ^ 0x62D8B7B8u) + 0x1F4D9EEAu) ^ 0x6E8931D6u));
+    internal static uint MethodKey(int i) =>
+        unchecked(0x39036375u * ((0x7572748Au * ((0x4E94u * (uint)i) ^ 0x62D8B7B8u) + 0x1F4D9EEAu) ^ 0x6E8931D6u));
 
-    internal static uint FieldKey(int i) => unchecked((uint)((0x7F76A166UL * ((0x23CFUL * (uint)i) ^ 0x3D27C42EUL) + 0xF06651FC0B8AUL) >> 16) + 0x49ACDCBCu);
+    internal static uint FieldKey(int i) =>
+        unchecked((uint)((0x7F76A166UL * ((0x23CFUL * (uint)i) ^ 0x3D27C42EUL) + 0xF06651FC0B8AUL) >> 16) + 0x49ACDCBCu);
 
     internal static uint PropertyKey(int i) => unchecked((0x5CD0B62Eu * ((0xA593u * (uint)i) ^ 0x3CA3FFA0u) + 0x63A341E6u) ^ 0x2411ED71u);
 
-    internal static uint EventKey(int i) => unchecked((uint)((0x1BF89D8B64959BB7UL * ((0x9C54UL * (uint)i) ^ 0x1F0DA79FUL) + 0x295EE0EBA6CAFAEAUL) >> 15));
+    internal static uint EventKey(int i) =>
+        unchecked((uint)((0x1BF89D8B64959BB7UL * ((0x9C54UL * (uint)i) ^ 0x1F0DA79FUL) + 0x295EE0EBA6CAFAEAUL) >> 15));
 
     internal static Il2CppTypeDefinition Type(ReadOnlySpan<byte> d, int i)
     {

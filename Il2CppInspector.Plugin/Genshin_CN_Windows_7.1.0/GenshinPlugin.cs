@@ -12,7 +12,8 @@ public sealed class GenshinPlugin : GamePlugin
     public override bool StreamExports => true;
     public override UnityVersion DefaultUnityVersion => new("2019.4.40f1");
     public override string RegistrationSignature => "void* (*Morax_MetadataCache_Register)()";
-    public override string PythonMetadataProcessor => ResourceHelper.GetText(typeof(GenshinPlugin).Assembly, "Il2CppInspector.Plugin.Genshin.RuntimeCaches.py");
+    public override string PythonMetadataProcessor =>
+        ResourceHelper.GetText(typeof(GenshinPlugin).Assembly, "Il2CppInspector.Plugin.Genshin.RuntimeCaches.py");
 
     public override bool Matches(ReadOnlySpan<byte> metadata) => metadata.Length >= 4 && metadata[..4].SequenceEqual("MHY\0"u8);
 

@@ -236,7 +236,14 @@ internal sealed class PdbTypes
             }
             else
             {
-                using var body = AggregateHeader(type.ComplexValueType == ComplexValueType.Union, checked((ushort)fields.Length), 0x200, fieldList, checked((ulong)type.SizeBytes), name);
+                using var body = AggregateHeader(
+                    type.ComplexValueType == ComplexValueType.Union,
+                    checked((ushort)fields.Length),
+                    0x200,
+                    fieldList,
+                    checked((ulong)type.SizeBytes),
+                    name
+                );
                 index = Add(type.ComplexValueType == ComplexValueType.Union ? (ushort)0x1506 : (ushort)0x1505, body, name);
             }
             complete.Add(type, index);

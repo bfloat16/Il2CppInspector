@@ -181,7 +181,9 @@ namespace Il2CppInspector
                     case MachO.LC_ENCRYPTION_INFO_64:
                         var encryptionInfo = ReadObject<MachOEncryptionInfo>();
                         if (encryptionInfo.CryptID != 0)
-                            throw new NotImplementedException("This Mach-O executable is encrypted with FairPlay DRM and cannot be processed. Please provide a decrypted version of the executable.");
+                            throw new NotImplementedException(
+                                "This Mach-O executable is encrypted with FairPlay DRM and cannot be processed. Please provide a decrypted version of the executable."
+                            );
                         break;
 
                     case MachO.LC_DYLD_CHAINED_FIXUPS:
@@ -387,7 +389,8 @@ namespace Il2CppInspector
                         {
                             fixedValue = pointerFormat switch
                             {
-                                MachODyldChainedPtr.DYLD_CHAINED_PTR_64 or MachODyldChainedPtr.DYLD_CHAINED_PTR_64_OFFSET => currentEntry.High8 << 56 | currentEntry.Target,
+                                MachODyldChainedPtr.DYLD_CHAINED_PTR_64 or MachODyldChainedPtr.DYLD_CHAINED_PTR_64_OFFSET => currentEntry.High8 << 56
+                                    | currentEntry.Target,
                                 _ => fixedValue,
                             };
 
@@ -404,7 +407,11 @@ namespace Il2CppInspector
         }
 
         public override uint[] GetFunctionTable() =>
-            funcTab == null ? [] : ReadArray<TWord>(funcTab.ImageOffset, conv.Int(funcTab.Size) / (Bits / 8)).Select(x => MapVATR(conv.ULong(x)) & 0xffff_fffe).ToArray();
+            funcTab == null
+                ? []
+                : ReadArray<TWord>(funcTab.ImageOffset, conv.Int(funcTab.Size) / (Bits / 8))
+                    .Select(x => MapVATR(conv.ULong(x)) & 0xffff_fffe)
+                    .ToArray();
 
         public override Dictionary<string, Symbol> GetSymbolTable() => symbolTable;
 

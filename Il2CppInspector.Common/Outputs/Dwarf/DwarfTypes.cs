@@ -5,7 +5,14 @@ namespace Il2CppInspector.Outputs.Dwarf;
 
 internal sealed class DwarfTypes(DwarfData info, DwarfData strings, DwarfData fixups)
 {
-    private sealed record Entry(DwarfAbbrev Kind, string Name = null, int Size = 0, uint Referent = 0, uint[] Parameters = null, CppComplexType Complex = null);
+    private sealed record Entry(
+        DwarfAbbrev Kind,
+        string Name = null,
+        int Size = 0,
+        uint Referent = 0,
+        uint[] Parameters = null,
+        CppComplexType Complex = null
+    );
 
     private readonly Dictionary<CppComplexType, uint> complexTypes = [];
     private readonly NativeDebugTypeAliases debugAliases = new();
@@ -97,7 +104,12 @@ internal sealed class DwarfTypes(DwarfData info, DwarfData strings, DwarfData fi
             case CppArrayType array:
                 var arrayKey = (Resolve(array.ElementType), array.Length);
                 if (!arrays.TryGetValue(arrayKey, out var arrayId))
-                    arrays.Add(arrayKey, arrayId = Add(new(DwarfAbbrev.Array, Size: array.SizeBytes, Referent: arrayKey.Item1, Parameters: [checked((uint)array.Length)])));
+                    arrays.Add(
+                        arrayKey,
+                        arrayId = Add(
+                            new(DwarfAbbrev.Array, Size: array.SizeBytes, Referent: arrayKey.Item1, Parameters: [checked((uint)array.Length)])
+                        )
+                    );
                 return arrayId;
             case CppFnPtrType function:
                 var result = Resolve(function.ReturnType);
@@ -117,7 +129,10 @@ internal sealed class DwarfTypes(DwarfData info, DwarfData strings, DwarfData fi
             default:
                 var primitiveKey = (type.Name, type.SizeBytes);
                 if (!primitives.TryGetValue(primitiveKey, out var primitiveId))
-                    primitives.Add(primitiveKey, primitiveId = Add(new(type.Name == "void" ? DwarfAbbrev.Void : DwarfAbbrev.BaseType, type.Name, type.SizeBytes)));
+                    primitives.Add(
+                        primitiveKey,
+                        primitiveId = Add(new(type.Name == "void" ? DwarfAbbrev.Void : DwarfAbbrev.BaseType, type.Name, type.SizeBytes))
+                    );
                 return primitiveId;
         }
     }
@@ -348,7 +363,16 @@ internal sealed class DwarfTypes(DwarfData info, DwarfData strings, DwarfData fi
             "float" or "double" => 4,
             "char" or "signed char" or "int8_t" => 6,
             "unsigned char" or "uint8_t" => 8,
-            "uint16_t" or "uint32_t" or "uint64_t" or "uintptr_t" or "size_t" or "unsigned short" or "unsigned int" or "unsigned long" or "unsigned long long" or "wchar_t" => 7,
+            "uint16_t"
+            or "uint32_t"
+            or "uint64_t"
+            or "uintptr_t"
+            or "size_t"
+            or "unsigned short"
+            or "unsigned int"
+            or "unsigned long"
+            or "unsigned long long"
+            or "wchar_t" => 7,
             "int16_t" or "int32_t" or "int64_t" or "intptr_t" or "short" or "int" or "long" or "long long" => 5,
             _ => throw new InvalidDataException($"Unsupported DWARF primitive type: {name}"),
         };

@@ -217,12 +217,17 @@ namespace Il2CppInspector.Next.Metadata
         internal static Il2CppFieldRef FromZzz(ReadOnlySpan<byte> d, int i)
         {
             var k = unchecked(((((uint)i * 0x605Au ^ 0x575ECFFEu) * 0x11BFAB49u + 0x5D50D6CCu) ^ 0x43E07AA6u) + 0x2A719D27u);
-            return new() { TypeIndex = unchecked((int)((U32(d, 0) + 0xFF2B5F3Au) ^ k)), FieldIndex = unchecked((int)((U32(d, 4) + 0xDC4B8194u) ^ k)) };
+            return new()
+            {
+                TypeIndex = unchecked((int)((U32(d, 0) + 0xFF2B5F3Au) ^ k)),
+                FieldIndex = unchecked((int)((U32(d, 4) + 0xDC4B8194u) ^ k)),
+            };
         }
     }
 
     internal static class Il2CppInterfaceOffsetPairReader
     {
-        internal static Il2CppInterfaceOffsetPair FromZzz(ReadOnlySpan<byte> d, int _) => new() { InterfaceTypeIndex = I32(d, 0), Offset = I16(d, 4) };
+        internal static Il2CppInterfaceOffsetPair FromZzz(ReadOnlySpan<byte> d, int _) =>
+            new() { InterfaceTypeIndex = I32(d, 0), Offset = I16(d, 4) };
     }
 }

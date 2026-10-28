@@ -67,19 +67,28 @@ namespace Il2CppInspector
         // or the same thing without REX prefix
         // Volume 2B, page 4-511
         private bool isPushR64(byte[] buff, int offset = 0) =>
-            ((buff[offset] == 0x40 || buff[offset] == 0x41) && buff[offset + 1] >= 0x50 && buff[offset + 1] <= 0x57) || (buff[offset] >= 0x50 && buff[offset] <= 0x57);
+            ((buff[offset] == 0x40 || buff[offset] == 0x41) && buff[offset + 1] >= 0x50 && buff[offset + 1] <= 0x57)
+            || (buff[offset] >= 0x50 && buff[offset] <= 0x57);
 
         // push rbp is a one-byte instruction encoded as 0x55
         // mov rbp, rsp is a 3-byte instruction encoded as 0x48 0x89 0xE5
-        private bool isPrologue(byte[] buff, int offset = 0) => isPushR64(buff) && buff[offset + 1] == 0x48 && buff[offset + 2] == 0x89 && buff[offset + 3] == 0xE5;
+        private bool isPrologue(byte[] buff, int offset = 0) =>
+            isPushR64(buff) && buff[offset + 1] == 0x48 && buff[offset + 2] == 0x89 && buff[offset + 3] == 0xE5;
 
         // 0b0100_0X0Y to set 64-bit mode, 0x31 or 0x33 for XOR, 0b11_XXX_YYY for register numbers
         // Volume 2C, page 5-612
         private (int reg_op1, int reg_op2)? getXorR64R64(byte[] buff, int offset = 0)
         {
-            if ((buff[offset] & 0b1111_1010) != 0b_0100_0000 || (buff[offset + 1] != 0x31 && buff[offset + 1] != 0x33) || (buff[offset + 2] & 0b1100_0000) != 0b1100_0000)
+            if (
+                (buff[offset] & 0b1111_1010) != 0b_0100_0000
+                || (buff[offset + 1] != 0x31 && buff[offset + 1] != 0x33)
+                || (buff[offset + 2] & 0b1100_0000) != 0b1100_0000
+            )
                 return null;
-            return (((buff[offset] & 0b0000_0100) << 1) + ((buff[offset + 2] & 0b0011_1000) >> 3), ((buff[offset] & 0b0000_0001) << 3) + (buff[offset + 2] & 0b0000_0111));
+            return (
+                ((buff[offset] & 0b0000_0100) << 1) + ((buff[offset + 2] & 0b0011_1000) >> 3),
+                ((buff[offset] & 0b0000_0001) << 3) + (buff[offset + 2] & 0b0000_0111)
+            );
         }
 
         // 0x31 or 0x33 for XOR, 0b11_XXX_YYY for register numbers

@@ -9,9 +9,13 @@ namespace Il2CppInspector;
 internal static class HkrpgRecords
 {
     internal static ushort U16(ReadOnlySpan<byte> data, int offset) => BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(offset, 2));
+
     internal static uint U32(ReadOnlySpan<byte> data, int offset) => BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(offset, 4));
+
     internal static int I32(ReadOnlySpan<byte> data, int offset) => unchecked((int)U32(data, offset));
+
     internal static ulong U64(ReadOnlySpan<byte> data, int offset) => BinaryPrimitives.ReadUInt64LittleEndian(data.Slice(offset, 8));
+
     internal static int Index16(ushort value) => value == ushort.MaxValue ? -1 : value;
 
     internal delegate T RecordReader<T>(ReadOnlySpan<byte> data, int index);

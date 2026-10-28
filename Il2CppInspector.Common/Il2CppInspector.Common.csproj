@@ -17,14 +17,21 @@
     <InternalsVisibleTo Include="@(GamePluginProject->'%(Filename)')" />
     <InternalsVisibleTo Include="Il2CppInspector.Tests" />
     <ProjectReference Include="..\Bin2Object\Bin2Object.csproj" />
-    <ProjectReference Include="..\VersionedSerialization.Generator\VersionedSerialization.Generator.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
+    <ProjectReference
+      Include="..\VersionedSerialization.Generator\VersionedSerialization.Generator.csproj"
+      ReferenceOutputAssembly="false"
+      OutputItemType="Analyzer"
+    />
     <ProjectReference Include="..\VersionedSerialization\VersionedSerialization.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Update="Properties\Resources.resx" LogicalName="Il2CppInspector.Properties.Resources.resources" />
     <EmbeddedResource Include="Outputs\ScriptResources\shared_base.py" LogicalName="Il2CppInspector.Outputs.ScriptResources.shared_base.py" />
-    <EmbeddedResource Include="Outputs\ScriptResources\Targets\BinaryNinja.py" LogicalName="Il2CppInspector.Outputs.ScriptResources.Targets.BinaryNinja.py" />
+    <EmbeddedResource
+      Include="Outputs\ScriptResources\Targets\BinaryNinja.py"
+      LogicalName="Il2CppInspector.Outputs.ScriptResources.Targets.BinaryNinja.py"
+    />
     <EmbeddedResource Include="Outputs\ScriptResources\Targets\Ghidra.py" LogicalName="Il2CppInspector.Outputs.ScriptResources.Targets.Ghidra.py" />
     <EmbeddedResource Include="Outputs\ScriptResources\Targets\IDA.py" LogicalName="Il2CppInspector.Outputs.ScriptResources.Targets.IDA.py" />
   </ItemGroup>

@@ -12,19 +12,34 @@ namespace Il2CppInspector.Tests.Plugin.Endfield
                 plugin.GameId == "Endfield_CN_Android_x.x.x" && plugin.GetType().Assembly.GetName().Name == "Il2CppInspector.Plugin.Endfield",
                 "Endfield_CN_Android_x.x.x is discovered and selected case-insensitively"
             );
-            Common.Plugins.GamePluginsTests.Run(["Endfield", "Endfield_CN", "Endfield_CN_Android_bad", "Endfield_CN_Android_1.5.4", "Endfield_CN_Windows_1.5.3"]);
+            Common.Plugins.GamePluginsTests.Run([
+                "Endfield",
+                "Endfield_CN",
+                "Endfield_CN_Android_bad",
+                "Endfield_CN_Android_1.5.4",
+                "Endfield_CN_Windows_1.5.3",
+            ]);
 
             var data = CreateMetadata();
             var original = data.ToArray();
             Check(plugin.Matches(data) && GamePlugins.Select(null, data) == plugin, "Endfield v29 metadata is automatically detected");
             var fixedData = EndfieldMetadata.Fix(data);
             Check(data.SequenceEqual(original), "Endfield repair leaves input bytes intact");
-            Check(fixedData.Length == data.Length - 8 && fixedData.AsSpan(0x100).SequenceEqual(data.AsSpan(0x108)), "Endfield repair removes eight header bytes and preserves the entire payload");
+            Check(
+                fixedData.Length == data.Length - 8 && fixedData.AsSpan(0x100).SequenceEqual(data.AsSpan(0x108)),
+                "Endfield repair removes eight header bytes and preserves the entire payload"
+            );
 
             using var stream = new MemoryStream(fixedData);
             var metadata = Metadata.FromStream(stream);
-            Check(metadata.Header.Version == 29 && metadata.Header.StringLiteralOffset == 0x100, "Repaired Endfield header is accepted by the stock reader");
-            Check(metadata.StringLiterals.SequenceEqual(["test"]) && metadata.Strings[0] == "abc", "Stock reader decodes repaired Endfield strings and literal records");
+            Check(
+                metadata.Header.Version == 29 && metadata.Header.StringLiteralOffset == 0x100,
+                "Repaired Endfield header is accepted by the stock reader"
+            );
+            Check(
+                metadata.StringLiterals.SequenceEqual(["test"]) && metadata.Strings[0] == "abc",
+                "Stock reader decodes repaired Endfield strings and literal records"
+            );
             Check(!metadata.HasGameAdapter && metadata.GamePlugin == null, "Endfield repair uses stock analysis and exports");
             Check(GamePlugins.Select(null, fixedData) == null && !plugin.Matches(fixedData), "Repaired stock metadata is not repaired again");
             Check(Rejects(fixedData), "Endfield repair rejects already repaired metadata");
@@ -39,7 +54,18 @@ namespace Il2CppInspector.Tests.Plugin.Endfield
             WriteInt(invalid, 4, 27);
             Check(!plugin.Matches(invalid) && Rejects(invalid), "Unsupported Endfield metadata versions are rejected");
 
-            foreach (var (offset, size) in new[] { (-1, 0), (0, 4), (0x100, 4), (data.Length + 1, 0), (0x108, -1), (0x108, int.MaxValue), (int.MaxValue, int.MaxValue) })
+            foreach (
+                var (offset, size) in new[]
+                {
+                    (-1, 0),
+                    (0, 4),
+                    (0x100, 4),
+                    (data.Length + 1, 0),
+                    (0x108, -1),
+                    (0x108, int.MaxValue),
+                    (int.MaxValue, int.MaxValue),
+                }
+            )
             {
                 invalid = data.ToArray();
                 WriteSection(invalid, 3, offset, size);
@@ -74,12 +100,18 @@ namespace Il2CppInspector.Tests.Plugin.Endfield
             var repaired = EndfieldMetadata.Fix(data);
             var normalized = EndfieldMetadata.NormalizeTypeDefinitions(repaired);
             Check(normalized.Length == repaired.Length - 8, "Endfield custom type records shrink from 92 to 88 bytes");
-            Check(normalized.AsSpan(normalized.Length - 44).SequenceEqual(repaired.AsSpan(repaired.Length - 44)), "Endfield type normalization preserves following tables");
+            Check(
+                normalized.AsSpan(normalized.Length - 44).SequenceEqual(repaired.AsSpan(repaired.Length - 44)),
+                "Endfield type normalization preserves following tables"
+            );
             Check(
                 ReadInt(normalized, 8 + 20 * 8) == imagesOffset - 16 && ReadInt(normalized, 8 + 30 * 8) == exportedOffset - 16,
                 "Endfield type normalization adjusts image and exported-type offsets"
             );
-            Check(ReferenceEquals(normalized, EndfieldMetadata.NormalizeTypeDefinitions(normalized)), "Stock-sized Endfield type records are not normalized twice");
+            Check(
+                ReferenceEquals(normalized, EndfieldMetadata.NormalizeTypeDefinitions(normalized)),
+                "Stock-sized Endfield type records are not normalized twice"
+            );
             using var stream = new MemoryStream(normalized);
             var metadata = Metadata.FromStream(stream);
             Check(metadata.Types.Length == 2 && metadata.Images[0].TypeCount == 2, "Endfield type and image counts agree after normalization");
@@ -138,7 +170,10 @@ namespace Il2CppInspector.Tests.Plugin.Endfield
                     28 => 0x84,
                     _ => 4,
                 };
-                Check(ReadInt(fixedData, 8 + i * 8) == expectedOffset && ReadInt(fixedData, 12 + i * 8) == expectedSize, $"Endfield section {i} is repaired correctly");
+                Check(
+                    ReadInt(fixedData, 8 + i * 8) == expectedOffset && ReadInt(fixedData, 12 + i * 8) == expectedSize,
+                    $"Endfield section {i} is repaired correctly"
+                );
             }
         }
 

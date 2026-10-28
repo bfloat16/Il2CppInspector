@@ -72,7 +72,8 @@ namespace Il2CppInspector.Model
                                     !usage.IsValid ? -1
                                     : usage.Type == MetadataUsageType.MethodRef ? Package.MethodSpecs[usage.SourceIndex].MethodDefinitionIndex
                                     : usage.SourceIndex;
-                                var name = method < 0 ? "unknown" : CppDeclarationGenerator.FieldIdentifier(Model.MethodsByDefinitionIndex[method].Name);
+                                var name =
+                                    method < 0 ? "unknown" : CppDeclarationGenerator.FieldIdentifier(Model.MethodsByDefinitionIndex[method].Name);
                                 NativeLayoutAnalysisModel.Add(table, $"methodPtr_{slot}_{name}", Cpp.GetType("Il2CppMethodPointer"), slot * 8);
                                 if (split)
                                 {

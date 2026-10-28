@@ -106,7 +106,8 @@ namespace Il2CppInspector.Cpp
         }
 
         // Return the type as a field
-        public override string ToFieldString(string fieldName, string format = "") => ElementType.ToFieldString(fieldName, format) + "[" + Length + "]";
+        public override string ToFieldString(string fieldName, string format = "") =>
+            ElementType.ToFieldString(fieldName, format) + "[" + Length + "]";
 
         public override string ToString(string format = "") => ElementType + "[" + Length + "]";
     }
@@ -222,7 +223,12 @@ namespace Il2CppInspector.Cpp
         // Output as a named field in a type
         public override string ToFieldString(string name, string format = "") =>
             $"{ReturnType.Name} (*{name})("
-            + string.Join(", ", Arguments.Select(a => a.Type is CppFnPtrType fn ? fn.ToFieldString(a.Name, format) : a.Type.Name + (a.Name.Length > 0 ? " " + a.Name : "")))
+            + string.Join(
+                ", ",
+                Arguments.Select(a =>
+                    a.Type is CppFnPtrType fn ? fn.ToFieldString(a.Name, format) : a.Type.Name + (a.Name.Length > 0 ? " " + a.Name : "")
+                )
+            )
             + ")";
 
         // Output as a typedef declaration
@@ -230,7 +236,12 @@ namespace Il2CppInspector.Cpp
 
         // Output as a function signature
         public string ToSignatureString() =>
-            $"{ReturnType.Name} {Name}(" + string.Join(", ", Arguments.Select(a => a.Type is CppFnPtrType fn ? fn.ToFieldString(a.Name) : a.Type.Name + (a.Name.Length > 0 ? " " + a.Name : ""))) + ")";
+            $"{ReturnType.Name} {Name}("
+            + string.Join(
+                ", ",
+                Arguments.Select(a => a.Type is CppFnPtrType fn ? fn.ToFieldString(a.Name) : a.Type.Name + (a.Name.Length > 0 ? " " + a.Name : ""))
+            )
+            + ")";
     }
 
     // A named alias for another type
@@ -260,19 +271,24 @@ namespace Il2CppInspector.Cpp
         public override int Alignment => ElementType.Alignment;
 
         public override string ToFieldString(string fieldName, string format = "") =>
-            ElementType is CppPointerType or CppFnPtrType ? ElementType.ToFieldString("const " + fieldName, format) : "const " + ElementType.ToFieldString(fieldName, format);
+            ElementType is CppPointerType or CppFnPtrType
+                ? ElementType.ToFieldString("const " + fieldName, format)
+                : "const " + ElementType.ToFieldString(fieldName, format);
     }
 
     public sealed class CppVolatileType(CppType elementType) : CppType
     {
         public CppType ElementType { get; } = elementType;
-        public override string Name => ElementType is CppPointerType or CppFnPtrType ? ElementType.Name + " volatile" : "volatile " + ElementType.Name;
+        public override string Name =>
+            ElementType is CppPointerType or CppFnPtrType ? ElementType.Name + " volatile" : "volatile " + ElementType.Name;
         public override int Size => ElementType.Size;
         public override int SizeBytes => ElementType.SizeBytes;
         public override int Alignment => ElementType.Alignment;
 
         public override string ToFieldString(string fieldName, string format = "") =>
-            ElementType is CppPointerType or CppFnPtrType ? ElementType.ToFieldString("volatile " + fieldName, format) : "volatile " + ElementType.ToFieldString(fieldName, format);
+            ElementType is CppPointerType or CppFnPtrType
+                ? ElementType.ToFieldString("volatile " + fieldName, format)
+                : "volatile " + ElementType.ToFieldString(fieldName, format);
     }
 
     // A struct, union, enum or class type (type with fields)
@@ -312,7 +328,9 @@ namespace Il2CppInspector.Cpp
                             .Flattened.Fields.Select(kl => new
                             {
                                 Key = kl.Key + baseOffset,
-                                Value = kl.Value.Select(f => new CppField(f.Name, f.Type, f.BitfieldSize) { Offset = f.Offset + baseOffset }).ToList(),
+                                Value = kl
+                                    .Value.Select(f => new CppField(f.Name, f.Type, f.BitfieldSize) { Offset = f.Offset + baseOffset })
+                                    .ToList(),
                             })
                             .ToDictionary(kv => kv.Key, kv => kv.Value);
 
@@ -456,10 +474,12 @@ namespace Il2CppInspector.Cpp
         }
 
         // Add a field to the type
-        public int AddField(string name, CppType type, int alignmentBytes = 0, int bitfield = 0, bool isConst = false) => AddField(new CppField(name, type, bitfield, isConst), alignmentBytes);
+        public int AddField(string name, CppType type, int alignmentBytes = 0, int bitfield = 0, bool isConst = false) =>
+            AddField(new CppField(name, type, bitfield, isConst), alignmentBytes);
 
         // Return the type as a field
-        public override string ToFieldString(string fieldName, string format = "") => (ComplexValueType == ComplexValueType.Struct ? "struct " : "union ") + Name + " " + fieldName;
+        public override string ToFieldString(string fieldName, string format = "") =>
+            (ComplexValueType == ComplexValueType.Struct ? "struct " : "union ") + Name + " " + fieldName;
 
         // Summarize all field names and offsets
         public override string ToString(string format = "")
@@ -533,7 +553,8 @@ namespace Il2CppInspector.Cpp
                 maxValue = Math.Max(maxValue, number);
                 UnderlyingType =
                     minValue >= 0 && maxValue > int.MaxValue && maxValue <= uint.MaxValue ? new CppType("uint32_t", 32)
-                    : minValue < int.MinValue || maxValue > uint.MaxValue || (minValue < 0 && maxValue > int.MaxValue) ? new CppType(minValue < 0 ? "int64_t" : "uint64_t", 64)
+                    : minValue < int.MinValue || maxValue > uint.MaxValue || (minValue < 0 && maxValue > int.MaxValue)
+                        ? new CppType(minValue < 0 ? "int64_t" : "uint64_t", 64)
                     : new CppType("int32_t", 32);
             }
             AddField(new CppEnumField(this, name, UnderlyingType, value));

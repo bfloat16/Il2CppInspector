@@ -15,14 +15,19 @@ namespace Il2CppInspector.Model
 
         internal string InterfaceVTableName(TypeInfo type) => Name(Model.TypesByDefinitionIndex[type.Index]) + "__InterfaceVTable";
 
-        internal string VTableName(TypeInfo type, bool split) => Name(Model.TypesByDefinitionIndex[type.Index]) + "__VTable_" + (split ? "Dual" : "Single");
+        internal string VTableName(TypeInfo type, bool split) =>
+            Name(Model.TypesByDefinitionIndex[type.Index]) + "__VTable_" + (split ? "Dual" : "Single");
 
         internal void InitializeNaming(AppModel app)
         {
             // Share the stock namer, including its keyword and runtime-header reservations.
             typeNamer = app.NativeTypeNamer;
             // Keep names stable regardless of which export first requests a declaration.
-            foreach (var type in Model.TypesByDefinitionIndex.Where(t => t != null).Concat(GenericTypes.OrderBy(pair => pair.Key).Select(pair => pair.Value)))
+            foreach (
+                var type in Model
+                    .TypesByDefinitionIndex.Where(t => t != null)
+                    .Concat(GenericTypes.OrderBy(pair => pair.Key).Select(pair => pair.Value))
+            )
                 Name(type);
             foreach (var type in Model.TypesByReferenceIndex)
             {
@@ -50,7 +55,10 @@ namespace Il2CppInspector.Model
         }
 
         public override string ClassName(TypeInfo type) =>
-            type == null || type.HasElementType || type.ContainsGenericParameters || (type.IsGenericType && !type.IsGenericTypeDefinition && !GenericOrdinals.ContainsKey(type))
+            type == null
+            || type.HasElementType
+            || type.ContainsGenericParameters
+            || (type.IsGenericType && !type.IsGenericTypeDefinition && !GenericOrdinals.ContainsKey(type))
                 ? "Il2CppClass"
                 : Name(type) + "__Class";
 
@@ -85,7 +93,9 @@ namespace Il2CppInspector.Model
             }
             if (type.IsEnum)
             {
-                return !type.IsGenericType || type.IsGenericTypeDefinition || GenericOrdinals.ContainsKey(type) ? Name(type) : CType(type.GetEnumUnderlyingType());
+                return !type.IsGenericType || type.IsGenericTypeDefinition || GenericOrdinals.ContainsKey(type)
+                    ? Name(type)
+                    : CType(type.GetEnumUnderlyingType());
             }
 
             if (type.ContainsGenericParameters)
@@ -175,7 +185,8 @@ namespace Il2CppInspector.Model
             return name;
         }
 
-        internal virtual bool HasInstanceLayout(TypeInfo type) => !type.IsGenericType || type.IsGenericTypeDefinition || type.GameLayoutGroup.HasValue;
+        internal virtual bool HasInstanceLayout(TypeInfo type) =>
+            !type.IsGenericType || type.IsGenericTypeDefinition || type.GameLayoutGroup.HasValue;
 
         internal abstract int Alignment(TypeInfo type);
         internal abstract CppComplexType CreateClass(NativeLayoutAnalysisModel layouts, TypeInfo type);

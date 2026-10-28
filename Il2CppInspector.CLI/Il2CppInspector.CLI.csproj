@@ -19,9 +19,17 @@
     </MSBuild>
   </Target>
   <Target Name="CopyGamePlugins" AfterTargets="Build" DependsOnTargets="CollectGamePluginFiles">
-    <Copy SourceFiles="@(GamePluginFiles)" DestinationFiles="@(GamePluginFiles->'$(OutDir)plugins/%(PluginDirectory)/%(PluginSubdirectory)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy
+      SourceFiles="@(GamePluginFiles)"
+      DestinationFiles="@(GamePluginFiles->'$(OutDir)plugins/%(PluginDirectory)/%(PluginSubdirectory)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true"
+    />
   </Target>
   <Target Name="PublishGamePlugins" AfterTargets="Publish" DependsOnTargets="CollectGamePluginFiles">
-    <Copy SourceFiles="@(GamePluginFiles)" DestinationFiles="@(GamePluginFiles->'$(PublishDir)plugins/%(PluginDirectory)/%(PluginSubdirectory)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy
+      SourceFiles="@(GamePluginFiles)"
+      DestinationFiles="@(GamePluginFiles->'$(PublishDir)plugins/%(PluginDirectory)/%(PluginSubdirectory)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true"
+    />
   </Target>
 </Project>

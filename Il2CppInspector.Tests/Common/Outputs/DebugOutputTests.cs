@@ -46,7 +46,10 @@ internal static class DebugOutputTests
             }
             catch (NotSupportedException ex)
             {
-                Check(ex.Message.Contains(message), $"Debug rejects unsupported {format} {arch} ({endian}) without routing to an inappropriate symbol format");
+                Check(
+                    ex.Message.Contains(message),
+                    $"Debug rejects unsupported {format} {arch} ({endian}) without routing to an inappropriate symbol format"
+                );
                 return;
             }
             throw new InvalidOperationException($"Debug unexpectedly accepted {format} {arch} ({endian}).");

@@ -55,8 +55,14 @@ namespace Il2CppInspector
                 FieldOffsetsCount = binary.Metadata.Types.Length,
                 TypeDefinitionsSizesCount = binary.Metadata.Types.Length,
             };
-            binary.CustomAttributeGenerators = binary.Image.ReadMappedUWordArray(binary.CodeRegistration.CustomAttributeGenerators, binary.CodeRegistration.CustomAttributeCount);
-            binary.MethodInvokePointers = binary.Image.ReadMappedUWordArray(binary.CodeRegistration.InvokerPointers, checked((int)binary.CodeRegistration.InvokerPointersCount));
+            binary.CustomAttributeGenerators = binary.Image.ReadMappedUWordArray(
+                binary.CodeRegistration.CustomAttributeGenerators,
+                binary.CodeRegistration.CustomAttributeCount
+            );
+            binary.MethodInvokePointers = binary.Image.ReadMappedUWordArray(
+                binary.CodeRegistration.InvokerPointers,
+                checked((int)binary.CodeRegistration.InvokerPointersCount)
+            );
             if (binary.CustomAttributeGenerators.Length != binary.Metadata.AttributeTypeRanges.Length)
             {
                 throw new InvalidDataException("ZZZ attribute range/generator count mismatch.");

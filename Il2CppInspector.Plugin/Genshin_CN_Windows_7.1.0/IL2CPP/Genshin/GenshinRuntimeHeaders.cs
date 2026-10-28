@@ -11,7 +11,12 @@ internal static class GenshinRuntimeHeaders
             var pattern = $@"typedef struct {name}\s*\{{.*?\}}\s*{name};";
             if (!Regex.IsMatch(stock, pattern, RegexOptions.Singleline))
                 throw new InvalidOperationException($"Missing runtime header record {name}.");
-            stock = Regex.Replace(stock, pattern, _ => $"typedef struct {name}\n{{\n{body.ReplaceLineEndings("\n")}\n}} {name};", RegexOptions.Singleline);
+            stock = Regex.Replace(
+                stock,
+                pattern,
+                _ => $"typedef struct {name}\n{{\n{body.ReplaceLineEndings("\n")}\n}} {name};",
+                RegexOptions.Singleline
+            );
         }
         return "// Genshin 7.1.0 Windows MORAX physical runtime records. Encoded members require decoding.\n" + stock;
     }

@@ -36,7 +36,9 @@ namespace Il2CppInspector.Plugin.TOT.OS
 
             // TOT's registration structures are stock v24.1, so the standard discovery works. The code
             // heuristic is preferred because it needs no metadata; the data heuristic is the fallback.
-            var il2cppBinary = Il2CppBinary.Load(image, adapter.Metadata, status) ?? throw new InvalidDataException("Could not locate the TOT IL2CPP registration structures in the binary.");
+            var il2cppBinary =
+                Il2CppBinary.Load(image, adapter.Metadata, status)
+                ?? throw new InvalidDataException("Could not locate the TOT IL2CPP registration structures in the binary.");
 
             adapter.ReadBinary(il2cppBinary);
             var package = new Il2CppInspector(il2cppBinary, adapter.Metadata);

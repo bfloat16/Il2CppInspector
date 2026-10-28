@@ -122,7 +122,10 @@ namespace Il2CppInspector.Reflection
 
         // ref will be handled as part of the type name
         public string GetModifierString() =>
-            (IsIn && !IsOut ? "in " : "") + (IsOut && !IsIn ? "out " : "") + (IsIn && IsOut ? "[In, Out] " : "") + (!IsIn && !IsOut && ParameterType.IsByRef ? "ref " : "");
+            (IsIn && !IsOut ? "in " : "")
+            + (IsOut && !IsIn ? "out " : "")
+            + (IsIn && IsOut ? "[In, Out] " : "")
+            + (!IsIn && !IsOut && ParameterType.IsByRef ? "ref " : "");
 
         private string getCSharpSignatureString(Scope scope) => $"{GetModifierString()}{ParameterType.GetScopedCSharpName(scope, omitRef: true)}";
 
@@ -132,7 +135,11 @@ namespace Il2CppInspector.Reflection
             IsRetval
                 ? null
                 : $"{CustomAttributes.ToString(usingScope, inline: true, emitPointer: emitPointer, mustCompile: compileAttributes).Replace("[ParamArray]", "params")}"
-                    + (Position == 0 && DeclaringMethod.GetCustomAttributes("System.Runtime.CompilerServices.ExtensionAttribute").Any() ? "this " : "")
+                    + (
+                        Position == 0 && DeclaringMethod.GetCustomAttributes("System.Runtime.CompilerServices.ExtensionAttribute").Any()
+                            ? "this "
+                            : ""
+                    )
                     + $"{getCSharpSignatureString(usingScope)} {CSharpName}"
                     + (
                         IsOptional

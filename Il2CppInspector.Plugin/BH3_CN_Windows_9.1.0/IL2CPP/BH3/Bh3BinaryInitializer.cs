@@ -66,8 +66,14 @@ namespace Il2CppInspector
             };
             if (binary.CodeRegistration.CustomAttributeCount != binary.Metadata.AttributeTypeRanges.Length)
                 throw new InvalidDataException("BH3 attribute range/generator count mismatch.");
-            binary.CustomAttributeGenerators = binary.Image.ReadMappedUWordArray(binary.CodeRegistration.CustomAttributeGenerators, binary.CodeRegistration.CustomAttributeCount);
-            binary.MethodInvokePointers = binary.Image.ReadMappedUWordArray(binary.CodeRegistration.InvokerPointers, checked((int)binary.CodeRegistration.InvokerPointersCount));
+            binary.CustomAttributeGenerators = binary.Image.ReadMappedUWordArray(
+                binary.CodeRegistration.CustomAttributeGenerators,
+                binary.CodeRegistration.CustomAttributeCount
+            );
+            binary.MethodInvokePointers = binary.Image.ReadMappedUWordArray(
+                binary.CodeRegistration.InvokerPointers,
+                checked((int)binary.CodeRegistration.InvokerPointersCount)
+            );
         }
     }
 }

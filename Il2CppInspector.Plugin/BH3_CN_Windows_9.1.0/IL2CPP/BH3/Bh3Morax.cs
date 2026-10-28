@@ -135,7 +135,13 @@ namespace Il2CppInspector
             ReadMetadata();
         }
 
-        internal static Il2CppInspector Load(IFileFormatStream image, byte[] global, byte[] startup, EventHandler<string> status, Plugins.GamePlugin plugin)
+        internal static Il2CppInspector Load(
+            IFileFormatStream image,
+            byte[] global,
+            byte[] startup,
+            EventHandler<string> status,
+            Plugins.GamePlugin plugin
+        )
         {
             var adapter = new Bh3Morax(image, global, startup, status, plugin);
             var binary = new Il2CppBinaryX64(image, status);
@@ -184,7 +190,14 @@ namespace Il2CppInspector
                     for (var p = 0; p < 5; p++)
                     {
                         var o = i + p * 14;
-                        if (bytes[o] != 0x48 || bytes[o + 1] != 0x8D || bytes[o + 2] != 0x05 || bytes[o + 7] != 0x48 || bytes[o + 8] != 0x89 || bytes[o + 9] != 0x05)
+                        if (
+                            bytes[o] != 0x48
+                            || bytes[o + 1] != 0x8D
+                            || bytes[o + 2] != 0x05
+                            || bytes[o + 7] != 0x48
+                            || bytes[o + 8] != 0x89
+                            || bytes[o + 9] != 0x05
+                        )
                         {
                             valid = false;
                             break;
@@ -260,8 +273,20 @@ namespace Il2CppInspector
             // cover max(constraintsStart + constraintsCount).
             var constraints = Metadata.GenericParameters.Max(p => p.ConstraintsCount == 0 ? 0 : p.ConstraintsStart + p.ConstraintsCount);
             Metadata.GenericConstraintIndices = Records(global, Base(0x11C), constraints, 4, (d, _) => new TypeIndex(I32(d, 0)));
-            Metadata.FieldDefaultValues = Records(global, Base(0x07C), TableCount(0x07C, 0x11C, 12), 12, (d, _) => Il2CppFieldDefaultValueReader.FromBh3(d));
-            Metadata.ParameterDefaultValues = Records(global, Base(0x138), TableCount(0x138, 0x0D0, 12), 12, (d, _) => Il2CppParameterDefaultValueReader.FromBh3(d));
+            Metadata.FieldDefaultValues = Records(
+                global,
+                Base(0x07C),
+                TableCount(0x07C, 0x11C, 12),
+                12,
+                (d, _) => Il2CppFieldDefaultValueReader.FromBh3(d)
+            );
+            Metadata.ParameterDefaultValues = Records(
+                global,
+                Base(0x138),
+                TableCount(0x138, 0x0D0, 12),
+                12,
+                (d, _) => Il2CppParameterDefaultValueReader.FromBh3(d)
+            );
             var attributeCount = 0;
             foreach (var image in Metadata.Images)
             {

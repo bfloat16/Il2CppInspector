@@ -427,7 +427,10 @@ namespace Il2CppInspector
             if (!(GetProgramHeader(Elf.PT_DYNAMIC) is TPHdr PT_DYNAMIC))
                 return;
 
-            var dt = ReadArray<elf_dynamic<TWord>>(conv.Long(PT_DYNAMIC.p_offset), (int)(conv.Long(PT_DYNAMIC.p_filesz) / Sizeof(typeof(elf_dynamic<TWord>))));
+            var dt = ReadArray<elf_dynamic<TWord>>(
+                conv.Long(PT_DYNAMIC.p_offset),
+                (int)(conv.Long(PT_DYNAMIC.p_filesz) / Sizeof(typeof(elf_dynamic<TWord>)))
+            );
 
             // Every table containing virtual address pointers
             // https://docs.oracle.com/cd/E19683-01/817-3677/chapter6-42444/index.html
@@ -473,11 +476,15 @@ namespace Il2CppInspector
             {
                 // Section header shared object symbol table (.symtab)
                 if (GetSection(Elf.SHT_SYMTAB) is elf_shdr<TWord> SHT_SYMTAB)
-                    pTables.Add((SHT_SYMTAB.sh_offset, conv.Div(SHT_SYMTAB.sh_size, SHT_SYMTAB.sh_entsize), SHT_STRTAB.sh_offset, SHT_STRTAB.sh_size));
+                    pTables.Add(
+                        (SHT_SYMTAB.sh_offset, conv.Div(SHT_SYMTAB.sh_size, SHT_SYMTAB.sh_entsize), SHT_STRTAB.sh_offset, SHT_STRTAB.sh_size)
+                    );
 
                 // Section header executable symbol table (.dynsym)
                 if (GetSection(Elf.SHT_DYNSYM) is elf_shdr<TWord> SHT_DYNSYM)
-                    pTables.Add((SHT_DYNSYM.sh_offset, conv.Div(SHT_DYNSYM.sh_size, SHT_DYNSYM.sh_entsize), SHT_STRTAB.sh_offset, SHT_STRTAB.sh_size));
+                    pTables.Add(
+                        (SHT_DYNSYM.sh_offset, conv.Div(SHT_DYNSYM.sh_size, SHT_DYNSYM.sh_entsize), SHT_STRTAB.sh_offset, SHT_STRTAB.sh_size)
+                    );
             }
 
             // Symbol table in dynamic section (DT_SYMTAB)
@@ -496,7 +503,14 @@ namespace Il2CppInspector
                         {
                             var end = orderedTable.First().d_un;
                             // Dynamic symbol table
-                            pTables.Add((conv.FromUInt(MapVATR(conv.ULong(DT_SYMTAB.d_un))), conv.Div(conv.Sub(end, DT_SYMTAB.d_un), Sizeof(typeof(TSym))), DT_STRTAB.d_un, DT_STRSZ.d_un));
+                            pTables.Add(
+                                (
+                                    conv.FromUInt(MapVATR(conv.ULong(DT_SYMTAB.d_un))),
+                                    conv.Div(conv.Sub(end, DT_SYMTAB.d_un), Sizeof(typeof(TSym))),
+                                    DT_STRTAB.d_un,
+                                    DT_STRSZ.d_un
+                                )
+                            );
                         }
                     }
                 }
@@ -607,7 +621,10 @@ namespace Il2CppInspector
                 ImageStart = (uint)conv.Int(s.sh_offset),
                 ImageEnd = (uint)conv.Int(s.sh_offset) + (uint)conv.Int(s.sh_size) - 1,
 
-                IsData = ((Elf)conv.Int(s.sh_flags) & Elf.SHF_ALLOC) == Elf.SHF_ALLOC && ((Elf)conv.Int(s.sh_flags) & Elf.SHF_EXECINSTR) == 0 && (Elf)s.sh_type == Elf.SHT_PROGBITS,
+                IsData =
+                    ((Elf)conv.Int(s.sh_flags) & Elf.SHF_ALLOC) == Elf.SHF_ALLOC
+                    && ((Elf)conv.Int(s.sh_flags) & Elf.SHF_EXECINSTR) == 0
+                    && (Elf)s.sh_type == Elf.SHT_PROGBITS,
                 IsExec = ((Elf)conv.Int(s.sh_flags) & Elf.SHF_EXECINSTR) == Elf.SHF_EXECINSTR && (Elf)s.sh_type == Elf.SHT_PROGBITS,
                 IsBSS = (Elf)s.sh_type == Elf.SHT_NOBITS,
 

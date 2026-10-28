@@ -99,7 +99,11 @@ namespace Il2CppInspector.Model
                 gameAnalysis?.EnumerateNativeMethods()
                 ?? methods
                     .Values.Where(m => m.HasCompiledCode)
-                    .Select(m => new NativeMethod(m.CppFnPtrType.Name, m.MethodCodeAddress, m.CppFnPtrType) { SourceName = m.Method.Name, LinkageName = m.ToMangledString() });
+                    .Select(m => new NativeMethod(m.CppFnPtrType.Name, m.MethodCodeAddress, m.CppFnPtrType)
+                    {
+                        SourceName = m.Method.Name,
+                        LinkageName = m.ToMangledString(),
+                    });
             foreach (var method in nativeMethods)
                 yield return method;
             foreach (var method in EnumerateNativeSupportMethods())
@@ -113,7 +117,14 @@ namespace Il2CppInspector.Model
                     yield return new NativeMethod(
                         method.Name,
                         method.VirtualAddress.Start,
-                        new CppFnPtrType(WordSizeBits, RuntimeCppTypes.GetType("void"), [("cache", RuntimeCppTypes.GetType("CustomAttributesCache *"))]) { Name = method.Name }
+                        new CppFnPtrType(
+                            WordSizeBits,
+                            RuntimeCppTypes.GetType("void"),
+                            [("cache", RuntimeCppTypes.GetType("CustomAttributesCache *"))]
+                        )
+                        {
+                            Name = method.Name,
+                        }
                     );
             var invokers = Package.MethodInvokePointers;
             var reflected = Package.Metadata.GamePlugin?.StreamExports == true ? null : TypeModel.MethodInvokers;
@@ -264,12 +275,17 @@ namespace Il2CppInspector.Model
                 : UnityHeaders.GuessHeadersForBinary(TypeModel.Package.Binary).Last();
             UnityVersion = unityVersion ?? UnityHeaders.VersionRange.Min;
 
-            Console.WriteLine($"Selected Unity version(s) {UnityHeaders.VersionRange} (types: {UnityHeaders.TypeHeaderResource.VersionRange}, APIs: {UnityHeaders.APIHeaderResource.VersionRange})");
+            Console.WriteLine(
+                $"Selected Unity version(s) {UnityHeaders.VersionRange} (types: {UnityHeaders.TypeHeaderResource.VersionRange}, APIs: {UnityHeaders.APIHeaderResource.VersionRange})"
+            );
 
             // Check for matching metadata and binary versions
             if (UnityHeaders.MetadataVersion != Image.Version)
             {
-                Console.WriteLine($"Warning: selected version {UnityVersion} (metadata version {UnityHeaders.MetadataVersion})" + $" does not match metadata version {Image.Version}.");
+                Console.WriteLine(
+                    $"Warning: selected version {UnityVersion} (metadata version {UnityHeaders.MetadataVersion})"
+                        + $" does not match metadata version {Image.Version}."
+                );
             }
 
             // Initialize declaration generator to process every type in the binary
@@ -402,7 +418,9 @@ namespace Il2CppInspector.Model
             // Find unused concrete value types
             var usedTypes = Types.Values.Select(t => t.Type);
             var unusedTypes = TypeModel.Types.Except(usedTypes);
-            var unusedConcreteTypes = unusedTypes.Where(t => !t.IsGenericType && !t.IsGenericParameter && !t.IsByRef && !t.IsPointer && !t.IsArray && !t.IsAbstract && t.Name != "<Module>");
+            var unusedConcreteTypes = unusedTypes.Where(t =>
+                !t.IsGenericType && !t.IsGenericParameter && !t.IsByRef && !t.IsPointer && !t.IsArray && !t.IsAbstract && t.Name != "<Module>"
+            );
 
             Group = "unused_concrete_types";
 
@@ -453,7 +471,9 @@ namespace Il2CppInspector.Model
                     var field = type.DeclaredFields.First(f => f.Index == definition.FieldIndex + reference.FieldIndex);
                     var size = FieldRvaSize(field);
                     var value =
-                        field.HasFieldRVA && size > 0 && field.DefaultValueMetadataAddress != 0 ? Convert.ToHexString(Package.Metadata.ReadBytes((long)field.DefaultValueMetadataAddress, size)) : "";
+                        field.HasFieldRVA && size > 0 && field.DefaultValueMetadataAddress != 0
+                            ? Convert.ToHexString(Package.Metadata.ReadBytes((long)field.DefaultValueMetadataAddress, size))
+                            : "";
                     (usage.Type == MetadataUsageType.FieldInfo ? Fields : FieldRvas)[usage.VirtualAddress] = (field, value);
                 }
             }
@@ -464,7 +484,16 @@ namespace Il2CppInspector.Model
                 ? Package.Metadata.GameAdapter.FieldRvaSize(Package.TypeReferences[Package.Fields[field.Index].TypeIndex], Package.Binary)
                 : field.FieldType.Sizes.NativeSize;
 
-        private void AddTypes(List<(TypeInfo ilType, CppComplexType valueType, CppComplexType referenceType, CppComplexType fieldsType, CppComplexType vtableType, CppComplexType staticsType)> types)
+        private void AddTypes(
+            List<(
+                TypeInfo ilType,
+                CppComplexType valueType,
+                CppComplexType referenceType,
+                CppComplexType fieldsType,
+                CppComplexType vtableType,
+                CppComplexType staticsType
+            )> types
+        )
         {
             // Add types to dependency-ordered list
             foreach (var type in types)

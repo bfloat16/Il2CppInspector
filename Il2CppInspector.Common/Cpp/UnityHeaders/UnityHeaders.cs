@@ -28,7 +28,12 @@ namespace Il2CppInspector.Cpp.UnityHeaders
         private readonly Func<string, string> transformTypes;
 
         // Initialize from a type header and an API header
-        private UnityHeaders(UnityResource typeHeaders, UnityResource apiHeaders, Func<string, string> transformTypes = null, UnityVersion version = null)
+        private UnityHeaders(
+            UnityResource typeHeaders,
+            UnityResource apiHeaders,
+            Func<string, string> transformTypes = null,
+            UnityVersion version = null
+        )
         {
             TypeHeaderResource = typeHeaders;
             APIHeaderResource = apiHeaders;
@@ -98,10 +103,14 @@ namespace Il2CppInspector.Cpp.UnityHeaders
 
         // List all API header files embedded into this build of Il2CppInspector
         public static IEnumerable<UnityResource> GetAllAPIHeaders() =>
-            ResourceHelper.GetNamesForNamespace("Il2CppInspector.Cpp.Il2CppAPIHeaders").Where(s => s.EndsWith(".h")).Select(s => new UnityResource(s));
+            ResourceHelper
+                .GetNamesForNamespace("Il2CppInspector.Cpp.Il2CppAPIHeaders")
+                .Where(s => s.EndsWith(".h"))
+                .Select(s => new UnityResource(s));
 
         // Get the headers which support the given version of Unity
-        public static UnityHeaders GetHeadersForVersion(UnityVersion version) => new(GetTypeHeaderForVersion(version), GetAPIHeaderForVersion(version));
+        public static UnityHeaders GetHeadersForVersion(UnityVersion version) =>
+            new(GetTypeHeaderForVersion(version), GetAPIHeaderForVersion(version));
 
         public static UnityHeaders ForPlugin(UnityVersion baseVersion, UnityVersion runtimeVersion, Func<string, string> transformTypes) =>
             new(GetTypeHeaderForVersion(baseVersion), GetAPIHeaderForVersion(baseVersion), transformTypes, runtimeVersion);
@@ -174,7 +183,9 @@ namespace Il2CppInspector.Cpp.UnityHeaders
                 // Intersect all API ranges with all header ranges to produce final list of possible ranges
                 Console.WriteLine("IL2CPP API discovery was successful");
 
-                return typeHeaders.SelectMany(t => apiMatches.Where(a => t.VersionRange.Intersect(a.VersionRange) != null).Select(a => new UnityHeaders(t, a))).ToList();
+                return typeHeaders
+                    .SelectMany(t => apiMatches.Where(a => t.VersionRange.Intersect(a.VersionRange) != null).Select(a => new UnityHeaders(t, a)))
+                    .ToList();
             }
 
             // None of the possible API versions match the binary
@@ -206,7 +217,8 @@ namespace Il2CppInspector.Cpp.UnityHeaders
         }
 
         // Get the metadata version from a type header resource name
-        private static StructVersion GetMetadataVersionFromFilename(string resourceName) => resourceName[(typeof(UnityHeaders).Namespace!.Length + 1)..].Split('-')[0];
+        private static StructVersion GetMetadataVersionFromFilename(string resourceName) =>
+            resourceName[(typeof(UnityHeaders).Namespace!.Length + 1)..].Split('-')[0];
 
         // Equality comparisons
         public static bool operator ==(UnityHeaders first, UnityHeaders second)

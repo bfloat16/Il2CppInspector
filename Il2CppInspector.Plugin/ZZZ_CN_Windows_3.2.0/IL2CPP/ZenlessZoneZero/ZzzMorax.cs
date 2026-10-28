@@ -114,7 +114,12 @@ namespace Il2CppInspector
                 );
             }
             // MHY is shared by several games. Reject unknown layouts before allocating table arrays.
-            if (Slot(0x180) / 80 != 95439 || Slot(0x0CC) / 30 != 829363 || Slot(0x0F0) / 40 != 170 || (image.ReadMappedUInt32(MetadataRegistrationAddress + 0x1C) ^ 0x56478D25) != 939421)
+            if (
+                Slot(0x180) / 80 != 95439
+                || Slot(0x0CC) / 30 != 829363
+                || Slot(0x0F0) / 40 != 170
+                || (image.ReadMappedUInt32(MetadataRegistrationAddress + 0x1C) ^ 0x56478D25) != 939421
+            )
             {
                 throw new NotSupportedException("This MORAX build is not the supported ZenlessZoneZero 3.2.0 Windows layout. Keys vary per build.");
             }
@@ -124,7 +129,13 @@ namespace Il2CppInspector
             ReadMetadata();
         }
 
-        internal static Il2CppInspector Load(IFileFormatStream image, byte[] global, byte[] startup, EventHandler<string> status, Plugins.GamePlugin plugin)
+        internal static Il2CppInspector Load(
+            IFileFormatStream image,
+            byte[] global,
+            byte[] startup,
+            EventHandler<string> status,
+            Plugins.GamePlugin plugin
+        )
         {
             var adapter = new ZzzMorax(image, global, startup, status, plugin);
             var binary = new Il2CppBinaryX64(image, status);
@@ -150,7 +161,14 @@ namespace Il2CppInspector
                     for (var p = 0; p < 5; p++)
                     {
                         var o = i + p * 14;
-                        if (bytes[o] != 0x48 || bytes[o + 1] != 0x8D || bytes[o + 2] != 0x05 || bytes[o + 7] != 0x48 || bytes[o + 8] != 0x89 || bytes[o + 9] != 0x05)
+                        if (
+                            bytes[o] != 0x48
+                            || bytes[o + 1] != 0x8D
+                            || bytes[o + 2] != 0x05
+                            || bytes[o + 7] != 0x48
+                            || bytes[o + 8] != 0x89
+                            || bytes[o + 9] != 0x05
+                        )
                         {
                             valid = false;
                             break;
@@ -192,7 +210,12 @@ namespace Il2CppInspector
                 typeCount = checked(typeCount + (int)image.TypeCount);
             }
             var types = Records(global, Base(0x0E4), Slot(0x180) / 80, 80, (d, _) => Il2CppTypeDefinitionReader.FromZzz(d)).ToArray();
-            if (typeCount > types.Length || types.Skip(typeCount).Any(t => t.ByValTypeIndex != -1 || t.ByRefTypeIndex != -1 || t.Token != 0x02000000 || (uint)t.NameIndex >> 24 != 0))
+            if (
+                typeCount > types.Length
+                || types
+                    .Skip(typeCount)
+                    .Any(t => t.ByValTypeIndex != -1 || t.ByRefTypeIndex != -1 || t.Token != 0x02000000 || (uint)t.NameIndex >> 24 != 0)
+            )
             {
                 throw new InvalidDataException("Unexpected ZZZ type records outside the image ranges.");
             }
@@ -242,7 +265,8 @@ namespace Il2CppInspector
             }
             Metadata.Types = ImmutableCollectionsMarshal.AsImmutableArray(types);
             Metadata.Assemblies = Records(startup, Slot(0x0DC), Slot(0x184) / 16, 16, ReadAssembly);
-            var containers = types.Select(t => (int)t.GenericContainerIndex).Concat(Metadata.Methods.Select(m => (int)m.GenericContainerIndex)).Max() + 1;
+            var containers =
+                types.Select(t => (int)t.GenericContainerIndex).Concat(Metadata.Methods.Select(m => (int)m.GenericContainerIndex)).Max() + 1;
             Metadata.GenericContainers = Records(global, Base(0x05C), containers, 16, Il2CppGenericContainerReader.FromZzz);
             var parameters = Metadata.GenericContainers.Max(c => (int)c.GenericParameterStart + c.TypeArgc);
             Metadata.GenericParameters = Records(global, Base(0x0A8), parameters, 14, (d, _) => Il2CppGenericParameterReader.FromZzz(d));
@@ -250,7 +274,13 @@ namespace Il2CppInspector
             Metadata.GenericConstraintIndices = Records(global, Base(0x094), constraints, 4, (d, _) => new TypeIndex(I32(d, 0)));
             Metadata.FieldDefaultValues = Records(global, Base(0x110), Slot(0x0AC) / 12, 12, (d, _) => Il2CppFieldDefaultValueReader.FromZzz(d));
             // 0x1802924BF computes the end with unsigned size / 12; the +1 remainder is not another record.
-            Metadata.ParameterDefaultValues = Records(global, Base(0x150), Slot(0x16C) / 12, 12, (d, _) => Il2CppParameterDefaultValueReader.FromZzz(d));
+            Metadata.ParameterDefaultValues = Records(
+                global,
+                Base(0x150),
+                Slot(0x16C) / 12,
+                12,
+                (d, _) => Il2CppParameterDefaultValueReader.FromZzz(d)
+            );
             var attributes = checked((int)Metadata.Images.Max(i => (uint)i.CustomAttributeStart + i.CustomAttributeCount));
             Metadata.AttributeTypeRanges = Records(global, Base(0x07C), attributes, 8, (d, _) => Il2CppCustomAttributeTypeRangeReader.FromZzz(d));
             var attributeTypes = Metadata.AttributeTypeRanges.Max(a => a.Start + a.Count);
@@ -344,7 +374,8 @@ namespace Il2CppInspector
         {
             var count = checked((int)unchecked(Image.ReadMappedUInt32(UsageAddress + 0x3C) + 0xF00152E4u));
             var offsets = Base(0x134);
-            uint Offset(int i) => unchecked((uint)(((ulong)i * 0x58A12820A50UL ^ 0x636D73B4UL) * 0x7F312431UL >> 11)) ^ U32(global, offsets + i * 4) ^ 0x47101BE1;
+            uint Offset(int i) =>
+                unchecked((uint)(((ulong)i * 0x58A12820A50UL ^ 0x636D73B4UL) * 0x7F312431UL >> 11)) ^ U32(global, offsets + i * 4) ^ 0x47101BE1;
             CheckRange(global, offsets, checked((count + 1) * 4));
             var literals = new string[count];
             for (var i = 0; i < count; i++)

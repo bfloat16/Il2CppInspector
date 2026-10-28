@@ -4,13 +4,17 @@ public readonly record struct StructVersion(int Major = 0, int Minor = 0, string
 {
     #region Equality operators
 
-    public static bool operator >(StructVersion left, StructVersion right) => left.Major > right.Major || (left.Major == right.Major && left.Minor > right.Minor);
+    public static bool operator >(StructVersion left, StructVersion right) =>
+        left.Major > right.Major || (left.Major == right.Major && left.Minor > right.Minor);
 
-    public static bool operator <(StructVersion left, StructVersion right) => left.Major < right.Major || (left.Major == right.Major && left.Minor < right.Minor);
+    public static bool operator <(StructVersion left, StructVersion right) =>
+        left.Major < right.Major || (left.Major == right.Major && left.Minor < right.Minor);
 
-    public static bool operator >=(StructVersion left, StructVersion right) => left.Major > right.Major || (left.Major == right.Major && left.Minor >= right.Minor);
+    public static bool operator >=(StructVersion left, StructVersion right) =>
+        left.Major > right.Major || (left.Major == right.Major && left.Minor >= right.Minor);
 
-    public static bool operator <=(StructVersion left, StructVersion right) => left.Major < right.Major || (left.Major == right.Major && left.Minor <= right.Minor);
+    public static bool operator <=(StructVersion left, StructVersion right) =>
+        left.Major < right.Major || (left.Major == right.Major && left.Minor <= right.Minor);
 
     #endregion
 

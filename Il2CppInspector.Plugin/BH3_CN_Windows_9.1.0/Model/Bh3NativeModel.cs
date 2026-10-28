@@ -44,13 +44,19 @@ namespace Il2CppInspector.Model
                                 // Empty slots retain an unknown name; populated entries use the
                                 // same method definition/spec ordinals as the usage resolver.
                                 var index = definition.VTableIndex < 0 ? -1 : definition.VTableIndex + slot;
-                                var usage = index >= 0 && index < Package.VTableMethodIndices.Length ? MetadataUsage.FromEncodedIndex(Package, Package.VTableMethodIndices[index]) : default;
+                                var usage =
+                                    index >= 0 && index < Package.VTableMethodIndices.Length
+                                        ? MetadataUsage.FromEncodedIndex(Package, Package.VTableMethodIndices[index])
+                                        : default;
                                 var method =
                                     !usage.IsValid ? -1
-                                    : usage.Type == MetadataUsageType.MethodRef && usage.SourceIndex < Package.MethodSpecs.Length ? Package.MethodSpecs[usage.SourceIndex].MethodDefinitionIndex
+                                    : usage.Type == MetadataUsageType.MethodRef && usage.SourceIndex < Package.MethodSpecs.Length
+                                        ? Package.MethodSpecs[usage.SourceIndex].MethodDefinitionIndex
                                     : usage.SourceIndex;
                                 var name =
-                                    method < 0 || method >= Model.MethodsByDefinitionIndex.Length ? "unknown" : CppDeclarationGenerator.FieldIdentifier(Model.MethodsByDefinitionIndex[method].Name);
+                                    method < 0 || method >= Model.MethodsByDefinitionIndex.Length
+                                        ? "unknown"
+                                        : CppDeclarationGenerator.FieldIdentifier(Model.MethodsByDefinitionIndex[method].Name);
                                 NativeLayoutAnalysisModel.Add(table, $"methodPtr_{slot}_{name}", Cpp.GetType("Il2CppMethodPointer"), slot * 8);
                                 NativeLayoutAnalysisModel.Add(table, $"method_{slot}_{name}", Cpp.GetType("MethodInfo *"), (count + slot) * 8);
                             }

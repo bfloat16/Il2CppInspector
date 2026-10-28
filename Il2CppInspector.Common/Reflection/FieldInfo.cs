@@ -24,7 +24,10 @@ namespace Il2CppInspector.Reflection
         // Value types don't have this header but the offsets are still stored as starting at 0x8 or 0x10, so we have to subtract this
         // Open generic types have offsets that aren't known until runtime
         private readonly long rawOffset;
-        public long Offset => DeclaringType.ContainsGenericParameters ? 0 : rawOffset - (DeclaringType.IsValueType && !IsStatic ? (Assembly.Model.Package.BinaryImage.Bits / 8) * 2 : 0);
+        public long Offset =>
+            DeclaringType.ContainsGenericParameters
+                ? 0
+                : rawOffset - (DeclaringType.IsValueType && !IsStatic ? (Assembly.Model.Package.BinaryImage.Bits / 8) * 2 : 0);
 
         public bool HasFieldRVA => (Attributes & FieldAttributes.HasFieldRVA) != 0;
         public ulong DefaultValueMetadataAddress { get; }
@@ -92,7 +95,8 @@ namespace Il2CppInspector.Reflection
         public bool IsStatic => (Attributes & FieldAttributes.Static) == FieldAttributes.Static;
 
         // Returns true if using this field requires that the using method is declared as unsafe
-        public bool RequiresUnsafeContext => FieldType.RequiresUnsafeContext || GetCustomAttributes("System.Runtime.CompilerServices.FixedBufferAttribute").Any();
+        public bool RequiresUnsafeContext =>
+            FieldType.RequiresUnsafeContext || GetCustomAttributes("System.Runtime.CompilerServices.FixedBufferAttribute").Any();
 
         public override MemberTypes MemberType => MemberTypes.Field;
 
@@ -136,7 +140,10 @@ namespace Il2CppInspector.Reflection
             rootDefinition = fieldDef;
             Index = fieldDef.Index;
             rawOffset = declaringType.GameLayoutGroup is int group
-                ? Assembly.Model.Package.Metadata.GameAdapter.LayoutFieldOffset(group, Index - (int)declaringType.GetGenericTypeDefinition().Definition.FieldIndex)
+                ? Assembly.Model.Package.Metadata.GameAdapter.LayoutFieldOffset(
+                    group,
+                    Index - (int)declaringType.GetGenericTypeDefinition().Definition.FieldIndex
+                )
                 : fieldDef.rawOffset;
 
             Name = fieldDef.Name;

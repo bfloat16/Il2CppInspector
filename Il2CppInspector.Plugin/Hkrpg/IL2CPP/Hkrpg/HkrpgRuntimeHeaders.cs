@@ -6,7 +6,26 @@ internal static class HkrpgRuntimeHeaders
 {
     internal static string Apply(string stock)
     {
-        foreach (var name in new[] { "Il2CppType", "Il2CppGenericClass", "Il2CppClass", "Il2CppClass_0", "Il2CppClass_1", "Il2CppClass_Merged", "MethodInfo", "FieldInfo", "PropertyInfo", "EventInfo", "Il2CppImage", "Il2CppAssembly", "Il2CppAssemblyName", "Il2CppCodeRegistration", "Il2CppMetadataRegistration" })
+        foreach (
+            var name in new[]
+            {
+                "Il2CppType",
+                "Il2CppGenericClass",
+                "Il2CppClass",
+                "Il2CppClass_0",
+                "Il2CppClass_1",
+                "Il2CppClass_Merged",
+                "MethodInfo",
+                "FieldInfo",
+                "PropertyInfo",
+                "EventInfo",
+                "Il2CppImage",
+                "Il2CppAssembly",
+                "Il2CppAssemblyName",
+                "Il2CppCodeRegistration",
+                "Il2CppMetadataRegistration",
+            }
+        )
         {
             var pattern = $@"typedef struct (?:__attribute__\(\(aligned\([0-9]+\)\)\)\s+)?{name}\s*\{{.*?\}}\s*{name};";
             if (!Regex.IsMatch(stock, pattern, RegexOptions.Singleline))

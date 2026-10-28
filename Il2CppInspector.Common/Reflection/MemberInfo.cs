@@ -16,7 +16,8 @@ namespace Il2CppInspector.Reflection
         // Custom attributes for this member
         public abstract IEnumerable<CustomAttributeData> CustomAttributes { get; }
 
-        public CustomAttributeData[] GetCustomAttributes(string fullTypeName) => CustomAttributes.Where(a => a.AttributeType.FullName == fullTypeName).ToArray();
+        public CustomAttributeData[] GetCustomAttributes(string fullTypeName) =>
+            CustomAttributes.Where(a => a.AttributeType.FullName == fullTypeName).ToArray();
 
         // Type that this type is declared in for nested types
         public virtual TypeInfo DeclaringType { get; private set; }

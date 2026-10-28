@@ -11,7 +11,13 @@ namespace Il2CppInspector
         public override List<MetadataUsage> Usages { get; } = [];
         internal List<(int TypeIndex, ulong Address)> RuntimeCaches { get; } = [];
         public override IEnumerable<Plugins.AdditionalMetadataUsage> AdditionalUsages =>
-            RuntimeCaches.Select(cache => new Plugins.AdditionalMetadataUsage("moraxRuntimeCaches", cache.TypeIndex, cache.Address, $"RuntimeCache_{cache.TypeIndex}_{cache.Address:X}", "void *"));
+            RuntimeCaches.Select(cache => new Plugins.AdditionalMetadataUsage(
+                "moraxRuntimeCaches",
+                cache.TypeIndex,
+                cache.Address,
+                $"RuntimeCache_{cache.TypeIndex}_{cache.Address:X}",
+                "void *"
+            ));
         private uint[] rawFieldOffsets;
         internal uint[] RawFieldOffsets => rawFieldOffsets;
         internal Dictionary<int, int> GenericLayoutGroups { get; } = [];
@@ -337,7 +343,13 @@ namespace Il2CppInspector
         {
             var last = checked((int)(Image.ReadMappedUInt32(UsageAddress + 0x38) ^ 0x3C27E425u));
             var sentinel = checked(last + 1);
-            var count = checked((int)(unchecked((uint)sentinel * 0x3E2914E4u + 0x33400EF1u) ^ unchecked(U32(global, Base(0x188) + sentinel * 4) + 0xE9FC39D1u) ^ 0x67A28B2Cu));
+            var count = checked(
+                (int)(
+                    unchecked((uint)sentinel * 0x3E2914E4u + 0x33400EF1u)
+                    ^ unchecked(U32(global, Base(0x188) + sentinel * 4) + 0xE9FC39D1u)
+                    ^ 0x67A28B2Cu
+                )
+            );
             CheckRange(global, Base(0x118), checked(count * 8));
             var usages = new MetadataUsage[count];
             var fieldRefs = 0;

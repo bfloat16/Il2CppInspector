@@ -147,7 +147,8 @@ namespace Il2CppInspector.CLI
                 {
                     nint* itemVtable = *(nint**)pItem;
                     // IShellItem::GetDisplayName (index 5)
-                    delegate* unmanaged[Stdcall]<nint, uint, out nint, int> getDisplayName = (delegate* unmanaged[Stdcall]<nint, uint, out nint, int>)itemVtable[5];
+                    delegate* unmanaged[Stdcall]<nint, uint, out nint, int> getDisplayName = (delegate* unmanaged[Stdcall]<nint, uint, out nint, int>)
+                        itemVtable[5];
                     hr = getDisplayName(
                         pItem,
                         0x80058000 /* SIGDN_FILESYSPATH */
@@ -307,7 +308,10 @@ namespace Il2CppInspector.CLI
                             return null;
                         }
 
-                        var target = PythonScript.GetAvailableTargets().Append("Debug").FirstOrDefault(t => t.Equals(value, StringComparison.OrdinalIgnoreCase));
+                        var target = PythonScript
+                            .GetAvailableTargets()
+                            .Append("Debug")
+                            .FirstOrDefault(t => t.Equals(value, StringComparison.OrdinalIgnoreCase));
                         if (target == null)
                         {
                             Console.Error.WriteLine($"Unknown output target: {value}");
@@ -402,7 +406,10 @@ Disassembler targets with Debug omit type headers; debug symbol arrays in JSON a
             Console.WriteLine("Il2CppInspector - No arguments provided, opening file dialogs...");
             Console.WriteLine();
 
-            string binary = NativeDialogs.ShowOpenFileDialog("Select IL2CPP binary", "IL2CPP Binary (*.so;*.dll)\0*.so;*.dll\0All files (*.*)\0*.*\0");
+            string binary = NativeDialogs.ShowOpenFileDialog(
+                "Select IL2CPP binary",
+                "IL2CPP Binary (*.so;*.dll)\0*.so;*.dll\0All files (*.*)\0*.*\0"
+            );
 
             if (string.IsNullOrEmpty(binary))
             {
@@ -580,13 +587,17 @@ Disassembler targets with Debug omit type headers; debug symbol arrays in JSON a
                         var json = Path.Combine(output, "il2cpp.json");
                         if (!supplementMetadata)
                             ProgressBar.Run("Generating C++ types", () => new CppScaffolding(appModel, useBetterArraySize: true).WriteTypes(header));
-                        ProgressBar.Run("Generating JSON metadata", () => new JSONMetadata(appModel) { SupplementDebugInfo = supplementMetadata }.Write(json));
+                        ProgressBar.Run(
+                            "Generating JSON metadata",
+                            () => new JSONMetadata(appModel) { SupplementDebugInfo = supplementMetadata }.Write(json)
+                        );
                         foreach (var target in scriptTargets)
                         {
                             var pyOut = Path.Combine(output, scriptTargets.Length == 1 ? "il2cpp.py" : $"il2cpp-{target}.py");
                             ProgressBar.Run(
                                 $"Generating {target} Python script -> {pyOut}",
-                                () => new PythonScript(appModel).WriteScriptToFile(pyOut, target, header, json, includeTypeHeader: !supplementMetadata)
+                                () =>
+                                    new PythonScript(appModel).WriteScriptToFile(pyOut, target, header, json, includeTypeHeader: !supplementMetadata)
                             );
                         }
                     }
@@ -597,7 +608,9 @@ Disassembler targets with Debug omit type headers; debug symbol arrays in JSON a
                         var pdbOut = Path.Combine(output, Path.GetFileNameWithoutExtension(options.BinaryFile) + ".pdb");
                         PdbOutputResult pdb = null;
                         ProgressBar.Run($"Generating PDB -> {pdbOut}", () => pdb = new PdbOutput(appModel).Write(pdbOut));
-                        Console.WriteLine($"PDB: {pdb.Functions} functions, {pdb.TypedFunctions} typed, {pdb.Globals} globals, {pdb.TypeRecords} type records.");
+                        Console.WriteLine(
+                            $"PDB: {pdb.Functions} functions, {pdb.TypedFunctions} typed, {pdb.Globals} globals, {pdb.TypeRecords} type records."
+                        );
                         if (!pdb.HasCodeView)
                             Console.WriteLine("PE has no RSDS record; load the generated PDB manually in the debugger.");
                     }
@@ -605,7 +618,10 @@ Disassembler targets with Debug omit type headers; debug symbol arrays in JSON a
                     {
                         var dwarfOut = Path.Combine(output, Path.GetFileName(options.BinaryFile));
                         DwarfOutputResult dwarf = null;
-                        ProgressBar.Run($"Embedding DWARF -> {dwarfOut}", () => dwarf = new DwarfOutput(appModel).WriteImage(dwarfOut, options.BinaryFile));
+                        ProgressBar.Run(
+                            $"Embedding DWARF -> {dwarfOut}",
+                            () => dwarf = new DwarfOutput(appModel).WriteImage(dwarfOut, options.BinaryFile)
+                        );
                         Console.WriteLine(
                             $"DWARF: {dwarf.Functions} functions, {dwarf.TypedFunctions} typed, {dwarf.Globals} globals, {dwarf.TypeRecords} type records, {dwarf.CompilationUnits} units."
                         );

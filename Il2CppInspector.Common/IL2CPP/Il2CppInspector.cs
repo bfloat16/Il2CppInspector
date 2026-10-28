@@ -389,7 +389,13 @@ namespace Il2CppInspector
 
         #region Loaders
         // Load from a binary file and metadata file
-        public static List<Il2CppInspector> LoadFromFile(string binaryFile, string metadataFile, LoadOptions loadOptions = null, EventHandler<string> statusCallback = null, bool silent = false)
+        public static List<Il2CppInspector> LoadFromFile(
+            string binaryFile,
+            string metadataFile,
+            LoadOptions loadOptions = null,
+            EventHandler<string> statusCallback = null,
+            bool silent = false
+        )
         {
             using var binary = File.OpenRead(binaryFile);
             var metadataData = File.ReadAllBytes(metadataFile);

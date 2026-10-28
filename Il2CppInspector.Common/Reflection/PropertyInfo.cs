@@ -37,7 +37,10 @@ namespace Il2CppInspector.Reflection
             get
             {
                 // Explicit interface implementation
-                if (DeclaringType.ImplementedInterfaces.FirstOrDefault(i => Name.IndexOf("." + i.CSharpName, StringComparison.Ordinal) != -1) is TypeInfo @interface)
+                if (
+                    DeclaringType.ImplementedInterfaces.FirstOrDefault(i => Name.IndexOf("." + i.CSharpName, StringComparison.Ordinal) != -1)
+                    is TypeInfo @interface
+                )
                     return Name.Substring(Name.IndexOf("." + @interface.CSharpName, StringComparison.Ordinal) + 1);
 
                 // Regular property

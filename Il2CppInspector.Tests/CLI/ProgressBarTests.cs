@@ -7,12 +7,20 @@ internal static class ProgressBarTests
     internal static void Run(string[] args)
     {
         var half = new OperationProgress("Building type model", 50, 100, "Type references");
-        Check(ProgressBar.Render(half with { Current = 0, Total = 0 }, TimeSpan.Zero).Contains("100%"), "Empty work completes without division by zero");
+        Check(
+            ProgressBar.Render(half with { Current = 0, Total = 0 }, TimeSpan.Zero).Contains("100%"),
+            "Empty work completes without division by zero"
+        );
         var unknown = half with { Current = 0, Total = -1 };
         Check(ProgressBar.Render(unknown, TimeSpan.Zero).Contains("--%"), "Unknown work does not invent a percentage");
-        Check(ProgressBar.Render(unknown, TimeSpan.Zero) != ProgressBar.Render(unknown, TimeSpan.FromMilliseconds(100)), "Unknown work animates inside the same bar");
         Check(
-            new[] { 10, 40, 80, 120 }.All(width => ProgressBar.Render(half with { Label = new string('a', 300) }, TimeSpan.Zero, width).Length <= width),
+            ProgressBar.Render(unknown, TimeSpan.Zero) != ProgressBar.Render(unknown, TimeSpan.FromMilliseconds(100)),
+            "Unknown work animates inside the same bar"
+        );
+        Check(
+            new[] { 10, 40, 80, 120 }.All(width =>
+                ProgressBar.Render(half with { Label = new string('a', 300) }, TimeSpan.Zero, width).Length <= width
+            ),
             "Long progress labels stay inside the terminal width"
         );
 
@@ -50,8 +58,14 @@ internal static class ProgressBarTests
             Console.SetOut(original);
         }
         Check(success.Contains("100%") && success.Contains("done"), "Successful operations finish at 100 percent");
-        Check(failure.Contains("failed") && !failure.Contains("100%") && !failure.Contains("done"), "Failed operations propagate exceptions and do not claim completion");
-        Check(output.ToString().Contains("100%") && output.ToString().Contains("Processed 2000 relocations"), "Relocation progress finishes before the next status message");
+        Check(
+            failure.Contains("failed") && !failure.Contains("100%") && !failure.Contains("done"),
+            "Failed operations propagate exceptions and do not claim completion"
+        );
+        Check(
+            output.ToString().Contains("100%") && output.ToString().Contains("Processed 2000 relocations"),
+            "Relocation progress finishes before the next status message"
+        );
         if (Console.IsOutputRedirected)
         {
             Check(
@@ -65,7 +79,9 @@ internal static class ProgressBarTests
         if (args.Length != 4)
             throw new ArgumentException("--progress accepts a binary, metadata file and output directory");
         var relocations = new List<OperationProgress>();
-        var package = Inspector.LoadFromFile(args[1], args[2], new LoadOptions { ProgressCallback = relocations.Add })?.Single() ?? throw new InvalidDataException("Failed to load progress fixture");
+        var package =
+            Inspector.LoadFromFile(args[1], args[2], new LoadOptions { ProgressCallback = relocations.Add })?.Single()
+            ?? throw new InvalidDataException("Failed to load progress fixture");
         Verify(relocations, "Relocations");
         var types = new List<OperationProgress>();
         var model = new TypeModel(package, types.Add);

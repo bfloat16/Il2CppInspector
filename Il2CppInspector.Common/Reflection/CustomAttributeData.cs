@@ -40,7 +40,8 @@ namespace Il2CppInspector.Reflection
         public override string ToString() => "[" + AttributeType.FullName + "]";
 
         // Get the machine code of the C++ function
-        public byte[] GetMethodBody() => Model.Package.BinaryImage.ReadMappedBytes(VirtualAddress.Start, (int)(VirtualAddress.End - VirtualAddress.Start));
+        public byte[] GetMethodBody() =>
+            Model.Package.BinaryImage.ReadMappedBytes(VirtualAddress.Start, (int)(VirtualAddress.End - VirtualAddress.Start));
 
         public IEnumerable<TypeInfo> GetAllTypeReferences()
         {
@@ -152,13 +153,17 @@ namespace Il2CppInspector.Reflection
             return index < 0 ? Array.Empty<CustomAttributeData>() : getCustomAttributes(asm, index).ToList();
         }
 
-        public static IList<CustomAttributeData> GetCustomAttributes(Assembly asm) => GetCustomAttributes(asm, asm.MetadataToken, asm.AssemblyDefinition.CustomAttributeIndex);
+        public static IList<CustomAttributeData> GetCustomAttributes(Assembly asm) =>
+            GetCustomAttributes(asm, asm.MetadataToken, asm.AssemblyDefinition.CustomAttributeIndex);
 
-        public static IList<CustomAttributeData> GetCustomAttributes(EventInfo evt) => GetCustomAttributes(evt.Assembly, evt.MetadataToken, evt.Definition.CustomAttributeIndex);
+        public static IList<CustomAttributeData> GetCustomAttributes(EventInfo evt) =>
+            GetCustomAttributes(evt.Assembly, evt.MetadataToken, evt.Definition.CustomAttributeIndex);
 
-        public static IList<CustomAttributeData> GetCustomAttributes(FieldInfo field) => GetCustomAttributes(field.Assembly, field.MetadataToken, field.Definition.CustomAttributeIndex);
+        public static IList<CustomAttributeData> GetCustomAttributes(FieldInfo field) =>
+            GetCustomAttributes(field.Assembly, field.MetadataToken, field.Definition.CustomAttributeIndex);
 
-        public static IList<CustomAttributeData> GetCustomAttributes(MethodBase method) => GetCustomAttributes(method.Assembly, method.MetadataToken, method.Definition.CustomAttributeIndex);
+        public static IList<CustomAttributeData> GetCustomAttributes(MethodBase method) =>
+            GetCustomAttributes(method.Assembly, method.MetadataToken, method.Definition.CustomAttributeIndex);
 
         public static IList<CustomAttributeData> GetCustomAttributes(ParameterInfo param) =>
             GetCustomAttributes(param.DeclaringMethod.Assembly, param.MetadataToken, param.Definition.CustomAttributeIndex);

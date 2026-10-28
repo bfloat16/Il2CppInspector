@@ -57,7 +57,12 @@ namespace Il2CppInspector.Reflection
         {
             get
             {
-                types ??= TypesByDefinitionIndex.Concat(TypesByReferenceIndex).Concat(GenericMethods.Values.Select(m => m.DeclaringType)).Distinct().Where(t => t != null).ToList();
+                types ??= TypesByDefinitionIndex
+                    .Concat(TypesByReferenceIndex)
+                    .Concat(GenericMethods.Values.Select(m => m.DeclaringType))
+                    .Distinct()
+                    .Where(t => t != null)
+                    .ToList();
                 return types;
             }
         }
@@ -101,7 +106,8 @@ namespace Il2CppInspector.Reflection
         // Get a type by its fully qualified name including generic type arguments, array brackets etc.
         // In other words, rather than only being able to fetch a type definition such as in Assembly.GetType(),
         // this method can also find reference types, types created from TypeRefs and constructed types from MethodSpecs
-        public TypeInfo GetType(string fullName) => Types.FirstOrDefault(t => fullName == t.Namespace + (!string.IsNullOrEmpty(t.Namespace) ? "." : "") + t.Name);
+        public TypeInfo GetType(string fullName) =>
+            Types.FirstOrDefault(t => fullName == t.Namespace + (!string.IsNullOrEmpty(t.Namespace) ? "." : "") + t.Name);
 
         // Get a concrete instantiation of a generic method from its fully qualified name and type arguments
         public MethodBase GetGenericMethod(string fullName, params TypeInfo[] typeArguments)
@@ -115,7 +121,11 @@ namespace Il2CppInspector.Reflection
             throw new InvalidOperationException("Sequence contains no matching element");
 
             static string QualifiedName(MethodBase method) =>
-                method.DeclaringType.Namespace + (string.IsNullOrEmpty(method.DeclaringType.Namespace) ? "" : ".") + method.DeclaringType.Name + "." + method.Name;
+                method.DeclaringType.Namespace
+                + (string.IsNullOrEmpty(method.DeclaringType.Namespace) ? "" : ".")
+                + method.DeclaringType.Name
+                + "."
+                + method.Name;
         }
 
         // Create type model
@@ -230,7 +240,9 @@ namespace Il2CppInspector.Reflection
                 method.ReleaseTransientParameters();
 
             // Populate list of unique custom attribute generators for each type
-            CustomAttributeGenerators = AttributesByIndices.Values.GroupBy(a => a.AttributeType).ToDictionary(g => g.Key, g => g.GroupBy(a => a.VirtualAddress.Start).Select(g => g.First()).ToList());
+            CustomAttributeGenerators = AttributesByIndices
+                .Values.GroupBy(a => a.AttributeType)
+                .ToDictionary(g => g.Key, g => g.GroupBy(a => a.VirtualAddress.Start).Select(g => g.First()).ToList());
             Report("Attribute generators", force: true);
 
             // Populate list of unique custom attribute generators for each address
@@ -287,7 +299,9 @@ namespace Il2CppInspector.Reflection
             var declaring = definition.DeclaringType;
             if (spec.ClassIndexIndex != -1)
                 declaring = declaring.MakeGenericType(ResolveGenericArguments(Package.GenericInstances[spec.ClassIndexIndex]));
-            MethodBase method = definition is ConstructorInfo ctor ? declaring.GetConstructorByDefinition(ctor) : declaring.GetMethodByDefinition((MethodInfo)definition);
+            MethodBase method = definition is ConstructorInfo ctor
+                ? declaring.GetConstructorByDefinition(ctor)
+                : declaring.GetMethodByDefinition((MethodInfo)definition);
             if (spec.MethodIndexIndex != -1)
                 method = method.MakeGenericMethod(ResolveGenericArguments(Package.GenericInstances[spec.MethodIndexIndex]));
             method.VirtualAddress = Package.GetGenericMethodPointer(spec);
@@ -461,9 +475,11 @@ namespace Il2CppInspector.Reflection
             // From v24.1 onwards, token was added to Il2CppCustomAttributeTypeRange and each Il2CppImageDefinition noted the CustomAttributeTypeRanges for the image
             // v29 uses this same system but with CustomAttributeDataRanges instead
             // An empty image can share its start with the following nonempty image.
-            if (asm.ImageDefinition.CustomAttributeCount == 0
+            if (
+                asm.ImageDefinition.CustomAttributeCount == 0
                 || !Package.AttributeIndicesByToken.TryGetValue(asm.ImageDefinition.CustomAttributeStart, out var indices)
-                || !indices.TryGetValue((uint)token, out var index))
+                || !indices.TryGetValue((uint)token, out var index)
+            )
                 return -1;
 
             return index;

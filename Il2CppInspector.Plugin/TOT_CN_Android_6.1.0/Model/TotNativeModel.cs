@@ -35,7 +35,8 @@ namespace Il2CppInspector.Plugin.TOT
             return type.IsValueType ? "struct " + Name(type) : "void *";
         }
 
-        public override bool IsSignatureTypeComplete(TypeInfo type) => type != null && (type.IsPrimitive || model.Types.Contains(type) || type.IsArray);
+        public override bool IsSignatureTypeComplete(TypeInfo type) =>
+            type != null && (type.IsPrimitive || model.Types.Contains(type) || type.IsArray);
 
         public override string ArrayName(TypeInfo type) => type == null || !type.IsArray ? null : Name(type) + "_Array";
     }

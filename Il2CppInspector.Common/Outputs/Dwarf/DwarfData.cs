@@ -5,7 +5,14 @@ namespace Il2CppInspector.Outputs.Dwarf;
 internal sealed class DwarfData : IDisposable
 {
     public FileStream Stream { get; } =
-        new(Path.Combine(Path.GetTempPath(), "il2cpp-dwarf-" + Guid.NewGuid().ToString("N") + ".tmp"), FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 65536, FileOptions.DeleteOnClose);
+        new(
+            Path.Combine(Path.GetTempPath(), "il2cpp-dwarf-" + Guid.NewGuid().ToString("N") + ".tmp"),
+            FileMode.CreateNew,
+            FileAccess.ReadWrite,
+            FileShare.None,
+            65536,
+            FileOptions.DeleteOnClose
+        );
     public BinaryWriter Writer { get; }
     public ulong Position => checked((ulong)Stream.Position);
 

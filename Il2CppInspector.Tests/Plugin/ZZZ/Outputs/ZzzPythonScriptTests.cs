@@ -5,7 +5,10 @@ internal static class ZzzPythonScriptTests
     internal static void VerifyDebugSupplement(AppModel app, string output)
     {
         Directory.CreateDirectory(output);
-        Check(DebugOutput.SelectFormat(app.Package.BinaryImage) == DebugSymbolFormat.Pdb, "Debug automatically routes the actual ZZZ PE image to PDB");
+        Check(
+            DebugOutput.SelectFormat(app.Package.BinaryImage) == DebugSymbolFormat.Pdb,
+            "Debug automatically routes the actual ZZZ PE image to PDB"
+        );
         var json = Path.Combine(output, "supplement.json");
         new JSONMetadata(app) { SupplementDebugInfo = true }.Write(json);
         using (var input = File.OpenRead(json))
@@ -26,8 +29,23 @@ internal static class ZzzPythonScriptTests
                     "symbols",
                 }
             )
-                Check(map.GetProperty(name).ValueKind == JsonValueKind.Array && map.GetProperty(name).GetArrayLength() == 0, $"Supplementary JSON preserves {name} as an empty array");
-            foreach (var name in new[] { "stringLiterals", "typeInfoPointers", "typeRefPointers", "methodInfoPointers", "typeMetadata", "arrayMetadata", "fields", "fieldRvas" })
+                Check(
+                    map.GetProperty(name).ValueKind == JsonValueKind.Array && map.GetProperty(name).GetArrayLength() == 0,
+                    $"Supplementary JSON preserves {name} as an empty array"
+                );
+            foreach (
+                var name in new[]
+                {
+                    "stringLiterals",
+                    "typeInfoPointers",
+                    "typeRefPointers",
+                    "methodInfoPointers",
+                    "typeMetadata",
+                    "arrayMetadata",
+                    "fields",
+                    "fieldRvas",
+                }
+            )
                 Check(map.GetProperty(name).ValueKind == JsonValueKind.Array, $"Supplementary JSON retains {name}");
             Check(
                 map.GetProperty("stringLiterals").GetArrayLength() > 0 && map.GetProperty("methodInfoPointers").GetArrayLength() > 0,
@@ -49,22 +67,32 @@ internal static class ZzzPythonScriptTests
             Check(!File.Exists(Path.ChangeExtension(script, ".h")), $"Debug {target} generation does not emit a header");
             var automaticScript = Path.Combine(output, $"supplement-auto-{target}.py");
             new PythonScript(app).WriteScriptToFile(automaticScript, target, existingJsonMetadataFile: json, includeTypeHeader: false);
-            Check(!File.Exists(Path.ChangeExtension(automaticScript, ".h")), $"Debug {target} does not generate a fallback header when none is supplied");
+            Check(
+                !File.Exists(Path.ChangeExtension(automaticScript, ".h")),
+                $"Debug {target} does not generate a fallback header when none is supplied"
+            );
             var regularScript = Path.Combine(output, $"regular-{target}.py");
             new PythonScript(app).WriteScriptToFile(regularScript, target, header, json);
             Check(File.ReadAllText(regularScript).Contains("must-not-exist.h"), $"Non-Debug {target} retains its supplied header path by default");
         }
-        Check(app.AnalysisMethods.Count == 0 && app.AnalysisTypes.Count == 0, "Supplementary output resolves references through the stock reflection model without building native graphs");
+        Check(
+            app.AnalysisMethods.Count == 0 && app.AnalysisTypes.Count == 0,
+            "Supplementary output resolves references through the stock reflection model without building native graphs"
+        );
         var support = app.EnumerateNativeSupportMethods().ToArray();
         var registrationSignature = app.GetRegistrationSignature();
         Check(
-            registrationSignature.Name == "Morax_MetadataCache_Register" && registrationSignature.ReturnType.Name == "void *" && registrationSignature.Arguments.Count == 0,
+            registrationSignature.Name == "Morax_MetadataCache_Register"
+                && registrationSignature.ReturnType.Name == "void *"
+                && registrationSignature.Arguments.Count == 0,
             "Active ZZZ adapter retains its custom registration declaration"
         );
         foreach (var api in app.AvailableAPIs)
             if (!support.Any(m => m.Name == api.Key && m.Address == app.AvailableAPIs.primaryToSubkeyMapping[api.Key] && m.Signature == api.Value))
                 throw new InvalidOperationException($"Native debug output does not cover API {api.Key}.");
-        var registration = support.Single(m => m.Address == app.Package.Binary.RegistrationFunctionPointer && m.Name == "Morax_MetadataCache_Register");
+        var registration = support.Single(m =>
+            m.Address == app.Package.Binary.RegistrationFunctionPointer && m.Name == "Morax_MetadataCache_Register"
+        );
         Check(
             registration.Signature != null && registration.SignatureComplete && registration.Signature.Arguments.Count == 0,
             "Native debug symbols cover the game's registration function and APIs emptied in the supplement"

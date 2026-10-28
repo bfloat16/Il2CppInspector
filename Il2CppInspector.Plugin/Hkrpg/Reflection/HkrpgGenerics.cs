@@ -14,10 +14,23 @@ internal static class HkrpgGenerics
         var genericClasses = binary.GenericClasses;
         var definitions = metadata.Definitions;
         var methods = metadata.Methods;
-        var referencedParameters = types.Where(t => t.Type is Il2CppTypeEnum.IL2CPP_TYPE_VAR or Il2CppTypeEnum.IL2CPP_TYPE_MVAR).Select(t => checked((int)t.Data.Value)).ToArray();
-        var initialParameters = metadata.ReadGlobal(metadata.Header.GenericParametersOffset, referencedParameters.Select(i => i + 1).DefaultIfEmpty().Max(), 14, HkrpgRecords.GenericParameter).ToArray();
-        var containerCount = definitions.Select(t => (int)t.GenericContainerIndex + 1)
-            .Concat(initialParameters.Select(p => (int)p.OwnerIndex + 1)).DefaultIfEmpty().Max();
+        var referencedParameters = types
+            .Where(t => t.Type is Il2CppTypeEnum.IL2CPP_TYPE_VAR or Il2CppTypeEnum.IL2CPP_TYPE_MVAR)
+            .Select(t => checked((int)t.Data.Value))
+            .ToArray();
+        var initialParameters = metadata
+            .ReadGlobal(
+                metadata.Header.GenericParametersOffset,
+                referencedParameters.Select(i => i + 1).DefaultIfEmpty().Max(),
+                14,
+                HkrpgRecords.GenericParameter
+            )
+            .ToArray();
+        var containerCount = definitions
+            .Select(t => (int)t.GenericContainerIndex + 1)
+            .Concat(initialParameters.Select(p => (int)p.OwnerIndex + 1))
+            .DefaultIfEmpty()
+            .Max();
         var containers = metadata.ReadGlobal(metadata.Header.GenericContainersOffset, containerCount, 16, HkrpgRecords.Container).ToList();
         var parameterCount = initialParameters.Length;
         for (var ci = 0; ci < containers.Count; ci++)
@@ -106,13 +119,28 @@ internal static class HkrpgGenerics
                 continue;
             }
             var ci = containers.Count;
-            containers.Add(new() { OwnerIndex = methodIndex, IsMethod = 1, TypeArgc = argc, GenericParameterStart = parameters.Count });
+            containers.Add(
+                new()
+                {
+                    OwnerIndex = methodIndex,
+                    IsMethod = 1,
+                    TypeArgc = argc,
+                    GenericParameterStart = parameters.Count,
+                }
+            );
             methods[methodIndex].GenericContainerIndex = ci;
             for (var p = 0; p < argc; p++)
             {
                 var name = -1000 - parameters.Count;
                 metadata.Model.Strings.Add(name, "T" + p);
-                parameters.Add(new() { OwnerIndex = ci, Num = (ushort)p, NameIndex = name });
+                parameters.Add(
+                    new()
+                    {
+                        OwnerIndex = ci,
+                        Num = (ushort)p,
+                        NameIndex = name,
+                    }
+                );
             }
         }
         for (var ci = 0; ci < containers.Count; ci++)
@@ -150,19 +178,28 @@ internal static class HkrpgGenerics
             return null;
         try
         {
-            return model.TypesByDefinitionIndex[pair.Definition].MakeGenericType(model.ResolveGenericArguments(model.Package.GenericInstances[pair.Instance]));
+            return model
+                .TypesByDefinitionIndex[pair.Definition]
+                .MakeGenericType(model.ResolveGenericArguments(model.Package.GenericInstances[pair.Instance]));
         }
         catch (Exception ex) when (ex is IndexOutOfRangeException or ArgumentException or KeyNotFoundException)
         {
-            var arguments = string.Join(", ", instanceArguments[pair.Instance].Select(i =>
-            {
-                var t = types[i];
-                var owner = t.Type is Il2CppTypeEnum.IL2CPP_TYPE_VAR or Il2CppTypeEnum.IL2CPP_TYPE_MVAR
-                    ? $":owner={metadata.Model.GenericParameters[t.Data.GenericParameterIndex].OwnerIndex}:definition={metadata.Model.GenericContainers[metadata.Model.GenericParameters[t.Data.GenericParameterIndex].OwnerIndex].OwnerIndex}"
-                    : "";
-                return $"{i}:{t.Type}:{t.Data.Value}{owner}";
-            }));
-            throw new InvalidDataException($"HSR generic class {type.Data.Value}, definition {pair.Definition}, instance {pair.Instance}, args [{arguments}], parameter count {metadata.Model.GenericParameters.Length}: {ex.Message}", ex);
+            var arguments = string.Join(
+                ", ",
+                instanceArguments[pair.Instance]
+                    .Select(i =>
+                    {
+                        var t = types[i];
+                        var owner = t.Type is Il2CppTypeEnum.IL2CPP_TYPE_VAR or Il2CppTypeEnum.IL2CPP_TYPE_MVAR
+                            ? $":owner={metadata.Model.GenericParameters[t.Data.GenericParameterIndex].OwnerIndex}:definition={metadata.Model.GenericContainers[metadata.Model.GenericParameters[t.Data.GenericParameterIndex].OwnerIndex].OwnerIndex}"
+                            : "";
+                        return $"{i}:{t.Type}:{t.Data.Value}{owner}";
+                    })
+            );
+            throw new InvalidDataException(
+                $"HSR generic class {type.Data.Value}, definition {pair.Definition}, instance {pair.Instance}, args [{arguments}], parameter count {metadata.Model.GenericParameters.Length}: {ex.Message}",
+                ex
+            );
         }
     }
 }

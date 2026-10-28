@@ -12,7 +12,8 @@ namespace Il2CppInspector.Plugin.BH3
         public override bool StreamExports => true;
         public override UnityVersion DefaultUnityVersion => new("2019.4.40f1");
         public override string RegistrationSignature => "void* (*Morax_MetadataCache_Register)()";
-        public override string PythonMetadataProcessor => ResourceHelper.GetText(typeof(Bh3Plugin).Assembly, "Il2CppInspector.Plugin.BH3.RuntimeCaches.py");
+        public override string PythonMetadataProcessor =>
+            ResourceHelper.GetText(typeof(Bh3Plugin).Assembly, "Il2CppInspector.Plugin.BH3.RuntimeCaches.py");
 
         public override bool Matches(ReadOnlySpan<byte> metadata) => metadata.Length >= 4 && metadata[..4].SequenceEqual("MHY\0"u8);
 
@@ -20,7 +21,9 @@ namespace Il2CppInspector.Plugin.BH3
         {
             if (startupMetadata == null)
             {
-                throw new FileNotFoundException($"{GameId} requires startup-metadata.dat. Supply --startup-metadata or LoadOptions.StartupMetadataPath.");
+                throw new FileNotFoundException(
+                    $"{GameId} requires startup-metadata.dat. Supply --startup-metadata or LoadOptions.StartupMetadataPath."
+                );
             }
 
             var image = PEReader.Load(binary, options, status) ?? throw new InvalidDataException("Unsupported executable file format.");
