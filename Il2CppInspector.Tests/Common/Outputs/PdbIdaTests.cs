@@ -7,21 +7,15 @@ internal static class PdbIdaTests
 {
     internal static void Run(string directory, string pdb, Guid guid, uint age, string idat)
     {
-        var root = new DirectoryInfo(AppContext.BaseDirectory);
-        while (root != null && !File.Exists(Path.Combine(root.FullName, "Il2CppInspector.slnx")))
-            root = root.Parent;
-        if (root == null)
-            throw new DirectoryNotFoundException("Cannot locate IDA test fixtures.");
-        var fixtures = Path.Combine(root.FullName, "Il2CppInspector.Tests", "Common", "Outputs", "Fixtures");
         var input = Path.Combine(directory, "pdb-target.exe");
-        DwarfIdaTests.RunTool(
+        TestEnvironment.RunTool(
             "clang",
             [
                 "--target=x86_64-pc-windows-msvc",
                 "-nostdlib",
                 "-fuse-ld=lld",
                 "-Wl,/entry:_start,/subsystem:console,/debug,/nodefaultlib,/pdb:" + Path.Combine(directory, "original-pdb-identity.pdb"),
-                Path.Combine(fixtures, "PdbIdaFixture.s"),
+                TestEnvironment.FixturePath("PdbIdaFixture.s"),
                 "-o",
                 input,
             ]
@@ -35,7 +29,7 @@ internal static class PdbIdaTests
                 throw new InvalidDataException("Expected RSDS identity in the generated PE fixture.");
             guid.TryWriteBytes(bytes.AsSpan(offset + 4, 16));
             BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(offset + 20), age);
-            var name = System.Text.Encoding.UTF8.GetBytes(Path.GetFullPath(pdb));
+            var name = Encoding.UTF8.GetBytes(Path.GetFullPath(pdb));
             if (name.Length + 1 > entry.DataSize - 24)
                 throw new InvalidDataException("PDB fixture path exceeds the reserved CodeView path.");
             bytes.AsSpan(offset + 24, entry.DataSize - 24).Clear();
@@ -43,7 +37,7 @@ internal static class PdbIdaTests
         }
         File.WriteAllBytes(input, bytes);
         var log = Path.Combine(directory, "ida-pdb.log");
-        DwarfIdaTests.RunTool(
+        TestEnvironment.RunTool(
             idat,
             [
                 "-A",
@@ -52,7 +46,7 @@ internal static class PdbIdaTests
                 "-Opdb:pdbida",
                 "-L" + log,
                 "-o" + Path.Combine(directory, "pdb-target.i64"),
-                "-S" + Path.Combine(fixtures, "VerifyPdbInIda.py"),
+                "-S" + TestEnvironment.FixturePath("VerifyPdbInIda.py"),
                 input,
             ]
         );

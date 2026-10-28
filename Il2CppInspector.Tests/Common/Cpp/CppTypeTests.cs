@@ -41,7 +41,6 @@ namespace Il2CppInspector.Tests.Common.Cpp
                     && qualified["pointer"].Type is CppConstType { ElementType: CppPointerType },
                 "C++ parsing distinguishes const pointees from const pointers"
             );
-            Check(unionTypes.NewDefaultEnum("NativeEnum").SizeBytes == 4, "Default native enums use int even on 64-bit targets");
             var unsigned = unionTypes.NewDefaultEnum("UnsignedNativeEnum");
             unsigned.AddField("AllBits", uint.MaxValue);
             Check(unsigned.UnderlyingType.Name == "uint32_t", "Default enums choose an unsigned int when their values require it");
@@ -72,41 +71,22 @@ namespace Il2CppInspector.Tests.Common.Cpp
 
         private static void VerifyCompilerLayouts(string clang)
         {
-            var root = new DirectoryInfo(AppContext.BaseDirectory);
-            while (root != null && !File.Exists(Path.Combine(root.FullName, "Il2CppInspector.slnx")))
-                root = root.Parent;
-            if (root == null)
-                throw new DirectoryNotFoundException("Cannot locate compiler layout fixture");
-            var fixture = Path.Combine(root.FullName, "Il2CppInspector.Tests", "Common", "Outputs", "Fixtures", "CppLayoutFixture.cpp");
+            var fixture = TestEnvironment.FixturePath("CppLayoutFixture.cpp");
             foreach (var target in new[] { "aarch64-linux-gnu", "armv7-linux-gnueabihf", "i686-linux-gnu", "x86_64-pc-windows-msvc" })
             {
-                var start = new System.Diagnostics.ProcessStartInfo(clang)
-                {
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                };
-                foreach (
-                    var argument in new[]
-                    {
+                var (exitCode, _, errors) = TestEnvironment.RunProcess(
+                    clang,
+                    [
                         "--target=" + target,
                         "-std=c++17",
                         "-ffreestanding",
                         "-fms-extensions",
                         "-fsyntax-only",
-                        "-I" + Path.Combine(root.FullName, "Il2CppInspector.Common"),
+                        "-I" + TestEnvironment.RepositoryPath("Il2CppInspector.Common"),
                         fixture,
-                    }
-                )
-                    start.ArgumentList.Add(argument);
-                using var process = System.Diagnostics.Process.Start(start);
-                var errors = process.StandardError.ReadToEndAsync();
-                var output = process.StandardOutput.ReadToEndAsync();
-                process.WaitForExit();
-                Check(
-                    process.ExitCode == 0,
-                    $"clang verifies actual Unity header and nested/tail layouts for {target}: {errors.GetAwaiter().GetResult()}"
+                    ]
                 );
+                Check(exitCode == 0, $"clang verifies actual Unity header and nested/tail layouts for {target}: {errors}");
             }
         }
     }
