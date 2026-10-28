@@ -27,6 +27,7 @@
   </Folder>
   <Folder Name="/Plugins/ZZZ/">
     <Project Path="Il2CppInspector.Plugin/ZZZ_CN_Windows_3.2.0/Il2CppInspector.Plugin.ZZZ_CN_Windows_3.2.0.csproj" />
+    <Project Path="Il2CppInspector.Plugin/ZZZ_CN_Windows_3.3.0/Il2CppInspector.Plugin.ZZZ_CN_Windows_3.3.0.csproj" />
   </Folder>
   <Project Path="Il2CppInspector.Tests/Il2CppInspector.Tests.csproj" />
   <Project Path="VersionedSerialization.Generator/VersionedSerialization.Generator.csproj" />
