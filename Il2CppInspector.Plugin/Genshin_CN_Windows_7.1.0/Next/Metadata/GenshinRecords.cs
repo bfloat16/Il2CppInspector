@@ -1,5 +1,5 @@
 using System.Reflection;
-using static Il2CppInspector.GenshinMorax;
+using static Il2CppInspector.MoraxReader;
 
 namespace Il2CppInspector.Next.Metadata;
 

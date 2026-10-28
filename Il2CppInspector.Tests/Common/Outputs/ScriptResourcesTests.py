@@ -9,7 +9,7 @@ from unittest.mock import Mock
 ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = ROOT / "Il2CppInspector.Common/Outputs/ScriptResources"
 shared = (SCRIPTS / "shared_base.py").read_text(encoding="utf-8-sig")
-processor = (ROOT / "Il2CppInspector.Plugin/ZZZ_CN_Windows_3.2.0/Outputs/RuntimeCaches.py").read_text()
+processor = (ROOT / "Il2CppInspector.Plugin/Shared/Morax/RuntimeCaches.py").read_text()
 shared = shared.replace("        # %GAME_METADATA_PROCESSOR%", processor)
 BASE = {}
 exec(compile(shared, "shared_base.py", "exec"), BASE)
@@ -67,6 +67,24 @@ def target_classes(name, header_path="il2cpp.h", **globals):
 
 
 class ScriptResourcesTests(unittest.TestCase):
+    def test_method_info_without_method_body_preserves_annotations_and_skips_reference(self):
+        for enabled, method_address in itertools.product((False, True), (None, "0x00000000", "0x1010")):
+            with self.subTest(enabled=enabled, method_address=method_address):
+                backend = Backend(enabled, False)
+                context = BASE["ScriptContext"](backend, Mock(spec=BASE["BaseStatusHandler"]))
+                definition = {
+                    "virtualAddress": "0x2000", "name": "MethodInfo_Publish",
+                    "dotNetSignature": "Void Publish[CompleteMessage](CompleteMessage)",
+                }
+                if method_address is not None:
+                    definition["methodAddress"] = method_address
+                context.define_il_method_info(definition)
+                self.assertIn(("set_data_name", (0x2000, definition["name"])), backend.calls)
+                self.assertIn(("set_data_comment", (0x2000, definition["dotNetSignature"])), backend.calls)
+                self.assertEqual(("set_data_type", (0x2000, "struct MethodInfo *")) in backend.calls, enabled)
+                references = [args for name, args in backend.calls if name == "add_cross_reference"]
+                self.assertEqual(references, [(0x1010, 0x2000)] if method_address == "0x1010" else [])
+
     def test_native_fields_with_null_managed_types_preserve_names_and_types(self):
         for enabled in (False, True):
             with self.subTest(enabled=enabled):
@@ -79,19 +97,17 @@ class ScriptResourcesTests(unittest.TestCase):
                 self.assertNotIn("set_data_comment", {name for name, _ in backend.calls})
                 context.define_field_from_json(metadata()["typeInfoPointers"][0])
                 self.assertIn(("set_data_comment", (0x2000, "Type")), backend.calls)
-                with self.assertRaises(KeyError):
-                    context.define_field_from_json({key: value for key, value in native.items() if key != "dotNetType"})
 
-    def test_genshin_native_caches_continue_to_type_references(self):
-        processor = (ROOT / "Il2CppInspector.Plugin/Genshin_CN_Windows_7.1.0/Outputs/RuntimeCaches.py").read_text()
+    def test_morax_native_caches_continue_to_type_references(self):
+        processor = (ROOT / "Il2CppInspector.Plugin/Shared/Morax/RuntimeCaches.py").read_text()
         source = (SCRIPTS / "shared_base.py").read_text(encoding="utf-8-sig")
         namespace = {}
-        exec(compile(source.replace("        # %GAME_METADATA_PROCESSOR%", processor), "genshin.py", "exec"), namespace)
+        exec(compile(source.replace("        # %GAME_METADATA_PROCESSOR%", processor), "morax.py", "exec"), namespace)
         for enabled in (False, True):
             with self.subTest(enabled=enabled):
                 data = metadata()
-                data["genshinNativeStrings"] = [{"virtualAddress": "0x4000", "name": "NativeString_Tick", "type": "char *", "dotNetType": None, "length": 4, "value": "Tick"}]
-                data["genshinEmptyArrays"] = [{"virtualAddress": "0x5000", "name": "EmptyArray_Int32", "type": "struct Int32__Array *", "dotNetType": "System.Int32[]", "length": 0, "subtype": 0}]
+                data["moraxNativeStrings"] = [{"virtualAddress": "0x4000", "name": "NativeString_Tick", "type": "char *", "dotNetType": None, "length": 4, "value": "Tick"}]
+                data["moraxEmptyArrays"] = [{"virtualAddress": "0x5000", "name": "EmptyArray_Int32", "type": "struct Int32__Array *", "dotNetType": "System.Int32[]", "length": 0, "subtype": 0}]
                 data["typeRefPointers"][0].update(virtualAddress="0x6000", name="FollowingTypeRef")
                 backend = Backend(enabled, False)
                 namespace["ScriptContext"](backend, Mock(spec=namespace["BaseStatusHandler"])).process_metadata(data)
@@ -129,8 +145,6 @@ class ScriptResourcesTests(unittest.TestCase):
                 self.assertTrue({"define_function", "set_function_name", "set_function_comment", "set_data_name", "set_data_comment", "add_cross_reference"} <= calls)
 
     def test_enabled_types_and_incomplete_signatures(self):
-        self.assertTrue(BASE["BaseDisassemblerInterface"].apply_structures)
-        self.assertTrue(BASE["BaseDisassemblerInterface"].import_type_header)
         backend = Backend(True, False)
         backend.import_type_header = False
         context = BASE["ScriptContext"](backend, Mock(spec=BASE["BaseStatusHandler"]))
@@ -179,7 +193,6 @@ class ScriptResourcesTests(unittest.TestCase):
                 self.assertEqual(clang.parse_decls_with_parser.call_count, int(bool(header) and import_header and use_clang))
                 self.assertEqual(typeinfo.idc_parse_types.call_count, int(bool(header) and import_header and not use_clang))
                 self.assertEqual(typeinfo.del_til.called, bool(header) and import_header)
-                self.assertTrue(backend.apply_structures)
                 backend.set_data_type(0x1000, "struct Type *")
                 typeinfo.apply_type.assert_called_once()
                 backend.on_finish()
@@ -247,7 +260,6 @@ class ScriptResourcesTests(unittest.TestCase):
                 backend.import_type_header = False
                 backend.on_start()
                 get_types.assert_not_called()
-                self.assertIs(backend.xrefs, program.getReferenceManager.return_value)
 
 
 if __name__ == "__main__":

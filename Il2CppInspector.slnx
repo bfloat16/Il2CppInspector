@@ -2,18 +2,32 @@
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
   </Folder>
-  <Folder Name="/Plugins/">
-    <Project Path="Il2CppInspector.Plugin/Genshin_CN_Windows_7.1.0/Il2CppInspector.Plugin.Genshin.csproj" />
-    <Project Path="Il2CppInspector.Plugin/BH3_CN_Windows_9.1.0/Il2CppInspector.Plugin.BH3.csproj" />
-    <Project Path="Il2CppInspector.Plugin/Endfield_CN_Android_x.x.x/Il2CppInspector.Plugin.Endfield_CN_Android_x.x.x.csproj" />
-    <Project Path="Il2CppInspector.Plugin/Hkrpg/Il2CppInspector.Plugin.Hkrpg.csproj" Id="45b53450-5b27-4aae-8bc6-87d7b062a3ac" />
-    <Project Path="Il2CppInspector.Plugin/TOT_CN_Android_6.1.0/Il2CppInspector.Plugin.TOT_CN_Android_6.1.0.csproj" />
-    <Project Path="Il2CppInspector.Plugin/TOT_OS_Android_5.8.1/Il2CppInspector.Plugin.TOT_OS_Android_5.8.1.csproj" />
-    <Project Path="Il2CppInspector.Plugin/ZZZ_CN_Windows_3.2.0/Il2CppInspector.Plugin.ZZZ.csproj" />
-  </Folder>
   <Project Path="Bin2Object/Bin2Object.csproj" Id="82d6fb7e-0af2-4724-a937-3f59e9541e28" />
   <Project Path="Il2CppInspector.CLI/Il2CppInspector.CLI.csproj" Id="00b38e4c-b0da-4a10-a090-ca619672ef32" />
   <Project Path="Il2CppInspector.Common/Il2CppInspector.Common.csproj" />
+  <Folder Name="/Plugins/" />
+  <Folder Name="/Plugins/Shared/">
+    <File Path="Il2CppInspector.Plugin/Shared/Morax/Morax.props" />
+  </Folder>
+  <Folder Name="/Plugins/BH3/">
+    <Project Path="Il2CppInspector.Plugin/BH3_CN_Windows_9.1.0/Il2CppInspector.Plugin.BH3_CN_Windows_9.1.0.csproj" />
+  </Folder>
+  <Folder Name="/Plugins/Endfield/">
+    <Project Path="Il2CppInspector.Plugin/Endfield_CN_Android_x.x.x/Il2CppInspector.Plugin.Endfield_CN_Android_x.x.x.csproj" />
+  </Folder>
+  <Folder Name="/Plugins/Genshin/">
+    <Project Path="Il2CppInspector.Plugin/Genshin_CN_Windows_7.1.0/Il2CppInspector.Plugin.Genshin_CN_Windows_7.1.0.csproj" />
+  </Folder>
+  <Folder Name="/Plugins/HSR/">
+    <Project Path="Il2CppInspector.Plugin/HSR_OS_Windows_4.6.0/Il2CppInspector.Plugin.HSR_OS_Windows_4.6.0.csproj" />
+  </Folder>
+  <Folder Name="/Plugins/TOT/">
+    <Project Path="Il2CppInspector.Plugin/TOT_CN_Android_6.1.0/Il2CppInspector.Plugin.TOT_CN_Android_6.1.0.csproj" />
+    <Project Path="Il2CppInspector.Plugin/TOT_OS_Android_5.8.1/Il2CppInspector.Plugin.TOT_OS_Android_5.8.1.csproj" />
+  </Folder>
+  <Folder Name="/Plugins/ZZZ/">
+    <Project Path="Il2CppInspector.Plugin/ZZZ_CN_Windows_3.2.0/Il2CppInspector.Plugin.ZZZ_CN_Windows_3.2.0.csproj" />
+  </Folder>
   <Project Path="Il2CppInspector.Tests/Il2CppInspector.Tests.csproj" />
   <Project Path="VersionedSerialization.Generator/VersionedSerialization.Generator.csproj" />
   <Project Path="VersionedSerialization/VersionedSerialization.csproj" Id="7460288e-63b2-493a-9cca-1cf6a3121d0d" />
