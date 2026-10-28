@@ -51,7 +51,10 @@ namespace Il2CppInspector
         public int FieldAndParameterDefaultValueDataOffset =>
             Version >= MetadataVersions.V380 ? Header.FieldAndParameterDefaultValueData.Offset : Header.FieldAndParameterDefaultValueDataOffset;
 
-        public int AttributeDataOffset => Version >= MetadataVersions.V380 ? Header.AttributeData.Offset : Header.AttributeDataOffset;
+        public int AttributeDataOffset =>
+            GameAdapter is { AttributeDataOffset: >= 0 } adapter ? adapter.AttributeDataOffset
+            : Version >= MetadataVersions.V380 ? Header.AttributeData.Offset
+            : Header.AttributeDataOffset;
 
         public Dictionary<int, string> Strings { get; private set; } = [];
         public Dictionary<int, byte[]> AssemblyPublicKeys { get; private set; } = [];
