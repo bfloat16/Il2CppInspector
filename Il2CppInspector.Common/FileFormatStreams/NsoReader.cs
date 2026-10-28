@@ -432,12 +432,7 @@ public class NsoReader : FileFormatStream<NsoReader>
         }
 
         fileOffset = checked((uint)(uiAddr - ImageBase));
-        if (fileOffset > Length)
-        {
-            return false;
-        }
-
-        return true;
+        return fileOffset <= Length;
     }
 
     public override ulong MapFileOffsetToVA(uint offset) => ImageBase + offset;

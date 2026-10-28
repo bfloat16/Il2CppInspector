@@ -8,13 +8,13 @@ namespace Bin2Object;
 public class BinaryObjectWriter : BinaryWriter
 {
     // Generic method cache to dramatically speed up repeated calls to WriteObject<T> with the same T
-    private Dictionary<string, MethodInfo> writeObjectGenericCache = [];
+    private readonly Dictionary<string, MethodInfo> writeObjectGenericCache = [];
 
-    // VersionAttribute cache to dramatically speed up repeated calls to ReadObject<T> with the same T
-    private Dictionary<Type, Dictionary<FieldInfo, List<(double Min, double Max)>>> writeObjectVersionCache = [];
+    // VersionAttribute cache to dramatically speed up repeated calls to WriteObject<T> with the same T
+    private readonly Dictionary<Type, Dictionary<FieldInfo, List<(double Min, double Max)>>> writeObjectVersionCache = [];
 
     // Thread synchronization objects (for thread safety)
-    private object writeLock = new();
+    private readonly object writeLock = new();
 
     // Initialization
     public BinaryObjectWriter(Stream stream, Endianness endianness = Endianness.Little, bool leaveOpen = false)
@@ -150,66 +150,31 @@ public class BinaryObjectWriter : BinaryWriter
     public void WriteObject<T>(T obj)
     {
         var type = typeof(T);
-        var ti = type.GetTypeInfo();
 
-        if (ti.IsPrimitive)
+        if (type.IsPrimitive)
         {
             // Checked for mapped primitive types
-            if ((from m in PrimitiveMappings where m.Key.GetTypeInfo().Name == type.Name select m.Value).FirstOrDefault() is Type mapping)
+            if (GetPrimitiveMapping(type) is Type mapping)
             {
-                var mappedWriter = (
-                    from m in GetType().GetMethods()
-                    where m.Name == "Write" && m.GetParameters()[0].ParameterType == mapping && m.ReturnType == typeof(void)
-                    select m
-                ).FirstOrDefault();
-                mappedWriter?.Invoke(this, [obj]);
+                GetMappedWriter(mapping)?.Invoke(this, [obj]);
                 return;
             }
 
-            // Unmapped primitive
-            switch (obj)
-            {
-                case long v:
-                    Write(v);
-                    break;
-                case ulong v:
-                    Write(v);
-                    break;
-                case int v:
-                    Write(v);
-                    break;
-                case uint v:
-                    Write(v);
-                    break;
-                case short v:
-                    Write(v);
-                    break;
-                case ushort v:
-                    Write(v);
-                    break;
-                case byte v:
-                    Write(v);
-                    break;
-                case bool v:
-                    Write(v);
-                    break;
-                default:
-                    throw new ArgumentException("Unsupported primitive type specified: " + type.FullName);
-            }
+            WriteUnmappedPrimitive(obj, type);
             return;
         }
 
         // First time caching
-        if (!writeObjectVersionCache.ContainsKey(type))
+        if (!writeObjectVersionCache.TryGetValue(type, out var fieldVersions))
         {
-            var fields = new Dictionary<FieldInfo, List<(double, double)>>();
+            fieldVersions = [];
             foreach (var i in type.GetFields())
-                fields.Add(i, i.GetCustomAttributes<VersionAttribute>(false).Select(v => (v.Min, v.Max)).ToList());
+                fieldVersions.Add(i, i.GetCustomAttributes<VersionAttribute>(false).Select(v => (v.Min, v.Max)).ToList());
 
-            writeObjectVersionCache.Add(type, fields);
+            writeObjectVersionCache.Add(type, fieldVersions);
         }
 
-        foreach (var (i, versions) in writeObjectVersionCache[type])
+        foreach (var (i, versions) in fieldVersions)
         {
             // Only process fields for our selected object versioning (always process if none supplied)
             if (versions.Any() && !versions.Any(v => (v.Min <= Version || v.Min == -1) && (v.Max >= Version || v.Max == -1)))
@@ -268,48 +233,10 @@ public class BinaryObjectWriter : BinaryWriter
             else if (i.FieldType.IsPrimitive)
             {
                 // Checked for mapped primitive types
-                if ((from m in PrimitiveMappings where m.Key.GetTypeInfo().Name == i.FieldType.Name select m.Value).FirstOrDefault() is Type mapping)
-                {
-                    var mappedWriter = (
-                        from m in GetType().GetMethods()
-                        where m.Name == "Write" && m.GetParameters()[0].ParameterType == mapping && m.ReturnType == typeof(void)
-                        select m
-                    ).FirstOrDefault();
-                    mappedWriter?.Invoke(this, [Convert.ChangeType(i.GetValue(obj), mapping)]);
-                }
+                if (GetPrimitiveMapping(i.FieldType) is Type mapping)
+                    GetMappedWriter(mapping)?.Invoke(this, [Convert.ChangeType(i.GetValue(obj), mapping)]);
                 else
-                {
-                    // Unmapped primitive type
-                    switch (i.GetValue(obj))
-                    {
-                        case long v:
-                            Write(v);
-                            break;
-                        case ulong v:
-                            Write(v);
-                            break;
-                        case int v:
-                            Write(v);
-                            break;
-                        case uint v:
-                            Write(v);
-                            break;
-                        case short v:
-                            Write(v);
-                            break;
-                        case ushort v:
-                            Write(v);
-                            break;
-                        case byte v:
-                            Write(v);
-                            break;
-                        case bool v:
-                            Write(v);
-                            break;
-                        default:
-                            throw new ArgumentException("Unsupported primitive type specified: " + type.FullName);
-                    }
-                }
+                    WriteUnmappedPrimitive(i.GetValue(obj), type);
             }
             // Object
             else
@@ -322,6 +249,49 @@ public class BinaryObjectWriter : BinaryWriter
                 }
                 mi2.Invoke(this, [i.GetValue(obj)]);
             }
+        }
+    }
+
+    private Type GetPrimitiveMapping(Type type) => (from m in PrimitiveMappings where m.Key.Name == type.Name select m.Value).FirstOrDefault();
+
+    private MethodInfo GetMappedWriter(Type mapping) =>
+        (
+            from m in GetType().GetMethods()
+            where m.Name == "Write" && m.GetParameters()[0].ParameterType == mapping && m.ReturnType == typeof(void)
+            select m
+        ).FirstOrDefault();
+
+    // typeForError is only used in the exception message
+    private void WriteUnmappedPrimitive(object value, Type typeForError)
+    {
+        switch (value)
+        {
+            case long v:
+                Write(v);
+                break;
+            case ulong v:
+                Write(v);
+                break;
+            case int v:
+                Write(v);
+                break;
+            case uint v:
+                Write(v);
+                break;
+            case short v:
+                Write(v);
+                break;
+            case ushort v:
+                Write(v);
+                break;
+            case byte v:
+                Write(v);
+                break;
+            case bool v:
+                Write(v);
+                break;
+            default:
+                throw new ArgumentException("Unsupported primitive type specified: " + typeForError.FullName);
         }
     }
 
@@ -368,7 +338,7 @@ public class BinaryObjectWriter : BinaryWriter
 
     public void WriteFixedLengthString(string str, int size = -1, Encoding encoding = null)
     {
-        var bytes = encoding?.GetBytes(str) ?? Encoding.GetBytes(str);
+        var bytes = (encoding ?? Encoding).GetBytes(str);
         Write(bytes);
 
         if (size != -1)

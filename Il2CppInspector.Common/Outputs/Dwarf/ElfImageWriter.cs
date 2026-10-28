@@ -132,11 +132,9 @@ internal static class ElfImageWriter
         {
             var section = headers[i];
             if (
-                (
-                    section.Name.StartsWith(".debug_", StringComparison.Ordinal) && section.Name != ".debug_frame"
-                    || section.Name.StartsWith(".zdebug_", StringComparison.Ordinal)
-                    || section.Name is ".gnu_debuglink" or ".gnu_debugaltlink" or ".gnu_debugdata" or ".gdb_index"
-                )
+                section.Name.StartsWith(".debug_", StringComparison.Ordinal) && section.Name != ".debug_frame"
+                || section.Name.StartsWith(".zdebug_", StringComparison.Ordinal)
+                || section.Name is ".gnu_debuglink" or ".gnu_debugaltlink" or ".gnu_debugdata" or ".gdb_index"
             )
             {
                 obsoleteDebug.Add(i);

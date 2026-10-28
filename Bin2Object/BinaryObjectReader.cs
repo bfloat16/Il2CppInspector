@@ -10,16 +10,16 @@ namespace Bin2Object;
 public class BinaryObjectReader : BinaryReader
 {
     // Method cache for primitive mappings
-    private Dictionary<string, MethodInfo> readMethodCache { get; }
+    private readonly Dictionary<string, MethodInfo> readMethodCache;
 
     // Generic method cache to dramatically speed up repeated calls to ReadObject<T> with the same T
-    private Dictionary<string, MethodInfo> readObjectGenericCache = [];
+    private readonly Dictionary<string, MethodInfo> readObjectGenericCache = [];
 
     // VersionAttribute cache to dramatically speed up repeated calls to ReadObject<T> with the same T
-    private Dictionary<Type, Dictionary<FieldInfo, List<(double Min, double Max)>>> readObjectVersionCache = [];
+    private readonly Dictionary<Type, Dictionary<FieldInfo, List<(double Min, double Max)>>> readObjectVersionCache = [];
 
     // Thread synchronization objects (for thread safety)
-    private object readLock = new();
+    private readonly object readLock = new();
 
     // Initialization
     public BinaryObjectReader(Stream stream, Endianness endianness = Endianness.Little, bool leaveOpen = false)
@@ -59,7 +59,7 @@ public class BinaryObjectReader : BinaryReader
     public override byte[] ReadBytes(int count)
     {
         var bytes = base.ReadBytes(count);
-        return (Endianness == Endianness.Little ? bytes : bytes.AsEnumerable().Reverse().ToArray());
+        return Endianness == Endianness.Little ? bytes : bytes.AsEnumerable().Reverse().ToArray();
     }
 
     public override long ReadInt64() => BitConverter.ToInt64(ReadBytes(8), 0);
@@ -113,8 +113,9 @@ public class BinaryObjectReader : BinaryReader
     public int ReadCompressedInt32(long addr)
     {
         var val = ReadCompressedUInt32(addr);
+        // IL2CPP's signed encoding reserves the all-ones word for Int32.MinValue.
         if (val == uint.MaxValue)
-            return int.MaxValue;
+            return int.MinValue;
 
         var signFlag = val & 1;
         val >>= 1;
@@ -215,8 +216,8 @@ public class BinaryObjectReader : BinaryReader
             return Convert.ChangeType(result, t);
         }
 
-        // Unmapped primitive (eliminating obj causes Visual Studio 16.3.5 to crash)
-        object obj = t.Name switch
+        // Unmapped primitive
+        return t.Name switch
         {
             "Int64" => ReadInt64(),
             "UInt64" => ReadUInt64(),
@@ -228,7 +229,6 @@ public class BinaryObjectReader : BinaryReader
             "Boolean" => ReadBoolean(),
             _ => throw new ArgumentException("Unsupported primitive type specified: " + t.FullName),
         };
-        return obj;
     }
 
     // Copy matching named fields from one object to another
@@ -266,34 +266,24 @@ public class BinaryObjectReader : BinaryReader
 
         // Check for object mapping
         if (ObjectMappings.TryGetValue(type, out var streamType))
-        {
-            if (!readObjectGenericCache.TryGetValue(streamType.FullName, out MethodInfo mi2))
-            {
-                var us = GetType().GetMethod("ReadObject", Type.EmptyTypes);
-                mi2 = us.MakeGenericMethod(streamType);
-                readObjectGenericCache.Add(streamType.FullName, mi2);
-            }
-            var obj = mi2.Invoke(this, null);
-
-            return MapObject<T>(obj);
-        }
+            return MapObject<T>(GetReadObjectMethod(streamType).Invoke(this, null));
 
         var t = new T();
 
         // First time caching
-        if (!readObjectVersionCache.ContainsKey(type))
+        if (!readObjectVersionCache.TryGetValue(type, out var fieldVersions))
         {
-            var fields = new Dictionary<FieldInfo, List<(double, double)>>();
+            fieldVersions = [];
             foreach (var i in type.GetFields())
-                if (i.GetCustomAttribute<SkipWhenReadingAttribute>(false) is SkipWhenReadingAttribute)
-                    fields.Add(i, [(-2, -2)]);
+                if (i.GetCustomAttribute<SkipWhenReadingAttribute>(false) != null)
+                    fieldVersions.Add(i, [(-2, -2)]);
                 else
-                    fields.Add(i, i.GetCustomAttributes<VersionAttribute>(false).Select(v => (v.Min, v.Max)).ToList());
+                    fieldVersions.Add(i, i.GetCustomAttributes<VersionAttribute>(false).Select(v => (v.Min, v.Max)).ToList());
 
-            readObjectVersionCache.Add(type, fields);
+            readObjectVersionCache.Add(type, fieldVersions);
         }
 
-        foreach (var (i, versions) in readObjectVersionCache[type])
+        foreach (var (i, versions) in fieldVersions)
         {
             // Skip fields with SkipWhenReading set
             if (versions.FirstOrDefault() == (-2, -2))
@@ -356,16 +346,21 @@ public class BinaryObjectReader : BinaryReader
             // Object
             else
             {
-                if (!readObjectGenericCache.TryGetValue(i.FieldType.FullName, out MethodInfo mi2))
-                {
-                    var us = GetType().GetMethod("ReadObject", Type.EmptyTypes);
-                    mi2 = us.MakeGenericMethod(i.FieldType);
-                    readObjectGenericCache.Add(i.FieldType.FullName, mi2);
-                }
-                i.SetValue(t, mi2.Invoke(this, null));
+                i.SetValue(t, GetReadObjectMethod(i.FieldType).Invoke(this, null));
             }
         }
         return t;
+    }
+
+    // Get (and cache) ReadObject<T>() closed over the specified type
+    private MethodInfo GetReadObjectMethod(Type type)
+    {
+        if (!readObjectGenericCache.TryGetValue(type.FullName, out var method))
+        {
+            method = GetType().GetMethod("ReadObject", Type.EmptyTypes).MakeGenericMethod(type);
+            readObjectGenericCache.Add(type.FullName, method);
+        }
+        return method;
     }
 
     public T[] ReadArray<T>(long addr, int count)
@@ -402,7 +397,7 @@ public class BinaryObjectReader : BinaryReader
             }
             else
             {
-                // Unmapped primitive (eliminating obj causes Visual Studio 16.3.5 to crash)
+                // Unmapped primitive
                 for (var i = 0; i < count; i++)
                     t[i] = (T)(
                         type.Name switch
@@ -438,7 +433,7 @@ public class BinaryObjectReader : BinaryReader
         byte b;
         while ((b = ReadByte()) != 0)
             bytes.Add(b);
-        return encoding?.GetString(bytes.ToArray()) ?? Encoding.GetString(bytes.ToArray());
+        return (encoding ?? Encoding).GetString(bytes.ToArray());
     }
 
     public string ReadFixedLengthString(long addr, int length, Encoding encoding = null)
@@ -459,6 +454,6 @@ public class BinaryObjectReader : BinaryReader
                 break;
             else
                 bytes.Add(c);
-        return encoding?.GetString(bytes.ToArray()) ?? Encoding.GetString(bytes.ToArray());
+        return (encoding ?? Encoding).GetString(bytes.ToArray());
     }
 }

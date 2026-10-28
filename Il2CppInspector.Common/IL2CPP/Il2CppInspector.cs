@@ -138,7 +138,6 @@ namespace Il2CppInspector
             //   the practice of taking someone else's work or ideas and passing them off as one's own.
             // Synonyms: copying, piracy, theft, strealing, infringement of copyright
 
-            BinaryImage.Position = 0;
             var words = BinaryImage.ReadArray<ulong>(0, (int)BinaryImage.Length / (BinaryImage.Bits / 8));
             var usages = new List<MetadataUsage>();
 
@@ -333,7 +332,6 @@ namespace Il2CppInspector
                 // This probably means it has been optimized away by the compiler, or is an unused generic method
                 try
                 {
-                    // Remove ARM Thumb marker LSB if necessary
                     start = Binary.ModuleMethodPointers[module][method - 1];
                 }
                 catch (IndexOutOfRangeException)

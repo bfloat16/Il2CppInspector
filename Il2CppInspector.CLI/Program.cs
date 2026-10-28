@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
@@ -74,7 +73,8 @@ namespace Il2CppInspector.CLI
             string result = null;
             Thread thread = new(() =>
             {
-                CoInitializeEx(
+                // A fresh STA thread cannot already be initialized; on failure the dialog simply returns null.
+                _ = CoInitializeEx(
                     0,
                     2 /* COINIT_APARTMENTTHREADED */
                 );
@@ -308,14 +308,12 @@ namespace Il2CppInspector.CLI
                             return null;
                         }
 
-                        var target = PythonScript
-                            .GetAvailableTargets()
-                            .Append("Debug")
-                            .FirstOrDefault(t => t.Equals(value, StringComparison.OrdinalIgnoreCase));
+                        var availableTargets = PythonScript.GetAvailableTargets().Append("Debug").ToArray();
+                        var target = availableTargets.FirstOrDefault(t => t.Equals(value, StringComparison.OrdinalIgnoreCase));
                         if (target == null)
                         {
                             Console.Error.WriteLine($"Unknown output target: {value}");
-                            Console.Error.WriteLine($"Available targets: {string.Join(", ", PythonScript.GetAvailableTargets().Append("Debug"))}");
+                            Console.Error.WriteLine($"Available targets: {string.Join(", ", availableTargets)}");
                             Environment.ExitCode = 1;
                             return null;
                         }
@@ -452,17 +450,10 @@ Disassembler targets with Debug omit type headers; debug symbol arrays in JSON a
 
         private static void Run(Options options)
         {
-            try
-            {
-                if (options.Game != null)
-                    GamePlugins.Get(options.Game);
-            }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine(ex.Message);
-                Environment.ExitCode = 1;
-                return;
-            }
+            // Fail fast on an unknown --game before touching input files; Main reports the exception.
+            if (options.Game != null)
+                GamePlugins.Get(options.Game);
+
             if (!File.Exists(options.BinaryFile))
             {
                 Console.Error.WriteLine($"Binary file not found: {options.BinaryFile}");
@@ -543,8 +534,7 @@ Disassembler targets with Debug omit type headers; debug symbol arrays in JSON a
             for (int imageIndex = 0; imageIndex < il2cppList.Count; imageIndex++)
             {
                 Inspector il2cpp = il2cppList[imageIndex];
-                string suffix = il2cppList.Count > 1 ? $"-{imageIndex}" : "";
-                string output = il2cppList.Count > 1 ? outputBase + suffix : outputBase;
+                string output = il2cppList.Count > 1 ? $"{outputBase}-{imageIndex}" : outputBase;
 
                 if (il2cppList.Count > 1)
                 {

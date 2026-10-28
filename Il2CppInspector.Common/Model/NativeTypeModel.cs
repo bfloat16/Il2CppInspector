@@ -1,5 +1,4 @@
 using Il2CppInspector.Cpp;
-using Il2CppInspector.Next.BinaryMetadata;
 using Il2CppInspector.Reflection;
 
 namespace Il2CppInspector.Model

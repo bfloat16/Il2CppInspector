@@ -43,7 +43,7 @@ public class CppDeclarationGenerator
         if (model.Package.Metadata.GamePlugin?.StreamExports != true)
             InitializeConcreteImplementations();
 
-        // Configure inheritance style based on binary type; this can be overridden by setting InheritanceStyle in the object initializer
+        // Configure inheritance style based on binary type
         InheritanceStyle = CppCompiler.GuessFromImage(model.Package.BinaryImage);
     }
 
@@ -106,7 +106,6 @@ public class CppDeclarationGenerator
         _visitedTypes.Clear();
         _todoFieldStructs.Clear();
         _todoTypeStructs.Clear();
-        _todoTypesExceedingNestingLimit.Clear();
     }
 
     #region Field Struct Generation
@@ -194,9 +193,8 @@ public class CppDeclarationGenerator
 
         if (ti.IsArray)
         {
-            var klassType = ti.IsArray ? ti : ti.BaseType;
-            var elementType = ti.IsArray ? AsCType(ti.ElementType) : types.GetType("void *");
-            var type = GenerateObjectStruct(name, klassType);
+            var elementType = AsCType(ti.ElementType);
+            var type = GenerateObjectStruct(name, ti);
             types.AddField(type, "bounds", "Il2CppArrayBounds *");
             types.AddField(type, "max_length", "il2cpp_array_size_t");
             type.AddField("vector", elementType.AsArray(32));
@@ -285,7 +283,7 @@ public class CppDeclarationGenerator
     private List<(TypeInfo ilType, CppComplexType valueType, CppComplexType referenceType, CppComplexType fieldsType)> GenerateVisitedFieldStructs()
     {
         var structs = new List<(TypeInfo ilType, CppComplexType valueType, CppComplexType referenceType, CppComplexType fieldsType)>(
-            _todoTypeStructs.Count
+            _todoFieldStructs.Count
         );
         foreach (var ti in _todoFieldStructs)
         {
@@ -366,7 +364,6 @@ public class CppDeclarationGenerator
     private readonly List<TypeInfo> _todoTypeStructs = [];
 
     private const int MaxGenericNestingDepth = 7;
-    private readonly HashSet<TypeInfo> _todoTypesExceedingNestingLimit = [];
 
     private static int CalculateTypeDepth(TypeInfo type, int startingDepth = 0)
     {
@@ -414,10 +411,7 @@ public class CppDeclarationGenerator
 
         var typeDepth = CalculateTypeDepth(ti);
         if (typeDepth > MaxGenericNestingDepth)
-        {
-            _todoTypesExceedingNestingLimit.Add(ti);
             return;
-        }
 
         if (ti.IsArray || ti.HasElementType)
         {
@@ -475,21 +469,9 @@ public class CppDeclarationGenerator
         // TODO: Consider adding function types. This considerably increases the script size
         // but can significantly help with reverse-engineering certain binaries.
         var vtableStruct = types.Struct(name + "__VTable");
-
-        if (UnityVersion.CompareTo("5.3.6") < 0)
-        {
-            for (int i = 0; i < vtable.Length; i++)
-            {
-                types.AddField(vtableStruct, namer.GetName(i), "MethodInfo *");
-            }
-        }
-        else
-        {
-            for (int i = 0; i < vtable.Length; i++)
-            {
-                types.AddField(vtableStruct, namer.GetName(i), "VirtualInvokeData");
-            }
-        }
+        var slotType = UnityVersion.CompareTo("5.3.6") < 0 ? "MethodInfo *" : "VirtualInvokeData";
+        for (int i = 0; i < vtable.Length; i++)
+            types.AddField(vtableStruct, namer.GetName(i), slotType);
         return vtableStruct;
     }
 
@@ -557,34 +539,15 @@ public class CppDeclarationGenerator
             decl.Add((ti, null, cls, null, vtable, statics));
         }
 
-        /*
-         NOTE: This is currently not required, but if we do need custom types for deeply nested structs
-         this can be used
-        foreach (var ti in _todoTypesExceedingNestingLimit)
-        {
-            var dummyType = GenerateNestingLimitExceededStruct(ti);
-            decl.Add((ti, null, dummyType, null, null, null));
-        }
-        */
-
         _todoTypeStructs.Clear();
         _todoFieldStructs.Clear();
-        _todoTypesExceedingNestingLimit.Clear();
 
         return decl;
     }
 
-    public List<CppType> GenerateRequiredForwardDefinitions()
-        // L-TODO: With the move to the new dependency graph
-        // we might not need this anymore. maybe remove it in the future?
-        =>
-        [];
-    /*
-    => _requiredForwardDefinitionsForFields
-        .Select(x => new CppForwardDefinitionType(TypeNamer.GetName(x)))
-        .Cast<CppType>()
-        .ToList();
-    */
+    // L-TODO: With the move to the new dependency graph
+    // we might not need this anymore. maybe remove it in the future?
+    public List<CppType> GenerateRequiredForwardDefinitions() => [];
 
     #endregion
 
@@ -594,7 +557,7 @@ public class CppDeclarationGenerator
     /// Analyze a method and include all types that it takes and returns.
     /// Must call this before generating the method's declaration with GenerateMethodDeclaration or GenerateFunctionPointer.
     /// </summary>
-    /// <param name="mi"></param>
+    /// <param name="method"></param>
     public void IncludeMethod(MethodBase method, TypeInfo declaringType = null)
     {
         if (!method.IsStatic)
@@ -664,12 +627,10 @@ public class CppDeclarationGenerator
     /// You must first visit the method using VisitMethod and then call
     /// GenerateVisitedTypes in order to generate any dependent types.
     /// </summary>
-    /// <param name="mi"></param>
+    /// <param name="method"></param>
     /// <returns></returns>
-    public CppFnPtrType GenerateMethodDeclaration(MethodBase method)
-    {
-        return GenerateMethodDeclaration(method, GlobalNamer.GetName(method), method.DeclaringType);
-    }
+    public CppFnPtrType GenerateMethodDeclaration(MethodBase method) =>
+        GenerateMethodDeclaration(method, GlobalNamer.GetName(method), method.DeclaringType);
 
     internal CppFnPtrType GenerateMethodDeclaration(MethodBase method, Func<TypeInfo, CppType> convert) =>
         GenerateMethodDeclaration(method, GlobalNamer.GetName(method), method.DeclaringType, convert);

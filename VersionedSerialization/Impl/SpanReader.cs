@@ -10,7 +10,6 @@ public ref struct SpanReader(ReadOnlySpan<byte> data, int offset = 0) : ISeekabl
 {
     public int Offset { get; set; } = offset;
 
-    public readonly byte Peek => _data[Offset];
     public readonly int Length => _data.Length;
 
     private readonly ReadOnlySpan<byte> _data = data;

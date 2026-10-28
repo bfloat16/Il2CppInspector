@@ -1,6 +1,5 @@
 from binaryninja import (
     BinaryView,
-    Component,
     Type,
     PointerType,
     TypeParser,
@@ -44,7 +43,6 @@ class BinaryNinjaDisassemblerInterface(BaseDisassemblerInterface):
 
     _view: BinaryView
     _undo_id: str
-    _components: dict[str, Component]
     _type_cache: dict[str, Type]
     _function_type_cache: dict[str, Type]
 
@@ -102,7 +100,6 @@ class BinaryNinjaDisassemblerInterface(BaseDisassemblerInterface):
         self._view = bv  # type: ignore
         self._undo_id = self._view.begin_undo_actions()
         self._view.set_analysis_hold(True)
-        self._components = {}
         self._type_cache = {}
         self._function_type_cache = {}
 
@@ -167,8 +164,6 @@ class BinaryNinjaDisassemblerInterface(BaseDisassemblerInterface):
         if type in self._function_type_cache:
             function.type = self._function_type_cache[type]  # type: ignore
         else:
-            # log_info(f"skipping function type setting for {address}, {type}")
-            # pass
             function.type = type.replace("this", "`this`")
 
     def set_data_comment(self, address: int, cmt: str):
@@ -209,31 +204,6 @@ class BinaryNinjaDisassemblerInterface(BaseDisassemblerInterface):
 
     def import_c_typedef(self, type_def: str):
         self._view.define_user_type(None, type_def)
-
-    # optional
-    def _get_or_create_component(self, name: str):
-        if name in self._components:
-            return self._components[name]
-
-        current = name
-        if current.count("/") != 0:
-            split_idx = current.rindex("/")
-            parent, child = current[:split_idx], current[split_idx:]
-            parent = self._get_or_create_component(name)
-            component = self._view.create_component(child, parent)
-        else:
-            component = self._view.create_component(name)
-
-        self._components[name] = component
-        return component
-
-    def add_function_to_group(self, address: int, group: str):
-        return
-        function = self._view.get_function_at(address)
-        if function is None:
-            return
-
-        self._get_or_create_component(group).add_function(function)
 
     def cache_function_types(self, signatures: list[str]):
         function_sigs = set(signatures)
@@ -319,9 +289,6 @@ class BinaryNinjaStatusHandler(BaseStatusHandler):
 
     def was_cancelled(self):
         return False
-
-    def close(self):
-        pass
 
 
 # Entry point

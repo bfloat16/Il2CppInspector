@@ -4,7 +4,6 @@
     All rights reserved.
 */
 
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
 namespace Il2CppInspector
@@ -14,20 +13,13 @@ namespace Il2CppInspector
     // PE format specification: https://docs.microsoft.com/en-us/windows/win32/debug/pe-format?redirectedfrom=MSDN
     public class PEReader : FileFormatStream<PEReader>
     {
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        private static extern IntPtr LoadLibrary(string lpLibFileName);
-
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        private static extern bool FreeLibrary(IntPtr hLibModule);
-
         private COFFHeader coff;
         private IPEOptHeader pe;
         private PESection[] sections;
         private uint pFuncTable;
-        private bool mightBePacked;
 
         // Section types we need to rename in obfuscated binaries
-        private Dictionary<PE, string> wantedSectionTypes = new()
+        private readonly Dictionary<PE, string> wantedSectionTypes = new()
         {
             [PE.IMAGE_SCN_MEM_READ | PE.IMAGE_SCN_MEM_EXECUTE | PE.IMAGE_SCN_CNT_CODE] = ".text",
             [PE.IMAGE_SCN_MEM_READ | PE.IMAGE_SCN_CNT_INITIALIZED_DATA] = ".rdata",
@@ -99,8 +91,7 @@ namespace Il2CppInspector
             if ((PE)pe.Magic != pe.ExpectedMagic)
                 return false;
 
-            // Get IAT
-            var IATStart = pe.DataDirectory[12].VirtualAddress;
+            // Get IAT size
             var IATSize = pe.DataDirectory[12].Size;
 
             // Get sections table
@@ -108,14 +99,11 @@ namespace Il2CppInspector
 
             // Unpacking must be done starting here, one byte after the end of the headers
             // Packed or previously packed with Themida? This is purely for information
-            if (sections.FirstOrDefault(x => x.Name == ".themida") is PESection _)
+            if (sections.Any(x => x.Name == ".themida"))
                 Console.WriteLine("Themida protection detected");
 
-            // Packed with anything (including Themida)?
-            mightBePacked = sections.FirstOrDefault(x => x.Name == ".rdata") is null;
-
             // Rename sections if needed (before potentially searching them or rewriting them to the stream)
-            foreach (var section in sections.Where(s => wantedSectionTypes.Keys.Contains(s.Characteristics)))
+            foreach (var section in sections.Where(s => wantedSectionTypes.ContainsKey(s.Characteristics)))
                 // Replace section name if blank or all whitespace
                 if (Regex.IsMatch(section.Name, @"^\s*$"))
                     section.Name = wantedSectionTypes[section.Characteristics];
@@ -125,9 +113,8 @@ namespace Il2CppInspector
                 pe.ImageBase + pe.BaseOfCode - sections.FirstOrDefault(x => x.Characteristics.HasFlag(PE.IMAGE_SCN_MEM_EXECUTE))?.PointerToRawData
                 ?? 0;
 
-            // Confirm that .rdata section begins at same place as IAT
+            // Function pointer table follows the IAT at the start of .rdata
             var rData = sections.FirstOrDefault(x => x.Name == ".rdata");
-            mightBePacked |= rData == null || rData.VirtualAddress != IATStart;
             if (rData != null)
             {
                 // Calculate start of function pointer table
@@ -151,13 +138,6 @@ namespace Il2CppInspector
 
             // In the fist go round, we signal that this is at least a valid PE file; we don't try to unpack yet
             return true;
-        }
-
-        // Raw file / unpacked file load strategies
-        public override IEnumerable<IFileFormatStream> TryNextLoadStrategy()
-        {
-            // First load strategy: the regular file
-            yield return this;
         }
 
         public override uint[] GetFunctionTable()

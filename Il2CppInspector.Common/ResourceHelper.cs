@@ -27,8 +27,7 @@ namespace Il2CppInspector
             }
 
             using StreamReader reader = new(stream);
-            string result = reader.ReadToEnd();
-            return result;
+            return reader.ReadToEnd();
         }
 
         // Get a list of resources for a namespace

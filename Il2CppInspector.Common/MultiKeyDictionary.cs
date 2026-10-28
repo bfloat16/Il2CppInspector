@@ -23,14 +23,13 @@ namespace Aron.Weiler
         internal readonly Dictionary<L, K> subDictionary = [];
         internal readonly Dictionary<K, L> primaryToSubkeyMapping = [];
 
-        ReaderWriterLockSlim readerWriterLock = new();
+        readonly ReaderWriterLockSlim readerWriterLock = new();
 
         public V this[L subKey]
         {
             get
             {
-                V item;
-                if (TryGetValue(subKey, out item))
+                if (TryGetValue(subKey, out V item))
                     return item;
 
                 throw new KeyNotFoundException("sub key not found: " + subKey.ToString());
@@ -41,8 +40,7 @@ namespace Aron.Weiler
         {
             get
             {
-                V item;
-                if (TryGetValue(primaryKey, out item))
+                if (TryGetValue(primaryKey, out V item))
                     return item;
 
                 throw new KeyNotFoundException("primary key not found: " + primaryKey.ToString());
@@ -88,15 +86,13 @@ namespace Aron.Weiler
 
         public bool TryGetValue(L subKey, out V val)
         {
-            val = default(V);
-
-            K primaryKey;
+            val = default;
 
             readerWriterLock.EnterReadLock();
 
             try
             {
-                if (subDictionary.TryGetValue(subKey, out primaryKey))
+                if (subDictionary.TryGetValue(subKey, out K primaryKey))
                 {
                     return baseDictionary.TryGetValue(primaryKey, out val);
                 }
@@ -123,19 +119,9 @@ namespace Aron.Weiler
             }
         }
 
-        public bool ContainsKey(L subKey)
-        {
-            V val;
+        public bool ContainsKey(L subKey) => TryGetValue(subKey, out _);
 
-            return TryGetValue(subKey, out val);
-        }
-
-        public bool ContainsKey(K primaryKey)
-        {
-            V val;
-
-            return TryGetValue(primaryKey, out val);
-        }
+        public bool ContainsKey(K primaryKey) => TryGetValue(primaryKey, out _);
 
         public void Remove(K primaryKey)
         {

@@ -1,5 +1,4 @@
 using Il2CppInspector.Cpp;
-using Il2CppInspector.Outputs;
 using Il2CppInspector.Reflection;
 
 namespace Il2CppInspector.Model
@@ -175,7 +174,6 @@ namespace Il2CppInspector.Model
                 return;
             }
 
-            BuildMethods();
             BuildTypes();
             model.AnalysisOrderedTypes.Clear();
             model.AnalysisForwardDefinitions.Clear();
@@ -233,15 +231,7 @@ namespace Il2CppInspector.Model
             result.Group = group;
             var names = new HashSet<string>();
             foreach (var field in type.DeclaredFields.Where(f => f.IsLiteral))
-            {
-                var identifier = CppDeclarationGenerator.FieldIdentifier(field.Name);
-                while (!names.Add(identifier))
-                {
-                    identifier += "_" + field.Index;
-                }
-
-                result.AddField(identifier, field.DefaultValue);
-            }
+                result.AddField(UniqueFieldName(names, field), field.DefaultValue);
             type.ReleaseGeneratedFields();
             return result;
         }
@@ -305,12 +295,7 @@ namespace Il2CppInspector.Model
 
                         foreach (var field in current.DeclaredFields.Where(f => !f.IsLiteral && !f.IsStatic))
                         {
-                            var name = CppDeclarationGenerator.FieldIdentifier(field.Name);
-                            while (!names.Add(name))
-                            {
-                                name += "_" + field.Index;
-                            }
-
+                            var name = UniqueFieldName(names, field);
                             var offset = checked((int)field.Offset) - (type.IsValueType ? 0 : 16);
                             if (offset < 0)
                             {
@@ -402,19 +387,20 @@ namespace Il2CppInspector.Model
                     {
                         var names = new HashSet<string>();
                         foreach (var field in type.DeclaredFields.Where(f => f.IsStatic && !f.IsLiteral && f.StorageTag == tag))
-                        {
-                            var name = CppDeclarationGenerator.FieldIdentifier(field.Name);
-                            while (!names.Add(name))
-                            {
-                                name += "_" + field.Index;
-                            }
-
-                            Add(node, name, AsCType(field.FieldType), checked((int)field.Offset));
-                        }
+                            Add(node, UniqueFieldName(names, field), AsCType(field.FieldType), checked((int)field.Offset));
                         type.ReleaseGeneratedFields();
                     }
                 );
             }
+        }
+
+        // Disambiguate colliding C identifiers within one declaration by appending the field index.
+        private static string UniqueFieldName(HashSet<string> names, FieldInfo field)
+        {
+            var name = CppDeclarationGenerator.FieldIdentifier(field.Name);
+            while (!names.Add(name))
+                name += "_" + field.Index;
+            return name;
         }
 
         internal static void Add(CppComplexType node, string name, CppType type, int offset)

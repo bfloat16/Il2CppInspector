@@ -189,7 +189,6 @@ namespace Il2CppInspector.Model
                 TryAdd(func, CppFnPtrType.FromSignature(cppTypes, $"void (*unk_{func.ToAddressString()})()"));
 
             // Remaining exports
-            var voidPtrType = cppTypes.GetType("void *");
             foreach (var export in Model.Exports)
                 TryAdd(export.VirtualAddress, export);
 

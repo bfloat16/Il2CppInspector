@@ -101,10 +101,10 @@ class IDADisassemblerInterface(BaseDisassemblerInterface):
                 ida_typeinf.del_til(lib)
 
             self._status.update_step("Processing Types")
+            header_path = os.path.join(
+                self.get_script_directory(), "%TYPE_HEADER_RELATIVE_PATH%"
+            )
             if IDACLANG_AVAILABLE:
-                header_path = os.path.join(
-                    self.get_script_directory(), "%TYPE_HEADER_RELATIVE_PATH%"
-                )
                 ida_srclang.set_parser_argv(
                     "clang", "-target %IDACLANG_TARGET% -x c++ -fms-extensions -D_IDACLANG_=1"
                 )  # -target required for 8.3+
@@ -112,12 +112,7 @@ class IDADisassemblerInterface(BaseDisassemblerInterface):
             else:
                 original_macros = ida_typeinf.get_c_macros()
                 ida_typeinf.set_c_macros(original_macros + ";_IDA_=1")
-                ida_typeinf.idc_parse_types(
-                    os.path.join(
-                        self.get_script_directory(), "%TYPE_HEADER_RELATIVE_PATH%"
-                    ),
-                    ida_typeinf.PT_FILE,
-                )
+                ida_typeinf.idc_parse_types(header_path, ida_typeinf.PT_FILE)
                 ida_typeinf.set_c_macros(original_macros)
 
         # Skip make_function on Windows GameAssembly.dll files due to them predefining all functions through pdata which makes the method very slow

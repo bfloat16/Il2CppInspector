@@ -36,7 +36,7 @@ namespace Il2CppInspector.Reflection
         public MethodInvoker(MethodBase exampleMethod, int index)
         {
             var model = exampleMethod.Assembly.Model;
-            Package = exampleMethod.Assembly.Model.Package;
+            Package = model.Package;
 
             Index = index;
             IsStatic = exampleMethod.IsStatic;

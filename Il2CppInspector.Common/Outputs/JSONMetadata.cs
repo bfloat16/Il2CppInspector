@@ -16,7 +16,7 @@ namespace Il2CppInspector.Outputs
         private Utf8JsonWriter writer;
 
         // Allow non-compliant C-style comments in JSON output
-        public bool AllowComments { get; set; } = false;
+        public bool AllowComments { get; set; }
         public bool SupplementDebugInfo { get; set; }
 
         internal static bool IsDebugSymbolSection(string name) =>
@@ -131,8 +131,8 @@ namespace Il2CppInspector.Outputs
                             {
                                 writer.WriteNumber("ordinal", str.Key);
                                 writer.WriteString("name", $"STRINGLITERAL_{str.Key}_{stringToIdentifier(str.Value)}");
-                                // For version >= 19
                             }
+                            // For version >= 19
                             else
                             {
                                 writer.WriteString("virtualAddress", str.Key.ToAddressString());
@@ -473,10 +473,6 @@ namespace Il2CppInspector.Outputs
             writer.WriteString("dotNetType", type.CSharpName);
         }
 
-        private static string stringToIdentifier(string str)
-        {
-            str = str.Substring(0, Math.Min(32, str.Length));
-            return str.ToCIdentifier();
-        }
+        private static string stringToIdentifier(string str) => str[..Math.Min(32, str.Length)].ToCIdentifier();
     }
 }

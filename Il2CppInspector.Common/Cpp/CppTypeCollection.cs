@@ -33,7 +33,7 @@ namespace Il2CppInspector.Cpp
         // Architecture width in bits (32/64) - to determine pointer sizes
         public int WordSize { get; }
 
-        private Dictionary<string, ComplexValueType> complexTypeMap = new()
+        private readonly Dictionary<string, ComplexValueType> complexTypeMap = new()
         {
             ["struct"] = ComplexValueType.Struct,
             ["union"] = ComplexValueType.Union,
@@ -127,10 +127,9 @@ namespace Il2CppInspector.Cpp
             bool inMethod = false;
             bool inTypedef = false;
             var nextEnumValue = 0L;
-            string rawLine,
-                line;
+            string line;
 
-            while ((rawLine = line = lines.ReadLine()) != null)
+            while ((line = lines.ReadLine()) != null)
             {
                 // Remove comments
                 if (line.Contains("//"))
@@ -153,7 +152,7 @@ namespace Il2CppInspector.Cpp
                 line = rgxSingleLineComment.Replace(line, "");
 
                 // Start of multi-line comment?
-                if (line.Contains("/*") && !inComment)
+                if (line.Contains("/*"))
                 {
                     inComment = true;
                     line = line.Substring(0, line.IndexOf("/*"));
@@ -174,7 +173,7 @@ namespace Il2CppInspector.Cpp
                     continue;
                 }
 
-                if (line == "}" && inMethod)
+                if (inMethod)
                 {
                     inMethod = false;
 
@@ -287,7 +286,6 @@ namespace Il2CppInspector.Cpp
                 var typedef = rgxTypedefAlias.Match(line);
                 if (typedef.Success)
                 {
-                    //var complexType = complexTypeMap[typedef.Groups[1].Captures[0].ToString()];
                     var existingType = typedef.Groups[2].Captures[0].ToString();
                     var alias = typedef.Groups[3].Captures[0].ToString();
 
@@ -602,12 +600,16 @@ namespace Il2CppInspector.Cpp
         // Helper factories
         // If the type is named, it gets added to the dictionary; otherwise it must be added manually
         // If the type already exists, it is fetched, otherwise it is created
-        public CppComplexType Struct(string name = "", int alignmentBytes = 0)
+        public CppComplexType Struct(string name = "", int alignmentBytes = 0) => Complex(ComplexValueType.Struct, name, alignmentBytes);
+
+        public CppComplexType Union(string name = "", int alignmentBytes = 0) => Complex(ComplexValueType.Union, name, alignmentBytes);
+
+        private CppComplexType Complex(ComplexValueType complexValueType, string name, int alignmentBytes)
         {
             if (!string.IsNullOrEmpty(name) && Types.TryGetValue(name, out var cppType))
                 return (CppComplexType)cppType;
 
-            var type = new CppComplexType(ComplexValueType.Struct)
+            var type = new CppComplexType(complexValueType)
             {
                 Name = name,
                 Group = currentGroup,
@@ -616,22 +618,6 @@ namespace Il2CppInspector.Cpp
             if (!string.IsNullOrEmpty(name))
                 Add(type);
 
-            return type;
-        }
-
-        public CppComplexType Union(string name = "", int alignmentBytes = 0)
-        {
-            if (!string.IsNullOrEmpty(name) && Types.TryGetValue(name, out var cppType))
-                return (CppComplexType)cppType;
-
-            var type = new CppComplexType(ComplexValueType.Union)
-            {
-                Name = name,
-                Group = currentGroup,
-                AlignmentBytes = alignmentBytes,
-            };
-            if (!string.IsNullOrEmpty(name))
-                Add(type);
             return type;
         }
 

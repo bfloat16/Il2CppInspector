@@ -10,7 +10,7 @@ namespace Il2CppInspector.Reflection
 {
     public abstract class MemberInfo
     {
-        // Assembly that this member is defined in. Only set when MemberType == TypeInfo
+        // Assembly that this member is defined in
         public Assembly Assembly { get; protected set; }
 
         // Custom attributes for this member

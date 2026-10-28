@@ -23,7 +23,6 @@ namespace Il2CppInspector.Model
     // Reference to a type (Il2CppObject * or Il2CppType *, use Field to determine which)
     public class AppTypeReference : AppReference
     {
-        // The corresponding C++ function pointer type
         public AppType Type { get; set; }
     }
 }

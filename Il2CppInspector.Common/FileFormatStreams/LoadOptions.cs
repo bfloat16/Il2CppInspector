@@ -11,7 +11,7 @@ namespace Il2CppInspector
     {
         // For ELF files, the virtual address to which we should rebase - ignored for other file types
         // Use zero to prevent rebasing
-        public ulong ImageBase { get; set; } = 0ul;
+        public ulong ImageBase { get; set; }
 
         // Optional auxiliary metadata; the selected plugin can discover it beside global metadata.
         public string StartupMetadataPath { get; set; }

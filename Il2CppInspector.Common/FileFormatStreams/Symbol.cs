@@ -14,7 +14,7 @@ namespace Il2CppInspector
         Unknown,
     }
 
-    // A code file function export
+    // A code file symbol
     public class Symbol
     {
         public ulong VirtualAddress { get; set; }

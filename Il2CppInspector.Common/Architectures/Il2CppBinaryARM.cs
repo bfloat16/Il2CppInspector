@@ -150,11 +150,7 @@ namespace Il2CppInspector
                 // Is it a MOVW?
                 if (getThumbMovImm(inst, Thumb.MovW) is (uint movw_reg_d, ushort movw_imm))
                 {
-                    if (regs.ContainsKey(movw_reg_d))
-                        regs[movw_reg_d] = movw_imm; // Clears top 16 bits
-                    else
-                        regs.Add(movw_reg_d, movw_imm);
-
+                    regs[movw_reg_d] = movw_imm; // Clears top 16 bits
                     accepted = true;
                 }
 
@@ -179,11 +175,7 @@ namespace Il2CppInspector
                         if (regs.ContainsKey(ldr_reg_n))
                         {
                             var offset = (regs[ldr_reg_n] & 0xffff_fffe) + ldr_imm;
-                            var value = image.ReadUInt32(image.MapVATR(offset));
-                            if (regs.ContainsKey(ldr_reg_t))
-                                regs[ldr_reg_t] = value;
-                            else
-                                regs.Add(ldr_reg_t, value);
+                            regs[ldr_reg_t] = image.ReadUInt32(image.MapVATR(offset));
 
                             accepted = true;
                         }
@@ -350,7 +342,7 @@ namespace Il2CppInspector
             // R0-R3 + PC will be set and they will be the only registers set
             // R2 and R3 must be zero
             if (
-                regs.Count() == 5
+                regs.Count == 5
                 && regs.TryGetValue(0, out _)
                 && regs.TryGetValue(1, out r1)
                 && regs.TryGetValue(2, out uint r2)

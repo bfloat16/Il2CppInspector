@@ -179,7 +179,7 @@ namespace Il2CppInspector.Model
 
         // All of the API exports defined in the IL2CPP binary
         // Note: Multiple export names may have the same virtual address
-        public MultiKeyDictionary<string, ulong, CppFnPtrType> AvailableAPIs { get; } = new MultiKeyDictionary<string, ulong, CppFnPtrType>();
+        public MultiKeyDictionary<string, ulong, CppFnPtrType> AvailableAPIs { get; } = new();
 
         // Delegated C++ types iterator
         public IEnumerator<CppType> GetEnumerator() => CppTypeCollection.GetEnumerator();
@@ -346,13 +346,7 @@ namespace Il2CppInspector.Model
 
                     switch (usage.Type)
                     {
-                        case MetadataUsageType.StringLiteral:
-                            var str = TypeModel.GetMetadataUsageName(usage);
-                            Strings[address] = str;
-                            break;
-
-                        case MetadataUsageType.Type
-                        or MetadataUsageType.TypeInfo:
+                        case MetadataUsageType.Type or MetadataUsageType.TypeInfo:
                             var type = TypeModel.GetMetadataUsageType(usage);
                             declarationGenerator.IncludeType(type);
                             AddTypes(declarationGenerator.GenerateRemainingTypeDeclarations());
@@ -373,16 +367,7 @@ namespace Il2CppInspector.Model
                             var method = TypeModel.GetMetadataUsageMethod(usage);
 
                             declarationGenerator.IncludeMethod(method);
-                            var definitions = declarationGenerator.GenerateRemainingTypeDeclarations();
-                            if (definitions == null)
-                            {
-                                // if we end up here, type generation has failed
-                                // todo: this try/catch is a massive hack to sidestep the original issue of generation failing,
-                                // todo: this needs to be improved.
-                                break;
-                            }
-
-                            AddTypes(definitions);
+                            AddTypes(declarationGenerator.GenerateRemainingTypeDeclarations());
 
                             // Any method here SHOULD already be in the Methods list
                             // but we have seen one example where this is not the case for a MethodDef
@@ -395,9 +380,10 @@ namespace Il2CppInspector.Model
 
                             break;
 
-                        case MetadataUsageType.FieldInfo
+                        case MetadataUsageType.StringLiteral
+                        or MetadataUsageType.FieldInfo
                         or MetadataUsageType.FieldRva:
-                            // Populated by the shared data-usage decoder above.
+                            // Populated by BuildMetadataDataUsages above.
                             break;
                     }
                 }

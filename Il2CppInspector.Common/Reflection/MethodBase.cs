@@ -113,7 +113,7 @@ namespace Il2CppInspector.Reflection
 
         // See: https://docs.microsoft.com/en-us/dotnet/api/system.reflection.methodbase.isgenericmethod?view=netframework-4.8
         public bool IsGenericMethod { get; }
-        public bool IsGenericMethodDefinition => (genericMethodDefinition == null) && genericArguments.Any();
+        public bool IsGenericMethodDefinition => genericMethodDefinition == null && genericArguments.Any();
 
         // Get the machine code of the method body
         public byte[] GetMethodBody()
@@ -131,26 +131,24 @@ namespace Il2CppInspector.Reflection
                 ? "operator " + OperatorMethodNames[Name]
             // Explicit interface implementation
             : (IsVirtual && IsFinal && (Attributes & MethodAttributes.VtableLayoutMask) == MethodAttributes.NewSlot && Name.IndexOf('.') != -1)
-                ? (
-                    (Func<string>)(
-                        () =>
-                        {
-                            // This is some shenanigans because IL2CPP does not use a consistent naming scheme for explicit interface implementation method names
-                            var implementingInterface =
-                                DeclaringType.ImplementedInterfaces.FirstOrDefault(i => Name.StartsWith(i.Namespace + "." + i.CSharpName + "."))
-                                ?? DeclaringType.ImplementedInterfaces.FirstOrDefault(i =>
-                                    Name.StartsWith(i.Namespace + "." + i.GetCSharpTypeDeclarationName().Replace(" ", "") + ".")
-                                );
-                            // TODO: There are some combinations we haven't dealt with so use this test as a safety valve
-                            // Don't call ToCIdentifier() because this still does definitely implement an interface, we just don't know which
-                            if (implementingInterface == null)
-                                return Name;
-                            return implementingInterface.CSharpName + "." + Name.Substring(Name.LastIndexOf('.') + 1).ToCIdentifier();
-                        }
-                    )
-                )()
+                ? getExplicitInterfaceImplementationName()
             // Regular method
             : Name.ToCIdentifier(allowScopeQualifiers: true);
+
+        private string getExplicitInterfaceImplementationName()
+        {
+            // This is some shenanigans because IL2CPP does not use a consistent naming scheme for explicit interface implementation method names
+            var implementingInterface =
+                DeclaringType.ImplementedInterfaces.FirstOrDefault(i => Name.StartsWith(i.Namespace + "." + i.CSharpName + "."))
+                ?? DeclaringType.ImplementedInterfaces.FirstOrDefault(i =>
+                    Name.StartsWith(i.Namespace + "." + i.GetCSharpTypeDeclarationName().Replace(" ", "") + ".")
+                );
+            // TODO: There are some combinations we haven't dealt with so use this test as a safety valve
+            // Don't call ToCIdentifier() because this still does definitely implement an interface, we just don't know which
+            if (implementingInterface == null)
+                return Name;
+            return implementingInterface.CSharpName + "." + Name.Substring(Name.LastIndexOf('.') + 1).ToCIdentifier();
+        }
 
         // Initialize a method from a method definition (MethodDef)
         protected MethodBase(Il2CppInspector pkg, int methodIndex, TypeInfo declaringType)
@@ -231,9 +229,8 @@ namespace Il2CppInspector.Reflection
                 throw new ArgumentException("The number of generic arguments provided does not match the generic type definition.");
             }
 
-            MethodBase result;
             genericMethodInstances ??= new Dictionary<TypeInfo[], MethodBase>(new TypeInfo.TypeArgumentsComparer()) { [genericArguments] = this };
-            if (genericMethodInstances.TryGetValue(typeArguments, out result))
+            if (genericMethodInstances.TryGetValue(typeArguments, out var result))
                 return result;
             result = MakeGenericMethodImpl(typeArguments);
             genericMethodInstances[typeArguments] = result;
