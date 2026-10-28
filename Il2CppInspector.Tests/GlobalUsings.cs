@@ -1,7 +1,6 @@
 global using System.Text;
 global using System.Text.Json;
 global using dnlib.DotNet;
-global using Il2CppInspector;
 global using Il2CppInspector.Cpp;
 global using Il2CppInspector.Cpp.UnityHeaders;
 global using Il2CppInspector.Model;
@@ -10,6 +9,5 @@ global using Il2CppInspector.Next.Metadata;
 global using Il2CppInspector.Outputs;
 global using Il2CppInspector.Plugins;
 global using Il2CppInspector.Reflection;
-global using Il2CppInspector.Tests.Plugin.ZZZ;
 global using static Il2CppInspector.Tests.TestAssert;
 global using Inspector = Il2CppInspector.Il2CppInspector;

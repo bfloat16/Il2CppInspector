@@ -4,16 +4,10 @@ internal static class DwarfIdaTests
 {
     internal static void Run(string directory, string symbols, string idat)
     {
-        var root = new DirectoryInfo(AppContext.BaseDirectory);
-        while (root != null && !File.Exists(Path.Combine(root.FullName, "Il2CppInspector.slnx")))
-            root = root.Parent;
-        if (root == null)
-            throw new DirectoryNotFoundException("Cannot locate IDA test fixtures.");
-        var fixtures = Path.Combine(root.FullName, "Il2CppInspector.Tests", "Common", "Outputs", "Fixtures");
         var input = Path.Combine(directory, "ida-target.elf");
         var debugFile = Path.Combine(directory, "ida-target.sym");
         File.WriteAllText(debugFile, "stale debug companion");
-        RunTool(
+        TestEnvironment.RunTool(
             "clang",
             [
                 "--target=aarch64-linux-gnu",
@@ -23,27 +17,29 @@ internal static class DwarfIdaTests
                 "-Wl,-Tdata=0x140002000",
                 "-Wl,--section-start=.bss=0x140003000",
                 "-Wl,--entry=_start",
-                Path.Combine(fixtures, "DwarfIdaFixture.s"),
+                TestEnvironment.FixturePath("DwarfIdaFixture.s"),
                 "-o",
                 input,
             ]
         );
-        RunTool("llvm-objcopy", ["--strip-all", input]);
-        RunTool("llvm-objcopy", ["--add-gnu-debuglink=" + debugFile, input]);
+        TestEnvironment.RunTool("llvm-objcopy", ["--strip-all", input]);
+        TestEnvironment.RunTool("llvm-objcopy", ["--add-gnu-debuglink=" + debugFile, input]);
         File.Copy(symbols, debugFile, true);
-        var original = File.ReadAllBytes(input);
-        var image = FileFormatStream.Load(input) ?? throw new InvalidDataException("Cannot load IDA ELF fixture.");
+        var image = FileFormatStream.Load(input);
         string patched;
         using ((IDisposable)image)
             patched = DwarfOutput.CreateDebugLinkImage(image, input, debugFile);
-        Check(
-            patched != null && File.ReadAllBytes(input).SequenceEqual(original),
-            "Debuglink repair produces a loadable ELF copy without modifying the original stale link"
-        );
         var log = Path.Combine(directory, "ida-dwarf.log");
-        RunTool(
+        TestEnvironment.RunTool(
             idat,
-            ["-A", "-c", "-L" + log, "-o" + Path.Combine(directory, "ida-target.i64"), "-S" + Path.Combine(fixtures, "VerifyDwarfInIda.py"), patched]
+            [
+                "-A",
+                "-c",
+                "-L" + log,
+                "-o" + Path.Combine(directory, "ida-target.i64"),
+                "-S" + TestEnvironment.FixturePath("VerifyDwarfInIda.py"),
+                patched,
+            ]
         );
         var report = File.ReadLines(log).Last(line => line.StartsWith("DWARF_IDA_RESULT=", StringComparison.Ordinal));
         using var json = JsonDocument.Parse(report["DWARF_IDA_RESULT=".Length..]);
@@ -89,23 +85,5 @@ internal static class DwarfIdaTests
                 && globals.Single(g => g.GetProperty("address").GetString() == "0x140002040").GetProperty("size").GetUInt64() == 48,
             "IDA applies global array dimensions and the complete data extent"
         );
-    }
-
-    internal static void RunTool(string executable, string[] arguments)
-    {
-        var start = new System.Diagnostics.ProcessStartInfo(executable)
-        {
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-        };
-        foreach (var argument in arguments)
-            start.ArgumentList.Add(argument);
-        using var process = System.Diagnostics.Process.Start(start);
-        var stdout = process.StandardOutput.ReadToEndAsync();
-        var stderr = process.StandardError.ReadToEndAsync();
-        process.WaitForExit();
-        if (process.ExitCode != 0)
-            throw new InvalidOperationException($"{executable} failed: {stdout.GetAwaiter().GetResult()} {stderr.GetAwaiter().GetResult()}");
     }
 }

@@ -1,16 +1,16 @@
 # Integration Tests
 
-Tests mirror production modules under `Common/`, `CLI/` and `Plugin/<game>/`.
-`Program.cs` selects a test mode and `TestAssert` supplies shared assertions.
-Real input files are supplied locally; game-specific modes are documented with [ZZZ](Plugin/ZZZ/README.md), [TOT](Plugin/TOT/README.md), [TOT OS](Plugin/TOT/OS/README.md) and [Genshin](Plugin/Genshin/README.md).
+Tests mirror production modules under `Common/` and `CLI/`. Every game plugin runs the same `--plugins` and `--game` checks.
+`Program.cs` selects a test mode, `TestAssert` supplies shared assertions and `TestEnvironment` locates repository fixtures and runs external tools.
+Real input files are supplied locally.
 
 ```bash
 dotnet run --project Il2CppInspector.Tests -c Release -- --plugins
+dotnet run --project Il2CppInspector.Tests -c Release -- --game <GameId> '<sample Native directory>' ['<output directory>']
 dotnet run --project Il2CppInspector.Tests -c Release -- --cpp-layout clang
 dotnet run --project Il2CppInspector.Tests -c Release -- --stock '<Unity player directory>'
 dotnet run --project Il2CppInspector.Tests -c Release -- --plugin-cli '<CLI DLL>' '<isolated directory>'
 dotnet run --project Il2CppInspector.Tests -c Release -- --cli-targets '<CLI DLL>'
-dotnet run --project Il2CppInspector.Tests -c Release -- --debug-routing
 dotnet run --project Il2CppInspector.Tests -c Release -- --progress
 dotnet run --project Il2CppInspector.Tests -c Release -- --pdb-fixture '<output directory>' llvm-pdbutil '<IDA idat executable>'
 dotnet run --project Il2CppInspector.Tests -c Release -- --dwarf-fixture '<output directory>' readelf gdb '<IDA idat executable>' llvm-symbolizer
@@ -30,6 +30,6 @@ IDA fixtures require clang, lld and llvm-objcopy on PATH and modify only tempora
 
 ## Adding Tests
 
-Keep shared behavior under `Common/`, workflows under `CLI/` and game-specific checks under `Plugin/<game>/`.
+Keep shared behavior under `Common/` and workflows under `CLI/`. A new game adds one `Samples` row in `Plugin/GameSampleTests.cs`; a missing baseline makes `--game` print the measured values.
 Reuse expensive decoded models and cover independent failure modes rather than duplicating formatting assertions.
-Document required local inputs beside the relevant tests.
+`--game` expects a directory containing `global-metadata.dat`, the binary named in `Samples` and any plugin startup metadata.

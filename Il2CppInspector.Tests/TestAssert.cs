@@ -12,6 +12,20 @@ namespace Il2CppInspector.Tests
             Pass(message);
         }
 
+        internal static bool Throws<TException>(Action action)
+            where TException : Exception
+        {
+            try
+            {
+                action();
+                return false;
+            }
+            catch (TException)
+            {
+                return true;
+            }
+        }
+
         internal static void Pass(string message) => Console.WriteLine("PASS " + message);
     }
 }
