@@ -14,6 +14,7 @@
   </Folder>
   <Folder Name="/Plugins/Endfield/">
     <Project Path="Il2CppInspector.Plugin/Endfield_CN_Android_x.x.x/Il2CppInspector.Plugin.Endfield_CN_Android_x.x.x.csproj" />
+    <Project Path="Il2CppInspector.Plugin/Endfield_CN_Windows_1.6.3/Il2CppInspector.Plugin.Endfield_CN_Windows_1.6.3.csproj" />
   </Folder>
   <Folder Name="/Plugins/Genshin/">
     <Project Path="Il2CppInspector.Plugin/Genshin_CN_Windows_7.1.0/Il2CppInspector.Plugin.Genshin_CN_Windows_7.1.0.csproj" />
