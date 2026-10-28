@@ -321,13 +321,17 @@ public class BinaryObjectReader : BinaryReader
             // Array
             else if (i.FieldType.IsArray)
             {
-                var attr = i.GetCustomAttribute<ArrayLengthAttribute>(false) ?? throw new InvalidOperationException("Array field " + i.Name + " must have ArrayLength attribute");
+                var attr =
+                    i.GetCustomAttribute<ArrayLengthAttribute>(false)
+                    ?? throw new InvalidOperationException("Array field " + i.Name + " must have ArrayLength attribute");
 
                 int lengthPrimitive;
 
                 if (attr.FieldName != null)
                 {
-                    var field = type.GetField(attr.FieldName) ?? throw new ArgumentException("Array field " + i.Name + " has invalid FieldName in ArrayLength attribute");
+                    var field =
+                        type.GetField(attr.FieldName)
+                        ?? throw new ArgumentException("Array field " + i.Name + " has invalid FieldName in ArrayLength attribute");
                     lengthPrimitive = Convert.ToInt32(field.GetValue(t));
                 }
                 else if (attr.FixedSize > 0)

@@ -15,14 +15,23 @@ namespace Il2CppInspector.Reflection
 
         // Info about the return parameter
         private ParameterInfo returnParameter;
-        public ParameterInfo ReturnParameter => returnParameter ??= Definition.IsValid
-            ? new ParameterInfo(Assembly.Model.Package, -1, this)
-            : ((MethodInfo)rootDefinition).ReturnParameter.SubstituteGenericArguments(this, DeclaringType.GetGenericArguments(), GetGenericArguments());
+        public ParameterInfo ReturnParameter =>
+            returnParameter ??= Definition.IsValid
+                ? new ParameterInfo(Assembly.Model.Package, -1, this)
+                : ((MethodInfo)rootDefinition).ReturnParameter.SubstituteGenericArguments(
+                    this,
+                    DeclaringType.GetGenericArguments(),
+                    GetGenericArguments()
+                );
 
         // Return type of the method
-        public TypeInfo ReturnType => returnParameter?.ParameterType ?? (Definition.IsValid
-            ? Assembly.Model.TypesByReferenceIndex[Definition.ReturnType]
-            : ((MethodInfo)rootDefinition).ReturnType.SubstituteGenericArguments(DeclaringType.GetGenericArguments(), GetGenericArguments()));
+        public TypeInfo ReturnType =>
+            returnParameter?.ParameterType
+            ?? (
+                Definition.IsValid
+                    ? Assembly.Model.TypesByReferenceIndex[Definition.ReturnType]
+                    : ((MethodInfo)rootDefinition).ReturnType.SubstituteGenericArguments(DeclaringType.GetGenericArguments(), GetGenericArguments())
+            );
 
         internal override void ReleaseTransientParameters()
         {
@@ -36,19 +45,13 @@ namespace Il2CppInspector.Reflection
         // IL2CPP doesn't seem to retain return type custom attributes
 
         public MethodInfo(Il2CppInspector pkg, int methodIndex, TypeInfo declaringType)
-            : base(pkg, methodIndex, declaringType)
-        {
-        }
+            : base(pkg, methodIndex, declaringType) { }
 
         public MethodInfo(MethodInfo methodDef, TypeInfo declaringType)
-            : base(methodDef, declaringType)
-        {
-        }
+            : base(methodDef, declaringType) { }
 
         private MethodInfo(MethodInfo methodDef, TypeInfo[] typeArguments)
-            : base(methodDef, typeArguments)
-        {
-        }
+            : base(methodDef, typeArguments) { }
 
         protected override MethodBase MakeGenericMethodImpl(TypeInfo[] typeArguments) => new MethodInfo(this, typeArguments);
 
@@ -58,7 +61,10 @@ namespace Il2CppInspector.Reflection
             + Name
             + GetFullTypeParametersString()
             + "("
-            + string.Join(", ", DeclaredParameters.Select(x => x.ParameterType.IsByRef ? x.ParameterType.Name.TrimEnd('&') + " ByRef" : x.ParameterType.Name))
+            + string.Join(
+                ", ",
+                DeclaredParameters.Select(x => x.ParameterType.IsByRef ? x.ParameterType.Name.TrimEnd('&') + " ByRef" : x.ParameterType.Name)
+            )
             + ")";
     }
 }

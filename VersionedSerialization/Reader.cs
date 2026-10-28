@@ -8,8 +8,11 @@ public static class Reader
     public static Reader<T> From<T>(T reader, ReaderConfig config = default)
         where T : IReader, allows ref struct => new(reader, config);
 
-    public static Reader<LittleEndianSeekableReader<SpanReader>> LittleEndian(ReadOnlySpan<byte> data, int offset = 0, ReaderConfig config = default) =>
-        new(new SpanReader(data, offset).AsLittleEndian(), config);
+    public static Reader<LittleEndianSeekableReader<SpanReader>> LittleEndian(
+        ReadOnlySpan<byte> data,
+        int offset = 0,
+        ReaderConfig config = default
+    ) => new(new SpanReader(data, offset).AsLittleEndian(), config);
 
     public static Reader<BigEndianSeekableReader<SpanReader>> BigEndian(ReadOnlySpan<byte> data, int offset = 0, ReaderConfig config = default) =>
         new(new SpanReader(data, offset).AsBigEndian(), config);
@@ -44,7 +47,13 @@ public static class Reader
         }
     }
 
-    public static ImmutableArray<T> ReadPrimitiveArray<T>(ReadOnlySpan<byte> data, long count, int offset = 0, bool littleEndian = true, ReaderConfig config = default)
+    public static ImmutableArray<T> ReadPrimitiveArray<T>(
+        ReadOnlySpan<byte> data,
+        long count,
+        int offset = 0,
+        bool littleEndian = true,
+        ReaderConfig config = default
+    )
         where T : unmanaged
     {
         if (littleEndian)
@@ -59,7 +68,13 @@ public static class Reader
         }
     }
 
-    public static T ReadVersionedObject<T>(ReadOnlySpan<byte> data, StructVersion version = default, int offset = 0, bool littleEndian = true, ReaderConfig config = default)
+    public static T ReadVersionedObject<T>(
+        ReadOnlySpan<byte> data,
+        StructVersion version = default,
+        int offset = 0,
+        bool littleEndian = true,
+        ReaderConfig config = default
+    )
         where T : IReadable, new()
     {
         if (littleEndian)

@@ -18,13 +18,23 @@ internal static class GenshinTests
                 (_, s) => Console.WriteLine(s)
             );
         Check(input.TypeDefinitions.Length == 88902 && input.Images.Length == 75, "Real image ranges exclude both physical sentinels");
-        Check(input.Methods.Length == 733442 && input.Fields.Length == 440172 && input.Params.Length == 548400, "Shuffled member records retain the physical table boundaries");
-        Check(input.TypeReferences.Length == 683568 && input.MethodSpecs.Length == 570843, "Type references and MethodSpecs retain their native indices");
-        Check(input.CustomAttributeGenerators.Length == 72760 && input.MethodInvokePointers.Length == 79765, "Custom attribute generators and method invokers use separate registration fields");
+        Check(
+            input.Methods.Length == 733442 && input.Fields.Length == 440172 && input.Params.Length == 548400,
+            "Shuffled member records retain the physical table boundaries"
+        );
+        Check(
+            input.TypeReferences.Length == 683568 && input.MethodSpecs.Length == 570843,
+            "Type references and MethodSpecs retain their native indices"
+        );
+        Check(
+            input.CustomAttributeGenerators.Length == 72760 && input.MethodInvokePointers.Length == 79765,
+            "Custom attribute generators and method invokers use separate registration fields"
+        );
         var adapter = input.Metadata.GameAdapter;
         Check(input.Images.Sum(i => (long)i.ExportedTypeCount) == 1351, "Facade image ranges retain the exported type count");
         Check(
-            adapter.AdditionalUsages.Count(u => u.Section == "genshinEmptyArrays") == 2564 && adapter.AdditionalUsages.Count(u => u.Section == "genshinNativeStrings") == 10,
+            adapter.AdditionalUsages.Count(u => u.Section == "genshinEmptyArrays") == 2564
+                && adapter.AdditionalUsages.Count(u => u.Section == "genshinNativeStrings") == 10,
             "Special caches retain empty-array and native-string semantics"
         );
         Console.WriteLine($"Normalized usages: {input.MetadataUsages.Count}; generic bodies: {input.GenericMethodPointers.Count}");
@@ -37,17 +47,41 @@ internal static class GenshinTests
                     Console.WriteLine(lastDetail = p.Detail);
             }
         );
-        Check(model.TypesByFullName["System.ValueType"].BaseType == model.TypesByFullName["System.Object"], "ParentIndex resolves through Il2CppType references");
-        Check(model.TypesByFullName["System.Enum"].BaseType == model.TypesByFullName["System.ValueType"], "Framework inheritance retains enum/value-type semantics");
-        Check(model.TypesByFullName["System.Int32"].IsValueType && !model.TypesByFullName["System.String"].IsEnum, "Primitive type identities are intact");
-        Check(model.TypesByFullName["System.DayOfWeek"].GetEnumUnderlyingType() == model.TypesByFullName["System.Int32"], "Enum ElementTypeIndex resolves the expected scalar type");
+        Check(
+            model.TypesByFullName["System.ValueType"].BaseType == model.TypesByFullName["System.Object"],
+            "ParentIndex resolves through Il2CppType references"
+        );
+        Check(
+            model.TypesByFullName["System.Enum"].BaseType == model.TypesByFullName["System.ValueType"],
+            "Framework inheritance retains enum/value-type semantics"
+        );
+        Check(
+            model.TypesByFullName["System.Int32"].IsValueType && !model.TypesByFullName["System.String"].IsEnum,
+            "Primitive type identities are intact"
+        );
+        Check(
+            model.TypesByFullName["System.DayOfWeek"].GetEnumUnderlyingType() == model.TypesByFullName["System.Int32"],
+            "Enum ElementTypeIndex resolves the expected scalar type"
+        );
         var objectDef = model.TypesByFullName["System.Object"].Definition;
-        Check(!input.TypeReferences[objectDef.ByValTypeIndex].ByRef && input.TypeReferences[objectDef.ByRefTypeIndex].ByRef, "ByVal and ByRef retain their distinct fields");
+        Check(
+            !input.TypeReferences[objectDef.ByValTypeIndex].ByRef && input.TypeReferences[objectDef.ByRefTypeIndex].ByRef,
+            "ByVal and ByRef retain their distinct fields"
+        );
         Check(model.GenericMethods.Count == 570843, "All generic method contexts retain the correct arity");
         Check(model.AttributesByIndices.Count == 74864, "Image-scoped tokens resolve all custom attributes");
-        Check(model.Assemblies.Single(a => a.ShortName == "mscorlib.dll").FullName.Contains("Version=4.0.0.0"), "Assembly version components decode independently");
-        Check(input.StringLiterals[7] == "navMeshData" && input.StringLiterals[10] == "http://www.w3.org/XML/1998/namespace", "Multi-block string literal keystream advances by block ordinal");
-        Check(model.TypesByFullName["System.Math"].DeclaredFields.Single(f => f.Name == "PI").DefaultValue is double pi && pi == Math.PI, "Known scalar default uses the restored blob format");
+        Check(
+            model.Assemblies.Single(a => a.ShortName == "mscorlib.dll").FullName.Contains("Version=4.0.0.0"),
+            "Assembly version components decode independently"
+        );
+        Check(
+            input.StringLiterals[7] == "navMeshData" && input.StringLiterals[10] == "http://www.w3.org/XML/1998/namespace",
+            "Multi-block string literal keystream advances by block ordinal"
+        );
+        Check(
+            model.TypesByFullName["System.Math"].DeclaredFields.Single(f => f.Name == "PI").DefaultValue is double pi && pi == Math.PI,
+            "Known scalar default uses the restored blob format"
+        );
         Check(
             adapter.AdditionalUsages.Where(u => u.Section == "genshinNativeStrings").All(u => u.Length == u.Value.Length)
                 && adapter.AdditionalUsages.Where(u => u.Section == "genshinEmptyArrays").All(u => u.Length == 0 && u.Subtype == 0),
@@ -55,7 +89,8 @@ internal static class GenshinTests
         );
         var list = model.TypesByFullName["System.Collections.Generic.List`1"];
         Check(
-            list.DeclaredProperties.Single(p => p.Name == "Count").GetMethod.Name == "get_Count" && list.DeclaredProperties.Single(p => p.Name == "Capacity").SetMethod.Name == "set_Capacity",
+            list.DeclaredProperties.Single(p => p.Name == "Count").GetMethod.Name == "get_Count"
+                && list.DeclaredProperties.Single(p => p.Name == "Capacity").SetMethod.Name == "set_Capacity",
             "Known properties bind the actual getter and setter instead of a valid constructor index"
         );
         var eventInfo = model.TypesByFullName["System.AppDomain"].DeclaredEvents.Single(e => e.Name == "AssemblyLoad");
@@ -71,7 +106,8 @@ internal static class GenshinTests
         var app = new AppModel(model, false).Build();
         var headers = app.RuntimeCppTypes;
         Check(
-            headers.GetComplexType("Il2CppClass_0").SizeBytes == 0xD0 && headers.GetComplexType("Il2CppClass_0").Flattened["static_fields"].OffsetBytes == 0x78,
+            headers.GetComplexType("Il2CppClass_0").SizeBytes == 0xD0
+                && headers.GetComplexType("Il2CppClass_0").Flattened["static_fields"].OffsetBytes == 0x78,
             "Runtime class prefix and static storage match native offsets"
         );
         Check(
@@ -130,7 +166,11 @@ internal static class GenshinTests
             arrays.GetArrayLength() == 2564
                 && arrays
                     .EnumerateArray()
-                    .All(a => a.GetProperty("length").GetInt32() == 0 && a.GetProperty("subtype").GetUInt32() == 0 && a.GetProperty("dotNetType").ValueKind == System.Text.Json.JsonValueKind.String),
+                    .All(a =>
+                        a.GetProperty("length").GetInt32() == 0
+                        && a.GetProperty("subtype").GetUInt32() == 0
+                        && a.GetProperty("dotNetType").ValueKind == System.Text.Json.JsonValueKind.String
+                    ),
             "Empty-array JSON preserves managed type, zero length and subtype"
         );
     }

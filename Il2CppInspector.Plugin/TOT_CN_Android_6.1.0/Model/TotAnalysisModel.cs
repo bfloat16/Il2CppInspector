@@ -90,7 +90,9 @@ namespace Il2CppInspector.Plugin.TOT
                             var field = fieldType.DeclaredFields.First(f => f.Index == fieldType.Definition.FieldIndex + fieldRef.FieldIndex);
                             var value =
                                 field.HasFieldRVA && field.DefaultValueMetadataAddress != 0
-                                    ? Convert.ToHexString(Package.Metadata.ReadBytes((long)field.DefaultValueMetadataAddress, field.FieldType.Sizes.NativeSize))
+                                    ? Convert.ToHexString(
+                                        Package.Metadata.ReadBytes((long)field.DefaultValueMetadataAddress, field.FieldType.Sizes.NativeSize)
+                                    )
                                     : "";
                             if (usage.Type == MetadataUsageType.FieldInfo)
                             {
@@ -132,7 +134,14 @@ namespace Il2CppInspector.Plugin.TOT
 
             var used = model.AnalysisTypes.Values.Select(t => t.Type).ToHashSet();
             var unused = Reflection.Types.Where(t =>
-                !used.Contains(t) && !t.IsGenericType && !t.IsGenericParameter && !t.IsByRef && !t.IsPointer && !t.IsArray && !t.IsAbstract && t.Name != "<Module>"
+                !used.Contains(t)
+                && !t.IsGenericType
+                && !t.IsGenericParameter
+                && !t.IsByRef
+                && !t.IsPointer
+                && !t.IsArray
+                && !t.IsAbstract
+                && t.Name != "<Module>"
             );
             foreach (var type in unused)
             {
@@ -158,11 +167,24 @@ namespace Il2CppInspector.Plugin.TOT
         public IEnumerable<NativeMethod> EnumerateNativeMethods() =>
             model
                 .AnalysisMethods.Values.Where(m => m.HasCompiledCode)
-                .Select(m => new NativeMethod(m.CppFnPtrType.Name, m.MethodCodeAddress, m.CppFnPtrType) { SourceName = m.Method.Name, LinkageName = m.ToMangledString() });
+                .Select(m => new NativeMethod(m.CppFnPtrType.Name, m.MethodCodeAddress, m.CppFnPtrType)
+                {
+                    SourceName = m.Method.Name,
+                    LinkageName = m.ToMangledString(),
+                });
 
         public IEnumerable<CppType> EnumerateNativeTypes() => model.RuntimeCppTypes.Types.Values;
 
-        private void AddTypes(List<(TypeInfo ilType, CppComplexType valueType, CppComplexType referenceType, CppComplexType fieldsType, CppComplexType vtableType, CppComplexType staticsType)> types)
+        private void AddTypes(
+            List<(
+                TypeInfo ilType,
+                CppComplexType valueType,
+                CppComplexType referenceType,
+                CppComplexType fieldsType,
+                CppComplexType vtableType,
+                CppComplexType staticsType
+            )> types
+        )
         {
             foreach (var type in types)
             {
@@ -193,7 +215,11 @@ namespace Il2CppInspector.Plugin.TOT
             {
                 if (!model.AnalysisTypes.ContainsKey(type.ilType))
                 {
-                    model.AnalysisTypes.Add(type.ilType, type.referenceType, new AppType(type.ilType, type.referenceType, type.valueType) { Group = group });
+                    model.AnalysisTypes.Add(
+                        type.ilType,
+                        type.referenceType,
+                        new AppType(type.ilType, type.referenceType, type.valueType) { Group = group }
+                    );
                 }
             }
         }

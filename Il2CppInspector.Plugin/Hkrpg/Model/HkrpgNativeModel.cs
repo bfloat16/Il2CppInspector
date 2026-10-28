@@ -9,7 +9,8 @@ internal sealed class HkrpgNativeModel : NativeTypeModel
     public override Dictionary<TypeInfo, int> GenericOrdinals { get; }
     public override Dictionary<int, TypeInfo> GenericTypes { get; }
 
-    internal HkrpgNativeModel(TypeModel model) : base(model)
+    internal HkrpgNativeModel(TypeModel model)
+        : base(model)
     {
         var layouts = (SharedTypeLayouts)model.GameLayouts;
         GenericOrdinals = layouts.GenericOrdinals;
@@ -19,6 +20,5 @@ internal sealed class HkrpgNativeModel : NativeTypeModel
     internal override int Alignment(TypeInfo type) => Adapter.LayoutAlignment(Adapter.DefinitionLayoutGroup(type.Index));
 
     internal override CppComplexType CreateClass(NativeLayoutAnalysisModel layouts, TypeInfo type) =>
-        layouts.Declare(Name(type) + "__Class", 0xC0,
-            node => NativeLayoutAnalysisModel.Add(node, "header", layouts.Cpp.GetType("Il2CppClass_0"), 0));
+        layouts.Declare(Name(type) + "__Class", 0xC0, node => NativeLayoutAnalysisModel.Add(node, "header", layouts.Cpp.GetType("Il2CppClass_0"), 0));
 }

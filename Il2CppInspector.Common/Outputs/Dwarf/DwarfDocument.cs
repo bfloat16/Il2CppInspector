@@ -43,7 +43,15 @@ internal sealed class DwarfDocument : IDisposable
     public int CompilationUnits => unitIndex;
     public int TypeRecords => types.Count;
 
-    public DwarfDocument(int bits, string arch, string name, Section[] code, IEnumerable<ulong> functionBoundaries, int maxUnitBytes = DefaultMaxUnitBytes, Section[] dataSections = null)
+    public DwarfDocument(
+        int bits,
+        string arch,
+        string name,
+        Section[] code,
+        IEnumerable<ulong> functionBoundaries,
+        int maxUnitBytes = DefaultMaxUnitBytes,
+        Section[] dataSections = null
+    )
     {
         if (maxUnitBytes < 64)
             throw new ArgumentOutOfRangeException(nameof(maxUnitBytes));
@@ -283,12 +291,26 @@ internal sealed class DwarfDocument : IDisposable
             throw new InvalidOperationException("The DWARF document has already been written.");
         // Data addresses must not receive ARM's instruction-only Thumb normalization.
         var address = variable.Address;
-        if (address == 0 || address == ulong.MaxValue || (bits == 32 && address > uint.MaxValue) || variable.Type == null || string.IsNullOrEmpty(variable.Name))
+        if (
+            address == 0
+            || address == ulong.MaxValue
+            || (bits == 32 && address > uint.MaxValue)
+            || variable.Type == null
+            || string.IsNullOrEmpty(variable.Name)
+        )
             return;
         var size = variable.Type.SizeBytes;
         if (size <= 0)
             return;
-        var sectionIndex = Array.FindIndex(sections, s => !s.IsExec && (s.IsData || s.IsBSS) && address >= s.VirtualStart && address <= s.VirtualEnd && (ulong)size <= s.VirtualEnd - address + 1);
+        var sectionIndex = Array.FindIndex(
+            sections,
+            s =>
+                !s.IsExec
+                && (s.IsData || s.IsBSS)
+                && address >= s.VirtualStart
+                && address <= s.VirtualEnd
+                && (ulong)size <= s.VirtualEnd - address + 1
+        );
         if (sectionIndex < 0 || !globalAddresses.Add(address))
             return;
         var name = variable.Name;

@@ -54,7 +54,9 @@ namespace Il2CppInspector.Next.Metadata
         // sub_18061EF00 maps the packed byte into separate runtime flags. In particular the
         // enum bit is inverted; treating this byte as the stock bitfield makes System.String an enum.
         internal static Il2CppTypeDefinitionBitfield FromBh3(byte value) =>
-            Il2CppTypeDefinitionBitfield.FromRawValue((uint)((value & 1) | (~value & 2) | ((value + 2) & 0x0C) | ((value + 0x12) & 0x10) | ((value - 0x0E) & 0x20)));
+            Il2CppTypeDefinitionBitfield.FromRawValue(
+                (uint)((value & 1) | (~value & 2) | ((value + 2) & 0x0C) | ((value + 0x12) & 0x10) | ((value - 0x0E) & 0x20))
+            );
     }
 
     internal static class Il2CppMethodDefinitionReader

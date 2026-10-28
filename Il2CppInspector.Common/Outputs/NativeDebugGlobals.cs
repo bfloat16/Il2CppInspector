@@ -20,7 +20,11 @@ internal static class NativeDebugGlobals
         foreach (var (name, address) in binary.CodeGenModulePointers)
             yield return new($"g_{name.Replace(".dll", "")}CodeGenModule", address, cpp["Il2CppCodeGenModule"]);
         if (model.Package.Version >= MetadataVersions.V242 && binary.Modules.Count > 0)
-            yield return new("g_CodeGenModules", binary.CodeRegistration.CodeGenModules, Pointer("Il2CppCodeGenModule")?.AsArray(binary.Modules.Count));
+            yield return new(
+                "g_CodeGenModules",
+                binary.CodeRegistration.CodeGenModules,
+                Pointer("Il2CppCodeGenModule")?.AsArray(binary.Modules.Count)
+            );
 
         // Enumerate every cache slot, not AppType/AppMethod's single retained address.
         foreach (var usage in model.Package.MetadataUsages ?? [])

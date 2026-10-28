@@ -349,7 +349,13 @@ namespace Il2CppInspector
             // Is it the Il2CppCodeRegistration.cpp initializer?
             // R0-R3 + PC will be set and they will be the only registers set
             // R2 and R3 must be zero
-            if (regs.Count() == 5 && regs.TryGetValue(0, out _) && regs.TryGetValue(1, out r1) && regs.TryGetValue(2, out uint r2) && regs.TryGetValue(3, out uint r3))
+            if (
+                regs.Count() == 5
+                && regs.TryGetValue(0, out _)
+                && regs.TryGetValue(1, out r1)
+                && regs.TryGetValue(2, out uint r2)
+                && regs.TryGetValue(3, out uint r3)
+            )
             {
                 if (r2 == 0 && r3 == 0)
                 {
@@ -367,7 +373,13 @@ namespace Il2CppInspector
             // In v21 and later, R0-R2 + PC will be set and they will be the only registers set
             // Pre-v21, R0-R1 + PC will be the only registers set
 
-            if (image.Version >= MetadataVersions.V210 && regs.Count == 4 && regs.TryGetValue(0, out r0) && regs.TryGetValue(1, out r1) && regs.TryGetValue(2, out uint _))
+            if (
+                image.Version >= MetadataVersions.V210
+                && regs.Count == 4
+                && regs.TryGetValue(0, out r0)
+                && regs.TryGetValue(1, out r1)
+                && regs.TryGetValue(2, out uint _)
+            )
                 return (r0 & 0xffff_fffe, r1 & 0xffff_fffe);
 
             if (image.Version < MetadataVersions.V210 && regs.Count == 3 && regs.TryGetValue(0, out r0) && regs.TryGetValue(1, out r1))

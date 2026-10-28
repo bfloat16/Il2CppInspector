@@ -23,7 +23,13 @@ namespace Il2CppInspector.Outputs
         }
 
         // Output script file
-        public void WriteScriptToFile(string outputFile, string target, string existingTypeHeaderFIle = null, string existingJsonMetadataFile = null, bool includeTypeHeader = true)
+        public void WriteScriptToFile(
+            string outputFile,
+            string target,
+            string existingTypeHeaderFIle = null,
+            string existingJsonMetadataFile = null,
+            bool includeTypeHeader = true
+        )
         {
             // Check that target script API is valid
             if (!GetAvailableTargets().Contains(target))

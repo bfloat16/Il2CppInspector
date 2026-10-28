@@ -22,7 +22,10 @@ public sealed class ObjectSerializationGenerator : IIncrementalGenerator
                 static (context, _) => (ContextClass: (TypeDeclarationSyntax)context.TargetNode, context.SemanticModel)
             )
             .Combine(context.CompilationProvider)
-            .Select(static (tuple, cancellationToken) => ParseSerializationInfo(tuple.Left.ContextClass, tuple.Left.SemanticModel, tuple.Right, cancellationToken))
+            .Select(
+                static (tuple, cancellationToken) =>
+                    ParseSerializationInfo(tuple.Left.ContextClass, tuple.Left.SemanticModel, tuple.Right, cancellationToken)
+            )
             .WithTrackingName(nameof(ObjectSerializationGenerator));
 
         context.RegisterSourceOutput(valueProvider, EmitCode);
@@ -121,7 +124,9 @@ public sealed class ObjectSerializationGenerator : IIncrementalGenerator
 
     private static void GenerateReadMethod(CodeGenerator generator, ObjectSerializationInfo info)
     {
-        generator.EnterScope("public void Read<TReader>(ref Reader<TReader> reader, in StructVersion version = default) where TReader : IReader, allows ref struct");
+        generator.EnterScope(
+            "public void Read<TReader>(ref Reader<TReader> reader, in StructVersion version = default) where TReader : IReader, allows ref struct"
+        );
 
         if (info.HasBaseType)
             generator.AppendLine("base.Read(ref reader, in version);");
@@ -140,7 +145,8 @@ public sealed class ObjectSerializationGenerator : IIncrementalGenerator
         generator.LeaveScope();
     }
 
-    private static string GetVersionIdentifier(StructVersion version) => $"V{version.Major}_{version.Minor}{(version.Tag == null ? "" : $"_{version.Tag}")}";
+    private static string GetVersionIdentifier(StructVersion version) =>
+        $"V{version.Major}_{version.Minor}{(version.Tag == null ? "" : $"_{version.Tag}")}";
 
     private static void GenerateVersionCondition(ImmutableEquatableArray<VersionCondition> conditions, CodeGenerator generator)
     {
@@ -183,7 +189,12 @@ public sealed class ObjectSerializationGenerator : IIncrementalGenerator
         generator.AppendLine(")");
     }
 
-    private static ObjectSerializationInfo ParseSerializationInfo(TypeDeclarationSyntax contextClass, SemanticModel model, Compilation compilation, CancellationToken cancellationToken)
+    private static ObjectSerializationInfo ParseSerializationInfo(
+        TypeDeclarationSyntax contextClass,
+        SemanticModel model,
+        Compilation compilation,
+        CancellationToken cancellationToken
+    )
     {
         var classSymbol = model.GetDeclaredSymbol(contextClass, cancellationToken) ?? throw new InvalidOperationException();
         var classIsPublic = classSymbol.DeclaredAccessibility == Accessibility.Public;
@@ -293,7 +304,9 @@ public sealed class ObjectSerializationGenerator : IIncrementalGenerator
                 }
                 else
                 {
-                    readMethod = typeInfo.Type.IsSeperateMethod() ? $"reader.Read{typeInfo.Type.GetTypeName()}();" : $"reader.ReadPrimitive<{typeInfo.Type.GetTypeName()}>();";
+                    readMethod = typeInfo.Type.IsSeperateMethod()
+                        ? $"reader.Read{typeInfo.Type.GetTypeName()}();"
+                        : $"reader.ReadPrimitive<{typeInfo.Type.GetTypeName()}>();";
 
                     if (typeInfo.ComplexTypeName != "")
                         readMethod = $"({typeInfo.ComplexTypeName}){readMethod}";
@@ -308,7 +321,9 @@ public sealed class ObjectSerializationGenerator : IIncrementalGenerator
                 _ => $"sizeof({typeInfo.Type.GetTypeName()})",
             };
 
-            properties.Add(new PropertySerializationInfo(member.Name, readMethod, sizeExpression, typeInfo.Type, versionConditions.ToImmutableEquatableArray()));
+            properties.Add(
+                new PropertySerializationInfo(member.Name, readMethod, sizeExpression, typeInfo.Type, versionConditions.ToImmutableEquatableArray())
+            );
         }
 
         var hasBaseType = false;
@@ -317,7 +332,10 @@ public sealed class ObjectSerializationGenerator : IIncrementalGenerator
             var objectSymbol = compilation.GetSpecialType(SpecialType.System_Object);
             var valueTypeSymbol = compilation.GetSpecialType(SpecialType.System_ValueType);
 
-            if (!SymbolEqualityComparer.Default.Equals(objectSymbol, classSymbol.BaseType) && !SymbolEqualityComparer.Default.Equals(valueTypeSymbol, classSymbol.BaseType))
+            if (
+                !SymbolEqualityComparer.Default.Equals(objectSymbol, classSymbol.BaseType)
+                && !SymbolEqualityComparer.Default.Equals(valueTypeSymbol, classSymbol.BaseType)
+            )
                 hasBaseType = true;
         }
 

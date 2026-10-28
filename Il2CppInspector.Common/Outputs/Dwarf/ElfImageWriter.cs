@@ -64,7 +64,10 @@ internal static class ElfImageWriter
         var headerSize = bits == 64 ? 64 : 52;
         var entrySize = bits == 64 ? 64 : 40;
         var fileHeader = source.Read(0, headerSize);
-        var tableOffset = bits == 64 ? BinaryPrimitives.ReadUInt64LittleEndian(fileHeader.AsSpan(40)) : BinaryPrimitives.ReadUInt32LittleEndian(fileHeader.AsSpan(32));
+        var tableOffset =
+            bits == 64
+                ? BinaryPrimitives.ReadUInt64LittleEndian(fileHeader.AsSpan(40))
+                : BinaryPrimitives.ReadUInt32LittleEndian(fileHeader.AsSpan(32));
         var originalEntrySize = BinaryPrimitives.ReadUInt16LittleEndian(fileHeader.AsSpan(bits == 64 ? 58 : 46));
         var count = (uint)BinaryPrimitives.ReadUInt16LittleEndian(fileHeader.AsSpan(bits == 64 ? 60 : 48));
         var nameIndex = (uint)BinaryPrimitives.ReadUInt16LittleEndian(fileHeader.AsSpan(bits == 64 ? 62 : 50));
@@ -220,7 +223,11 @@ internal static class ElfImageWriter
             writer.Write(new byte[symbolSize]);
         WriteGenerated(orderedSymbols.Locals, symbolSize);
         if (originalSymbols != null)
-            source.CopyTo(output, checked((long)originalSymbols.Offset + (long)originalLocalCount * symbolSize), checked((long)originalSymbols.Size - (long)originalLocalCount * symbolSize));
+            source.CopyTo(
+                output,
+                checked((long)originalSymbols.Offset + (long)originalLocalCount * symbolSize),
+                checked((long)originalSymbols.Size - (long)originalLocalCount * symbolSize)
+            );
         WriteGenerated(orderedSymbols.Globals, 0);
         headers[symbolIndex] = new Header
         {
@@ -235,7 +242,17 @@ internal static class ElfImageWriter
             EntrySize = (ulong)symbolSize,
         };
         if (originalSymbols != null)
-            RemapSymbolReferences(output, bits, headers, symbolIndex, originalSymbolCount, originalLocalCount, addedLocals, orderedSymbols.GlobalCount, source);
+            RemapSymbolReferences(
+                output,
+                bits,
+                headers,
+                symbolIndex,
+                originalSymbolCount,
+                originalLocalCount,
+                addedLocals,
+                orderedSymbols.GlobalCount,
+                source
+            );
 
         var namesOffset = checked((ulong)output.Position);
         DwarfImageWriter.Copy(names, output);

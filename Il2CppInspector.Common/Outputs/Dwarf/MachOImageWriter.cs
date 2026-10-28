@@ -154,7 +154,10 @@ internal static class MachOImageWriter
         if (symbolCommand != null && sectionIndices.Any(p => p.Key != p.Value))
             RemapSymbols(output, bits, symbolCommand, sectionIndices, source);
 
-        ulong Word(byte[] bytes, int offset) => bits == 64 ? BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(offset)) : BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset));
+        ulong Word(byte[] bytes, int offset) =>
+            bits == 64
+                ? BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(offset))
+                : BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset));
     }
 
     private static void RemapSymbols(Stream output, int bits, byte[] command, Dictionary<int, int> indices, DwarfImageSource source)

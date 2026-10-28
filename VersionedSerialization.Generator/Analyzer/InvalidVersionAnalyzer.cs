@@ -18,7 +18,15 @@ public class InvalidVersionAnalyzer : DiagnosticAnalyzer
     private const string MessageFormat = "Invalid version string";
     private const string Description = "The version needs to be specified in the following format: <major>.<minor>. Tags are not supported.";
 
-    private static readonly DiagnosticDescriptor Descriptor = new(Identifier, Title, MessageFormat, Category, DiagnosticSeverity.Error, true, Description);
+    private static readonly DiagnosticDescriptor Descriptor = new(
+        Identifier,
+        Title,
+        MessageFormat,
+        Category,
+        DiagnosticSeverity.Error,
+        true,
+        Description
+    );
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => [Descriptor];
 
@@ -48,7 +56,14 @@ public class InvalidVersionAnalyzer : DiagnosticAnalyzer
                 foreach (var argument in attribute.NamedArguments)
                 {
                     var name = argument.Key;
-                    if (name is Constants.LessThan or Constants.GreaterThan or Constants.EqualTo or Constants.LessThanOrEqual or Constants.GreaterThanOrEqual)
+                    if (
+                        name
+                        is Constants.LessThan
+                            or Constants.GreaterThan
+                            or Constants.EqualTo
+                            or Constants.LessThanOrEqual
+                            or Constants.GreaterThanOrEqual
+                    )
                     {
                         var value = (string)argument.Value.Value!;
 

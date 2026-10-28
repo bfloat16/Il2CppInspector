@@ -35,8 +35,10 @@ internal sealed class HkrpgMetadata
     }
 
     internal int Base(uint offset) => checked((int)((ulong)Header.PayloadOffset + offset));
+
     internal ImmutableArray<T> ReadGlobal<T>(uint offset, int count, int stride, RecordReader<T> read) =>
         Records(Global, Base(offset), count, stride, read);
+
     internal ImmutableArray<T> ReadStartup<T>(uint offset, int count, int stride, RecordReader<T> read) =>
         Records(startup, checked((int)offset), count, stride, read);
 
@@ -73,11 +75,36 @@ internal sealed class HkrpgMetadata
         }
         if (methods.Any(m => m.DeclaringType < 0))
             throw new InvalidDataException("HSR method table contains definitions without an owner.");
-        Model.Properties = ReadGlobal(Header.PropertiesOffset, definitions.Max(t => t.PropertyCount == 0 ? 0 : checked((int)t.PropertyIndex + t.PropertyCount)), 10, HkrpgRecords.Property);
-        Model.Events = ReadGlobal(Header.EventsOffset, definitions.Max(t => t.EventCount == 0 ? 0 : checked((int)t.EventIndex + t.EventCount)), 14, HkrpgRecords.Event);
-        Model.Params = ReadGlobal(Header.ParametersOffset, methods.Max(m => m.ParameterCount == 0 ? 0 : checked((int)m.ParameterStart + m.ParameterCount)), 8, HkrpgRecords.Parameter);
-        Model.NestedTypeIndices = ReadGlobal(Header.NestedTypesOffset, definitions.Max(t => t.NestedTypeCount == 0 ? 0 : (int)t.NestedTypeIndex + t.NestedTypeCount), 4, (d, _) => I32(d, 0));
-        Model.InterfaceUsageIndices = ReadGlobal(Header.InterfacesOffset, definitions.Max(t => t.InterfacesCount == 0 ? 0 : (int)t.InterfacesIndex + t.InterfacesCount), 4, (d, _) => new TypeIndex(I32(d, 0)));
+        Model.Properties = ReadGlobal(
+            Header.PropertiesOffset,
+            definitions.Max(t => t.PropertyCount == 0 ? 0 : checked((int)t.PropertyIndex + t.PropertyCount)),
+            10,
+            HkrpgRecords.Property
+        );
+        Model.Events = ReadGlobal(
+            Header.EventsOffset,
+            definitions.Max(t => t.EventCount == 0 ? 0 : checked((int)t.EventIndex + t.EventCount)),
+            14,
+            HkrpgRecords.Event
+        );
+        Model.Params = ReadGlobal(
+            Header.ParametersOffset,
+            methods.Max(m => m.ParameterCount == 0 ? 0 : checked((int)m.ParameterStart + m.ParameterCount)),
+            8,
+            HkrpgRecords.Parameter
+        );
+        Model.NestedTypeIndices = ReadGlobal(
+            Header.NestedTypesOffset,
+            definitions.Max(t => t.NestedTypeCount == 0 ? 0 : (int)t.NestedTypeIndex + t.NestedTypeCount),
+            4,
+            (d, _) => I32(d, 0)
+        );
+        Model.InterfaceUsageIndices = ReadGlobal(
+            Header.InterfacesOffset,
+            definitions.Max(t => t.InterfacesCount == 0 ? 0 : (int)t.InterfacesIndex + t.InterfacesCount),
+            4,
+            (d, _) => new TypeIndex(I32(d, 0))
+        );
         for (var ti = 0; ti < count; ti++)
         {
             var t = definitions[ti];
@@ -91,10 +118,30 @@ internal sealed class HkrpgMetadata
             }
         }
         Model.Fields = ImmutableCollectionsMarshal.AsImmutableArray(fields);
-        Model.FieldDefaultValues = ReadGlobal(Header.FieldDefaultsOffset, checked((int)Header.FieldDefaultCount), 12,
-            (d, _) => new Il2CppFieldDefaultValue { TypeIndex = I32(d, 0), DataIndex = I32(d, 4), FieldIndex = I32(d, 8) });
-        Model.ParameterDefaultValues = ReadGlobal(Header.ParameterDefaultsOffset, checked((int)Header.ParameterDefaultCount), 12,
-            (d, _) => new Il2CppParameterDefaultValue { TypeIndex = I32(d, 0), ParameterIndex = I32(d, 4), DataIndex = I32(d, 8) });
+        Model.FieldDefaultValues = ReadGlobal(
+            Header.FieldDefaultsOffset,
+            checked((int)Header.FieldDefaultCount),
+            12,
+            (d, _) =>
+                new Il2CppFieldDefaultValue
+                {
+                    TypeIndex = I32(d, 0),
+                    DataIndex = I32(d, 4),
+                    FieldIndex = I32(d, 8),
+                }
+        );
+        Model.ParameterDefaultValues = ReadGlobal(
+            Header.ParameterDefaultsOffset,
+            checked((int)Header.ParameterDefaultCount),
+            12,
+            (d, _) =>
+                new Il2CppParameterDefaultValue
+                {
+                    TypeIndex = I32(d, 0),
+                    ParameterIndex = I32(d, 4),
+                    DataIndex = I32(d, 8),
+                }
+        );
         Model.Assemblies = BuildAssemblies();
         ReadCustomAttributes();
         Model.AttributeDataRanges = [];
@@ -103,11 +150,16 @@ internal sealed class HkrpgMetadata
         Model.MetadataUsageLists = [];
         Model.MetadataUsagePairs = [];
         Model.TypeInlineArrays = [];
-        foreach (var field in fields) Intern(field.NameIndex);
-        foreach (var method in methods) Intern(method.NameIndex);
-        foreach (var parameter in Model.Params) Intern(parameter.NameIndex);
-        foreach (var property in Model.Properties) Intern(property.NameIndex);
-        foreach (var ev in Model.Events) Intern(ev.NameIndex);
+        foreach (var field in fields)
+            Intern(field.NameIndex);
+        foreach (var method in methods)
+            Intern(method.NameIndex);
+        foreach (var parameter in Model.Params)
+            Intern(parameter.NameIndex);
+        foreach (var property in Model.Properties)
+            Intern(property.NameIndex);
+        foreach (var ev in Model.Events)
+            Intern(ev.NameIndex);
         status?.Invoke(this, $"HSR: {Model.Images.Length} images, {definitions.Length} types, {methods.Length} methods, {fields.Length} fields.");
     }
 
@@ -123,8 +175,19 @@ internal sealed class HkrpgMetadata
                 throw new InvalidDataException("HSR image custom attribute ranges are not contiguous.");
             count = checked(count + (int)image.CustomAttributeCount);
         }
-        attributeRanges = ReadGlobal(Header.AttributeRangesOffset, count, 8,
-            (d, _) => new Il2CppCustomAttributeTypeRange { Start = (int)(U32(d, 0) & 0xFFFFFF), Count = d[3], Token = U32(d, 4) }).ToArray();
+        attributeRanges = ReadGlobal(
+                Header.AttributeRangesOffset,
+                count,
+                8,
+                (d, _) =>
+                    new Il2CppCustomAttributeTypeRange
+                    {
+                        Start = (int)(U32(d, 0) & 0xFFFFFF),
+                        Count = d[3],
+                        Token = U32(d, 4),
+                    }
+            )
+            .ToArray();
         var typeCount = 0;
         foreach (var image in Model.Images)
         {
@@ -173,7 +236,11 @@ internal sealed class HkrpgMetadata
                 var type = types[field.TypeIndex];
                 if (((FieldAttributes)type.Attrs & (FieldAttributes.Static | FieldAttributes.Literal)) != 0)
                     continue;
-                if (elementIndex >= 0 || type.ByRef || (byte)type.Type is < (byte)Il2CppTypeEnum.IL2CPP_TYPE_BOOLEAN or > (byte)Il2CppTypeEnum.IL2CPP_TYPE_U8)
+                if (
+                    elementIndex >= 0
+                    || type.ByRef
+                    || (byte)type.Type is < (byte)Il2CppTypeEnum.IL2CPP_TYPE_BOOLEAN or > (byte)Il2CppTypeEnum.IL2CPP_TYPE_U8
+                )
                     throw new InvalidDataException($"HSR enum {ti} has invalid underlying fields.");
                 elementIndex = field.TypeIndex;
             }
@@ -198,7 +265,13 @@ internal sealed class HkrpgMetadata
             {
                 ImageIndex = i,
                 Token = 0x20000001,
-                Aname = new() { NameIndex = nameIndex, CultureIndex = -1, PublicKeyIndex = -1, Major = name == "mscorlib" ? 4 : 0 },
+                Aname = new()
+                {
+                    NameIndex = nameIndex,
+                    CultureIndex = -1,
+                    PublicKeyIndex = -1,
+                    Major = name == "mscorlib" ? 4 : 0,
+                },
             };
         }
         return ImmutableCollectionsMarshal.AsImmutableArray(assemblies);

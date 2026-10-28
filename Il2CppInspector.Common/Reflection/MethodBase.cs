@@ -51,8 +51,9 @@ namespace Il2CppInspector.Reflection
                         parameters.Add(new ParameterInfo(Assembly.Model.Package, p, this));
                     return declaredParameters = parameters;
                 }
-                return declaredParameters = rootDefinition.DeclaredParameters
-                    .Select(p => p.SubstituteGenericArguments(this, DeclaringType.GetGenericArguments(), genericArguments)).ToList();
+                return declaredParameters = rootDefinition
+                    .DeclaredParameters.Select(p => p.SubstituteGenericArguments(this, DeclaringType.GetGenericArguments(), genericArguments))
+                    .ToList();
             }
         }
 
@@ -137,7 +138,9 @@ namespace Il2CppInspector.Reflection
                             // This is some shenanigans because IL2CPP does not use a consistent naming scheme for explicit interface implementation method names
                             var implementingInterface =
                                 DeclaringType.ImplementedInterfaces.FirstOrDefault(i => Name.StartsWith(i.Namespace + "." + i.CSharpName + "."))
-                                ?? DeclaringType.ImplementedInterfaces.FirstOrDefault(i => Name.StartsWith(i.Namespace + "." + i.GetCSharpTypeDeclarationName().Replace(" ", "") + "."));
+                                ?? DeclaringType.ImplementedInterfaces.FirstOrDefault(i =>
+                                    Name.StartsWith(i.Namespace + "." + i.GetCSharpTypeDeclarationName().Replace(" ", "") + ".")
+                                );
                             // TODO: There are some combinations we haven't dealt with so use this test as a safety valve
                             // Don't call ToCIdentifier() because this still does definitely implement an interface, we just don't know which
                             if (implementingInterface == null)
@@ -173,7 +176,10 @@ namespace Il2CppInspector.Reflection
 
                 // Store the generic type parameters for later instantiation
                 var container = pkg.GenericContainers[Definition.GenericContainerIndex];
-                genericArguments = Enumerable.Range(container.GenericParameterStart, container.TypeArgc).Select(index => Assembly.Model.GetGenericParameterType(index)).ToArray();
+                genericArguments = Enumerable
+                    .Range(container.GenericParameterStart, container.TypeArgc)
+                    .Select(index => Assembly.Model.GetGenericParameterType(index))
+                    .ToArray();
                 genericMethodInstances = new Dictionary<TypeInfo[], MethodBase>(new TypeInfo.TypeArgumentsComparer()) { [genericArguments] = this };
             }
 
@@ -246,7 +252,8 @@ namespace Il2CppInspector.Reflection
                 { Name: "Finalize", IsVirtual: true, IsFamily: true } => "",
 
                 // Explicit interface implementations do not have an access level modifier
-                { IsVirtual: true, IsFinal: true, Attributes: var a } when (a & MethodAttributes.VtableLayoutMask) == MethodAttributes.NewSlot && Name.IndexOf('.') != -1 => "",
+                { IsVirtual: true, IsFinal: true, Attributes: var a }
+                    when (a & MethodAttributes.VtableLayoutMask) == MethodAttributes.NewSlot && Name.IndexOf('.') != -1 => "",
 
                 { IsPrivate: true } => "private ",
                 { IsPublic: true } => "public ",
@@ -283,7 +290,10 @@ namespace Il2CppInspector.Reflection
             // Method hiding
             if (
                 (DeclaringType.BaseType?.GetAllMethods().Any(m => SignatureEquals(m) && m.IsHideBySig) ?? false)
-                && (((Attributes & MethodAttributes.VtableLayoutMask) == MethodAttributes.ReuseSlot && !IsVirtual) || (Attributes & MethodAttributes.VtableLayoutMask) == MethodAttributes.NewSlot)
+                && (
+                    ((Attributes & MethodAttributes.VtableLayoutMask) == MethodAttributes.ReuseSlot && !IsVirtual)
+                    || (Attributes & MethodAttributes.VtableLayoutMask) == MethodAttributes.NewSlot
+                )
                 && !OperatorMethodNames.ContainsKey(Name)
             )
                 modifiers.Append("new ");
@@ -308,7 +318,8 @@ namespace Il2CppInspector.Reflection
         public string GetTypeParametersString(Scope usingScope) =>
             !GetGenericArguments().Any() ? "" : "<" + string.Join(", ", GetGenericArguments().Select(p => p.GetScopedCSharpName(usingScope))) + ">";
 
-        public string GetFullTypeParametersString() => !GetGenericArguments().Any() ? "" : "[" + string.Join(",", GetGenericArguments().Select(p => p.Name)) + "]";
+        public string GetFullTypeParametersString() =>
+            !GetGenericArguments().Any() ? "" : "[" + string.Join(",", GetGenericArguments().Select(p => p.Name)) + "]";
 
         public bool SignatureEquals(MethodBase other)
         {
@@ -321,12 +332,19 @@ namespace Il2CppInspector.Reflection
             if (genericArguments.Length != other.genericArguments.Length)
                 return false;
             if (DeclaredParameters.All(p => !p.ParameterType.ContainsGenericParameters))
-                return Enumerable.SequenceEqual(DeclaredParameters.Select(p => p.ParameterType), other.DeclaredParameters.Select(p => p.ParameterType));
+                return Enumerable.SequenceEqual(
+                    DeclaredParameters.Select(p => p.ParameterType),
+                    other.DeclaredParameters.Select(p => p.ParameterType)
+                );
             // We have to do something more expensive: check to see if the signatures are the same if the method type parameters are equated.
             // We substitute generic arguments into every parameter type but use a common set of method type parameters.
             return Enumerable.SequenceEqual(
-                rootDefinition.DeclaredParameters.Select(p => p.ParameterType.SubstituteGenericArguments(DeclaringType.GetGenericArguments(), genericArguments)),
-                other.rootDefinition.DeclaredParameters.Select(p => p.ParameterType.SubstituteGenericArguments(other.DeclaringType.GetGenericArguments(), genericArguments))
+                rootDefinition.DeclaredParameters.Select(p =>
+                    p.ParameterType.SubstituteGenericArguments(DeclaringType.GetGenericArguments(), genericArguments)
+                ),
+                other.rootDefinition.DeclaredParameters.Select(p =>
+                    p.ParameterType.SubstituteGenericArguments(other.DeclaringType.GetGenericArguments(), genericArguments)
+                )
             );
         }
 

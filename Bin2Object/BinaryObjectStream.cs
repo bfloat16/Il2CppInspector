@@ -181,7 +181,8 @@ public class BinaryObjectStream : MemoryStream
 
     public void WriteNullTerminatedString(string str, Encoding encoding = null) => Writer.WriteNullTerminatedString(str, encoding);
 
-    public void WriteFixedLengthString(long addr, string str, int size = -1, Encoding encoding = null) => Writer.WriteFixedLengthString(addr, str, size, encoding);
+    public void WriteFixedLengthString(long addr, string str, int size = -1, Encoding encoding = null) =>
+        Writer.WriteFixedLengthString(addr, str, size, encoding);
 
     public void WriteFixedLengthString(string str, int size = -1, Encoding encoding = null) => Writer.WriteFixedLengthString(str, size, encoding);
 }

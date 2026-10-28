@@ -73,7 +73,8 @@ namespace Il2CppInspector.Model
                                     !usage.IsValid ? -1
                                     : usage.Type == MetadataUsageType.MethodRef ? Package.MethodSpecs[usage.SourceIndex].MethodDefinitionIndex
                                     : usage.SourceIndex;
-                                var name = method < 0 ? "unknown" : CppDeclarationGenerator.FieldIdentifier(Model.MethodsByDefinitionIndex[method].Name);
+                                var name =
+                                    method < 0 ? "unknown" : CppDeclarationGenerator.FieldIdentifier(Model.MethodsByDefinitionIndex[method].Name);
                                 NativeLayoutAnalysisModel.Add(table, $"methodPtr_{slot}_{name}", Cpp.GetType("Il2CppMethodPointer"), slot * 8);
                                 if (split)
                                 {
@@ -99,7 +100,12 @@ namespace Il2CppInspector.Model
                     }
                     if (extra > 0)
                     {
-                        NativeLayoutAnalysisModel.Add(node, "extraVTableSlots", Cpp.GetType("Il2CppMethodPointer").AsArray(extra), 0xD0 + count * (split ? 16 : 8));
+                        NativeLayoutAnalysisModel.Add(
+                            node,
+                            "extraVTableSlots",
+                            Cpp.GetType("Il2CppMethodPointer").AsArray(extra),
+                            0xD0 + count * (split ? 16 : 8)
+                        );
                     }
                 }
             );

@@ -9,12 +9,23 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.IL2CPP.ZenlessZoneZero
             var vector = context.Vector;
             var headers = (CppTypeCollection)
                 typeof(AppModel)
-                    .GetProperty("RuntimeCppTypes", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
+                    .GetProperty(
+                        "RuntimeCppTypes",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public
+                    )
                     .GetValue(app);
             var arrayModel = typeof(AppModel)
-                .GetProperty("GameNativeModel", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
+                .GetProperty(
+                    "GameNativeModel",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public
+                )
                 .GetValue(app);
-            var registerArray = arrayModel.GetType().GetMethod("ArrayName", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+            var registerArray = arrayModel
+                .GetType()
+                .GetMethod(
+                    "ArrayName",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public
+                );
             registerArray.Invoke(arrayModel, [vector.MakeArrayType()]);
             registerArray.Invoke(arrayModel, [vector.MakeArrayType().MakeArrayType()]);
             registerArray.Invoke(arrayModel, [model.TypesByFullName["System.Int32"].MakeArrayType(2)]);
@@ -22,7 +33,10 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.IL2CPP.ZenlessZoneZero
                 app.GetVTableOffset() == 0xD0 && app.GetVTableIndexFromClassOffset(0xD8) == 1 && app.GetVTableIndexFromClassOffset(0x108) == 7,
                 "ZZZ virtual-call slot lookup uses the eight-byte pointer array rather than stock AoS stride"
             );
-            Check(headers.GetComplexType("Il2CppClass_0").SizeBytes == 0xD0 && headers.GetComplexType("MethodInfo").SizeBytes == 0x40, "MORAX runtime headers have IDA-confirmed class/method sizes");
+            Check(
+                headers.GetComplexType("Il2CppClass_0").SizeBytes == 0xD0 && headers.GetComplexType("MethodInfo").SizeBytes == 0x40,
+                "MORAX runtime headers have IDA-confirmed class/method sizes"
+            );
             Check(
                 headers.GetComplexType("Il2CppClass_0").Flattened["vtable_count"].OffsetBytes == 0xC4
                     && headers.GetComplexType("Il2CppClass_0").Flattened["native_size"].OffsetBytes == 0xC0
@@ -50,7 +64,8 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.IL2CPP.ZenlessZoneZero
                 "Module counts are decoded from their stored fields, including RGCTX and adjustor entries"
             );
             Check(
-                input.Binary.Modules.Values.Sum(module => (long)module.RgctxsCount) == 28050 && headers.GetComplexType("Il2CppCodeGenModule").Flattened["encodedRgctxsCount"].OffsetBytes == 0x18,
+                input.Binary.Modules.Values.Sum(module => (long)module.RgctxsCount) == 28050
+                    && headers.GetComplexType("Il2CppCodeGenModule").Flattened["encodedRgctxsCount"].OffsetBytes == 0x18,
                 "All 170 RGCTX definition counts agree with token-range ends and total 28,050 entries"
             );
             Check(
@@ -75,7 +90,9 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.IL2CPP.ZenlessZoneZero
                 "Reverse P/Invoke header records use four words rather than the stock pointer tuple"
             );
             Check(
-                headers.GetComplexType("FieldInfo").SizeBytes == 0x20 && headers.GetComplexType("PropertyInfo").SizeBytes == 0x28 && headers.GetComplexType("EventInfo").SizeBytes == 0x38,
+                headers.GetComplexType("FieldInfo").SizeBytes == 0x20
+                    && headers.GetComplexType("PropertyInfo").SizeBytes == 0x28
+                    && headers.GetComplexType("EventInfo").SizeBytes == 0x38,
                 "MORAX reflection records have IDA-confirmed sizes"
             );
             Check(

@@ -121,7 +121,9 @@ namespace Il2CppInspector
                     section.Name = wantedSectionTypes[section.Characteristics];
 
             // Get base of code
-            GlobalOffset = pe.ImageBase + pe.BaseOfCode - sections.FirstOrDefault(x => x.Characteristics.HasFlag(PE.IMAGE_SCN_MEM_EXECUTE))?.PointerToRawData ?? 0;
+            GlobalOffset =
+                pe.ImageBase + pe.BaseOfCode - sections.FirstOrDefault(x => x.Characteristics.HasFlag(PE.IMAGE_SCN_MEM_EXECUTE))?.PointerToRawData
+                ?? 0;
 
             // Confirm that .rdata section begins at same place as IAT
             var rData = sections.FirstOrDefault(x => x.Name == ".rdata");
@@ -189,7 +191,9 @@ namespace Il2CppInspector
             var exportAddresses = ReadArray<uint>(MapVATR(exportDirectoryTable.AddressOfFunctions + pe.ImageBase), exportCount);
             // AddressOfFunctions contains RVAs, not file offsets. GlobalOffset also
             // includes the first code section's RVA/raw-file displacement.
-            var exports = exportAddresses.Select((a, i) => new Export { Ordinal = (int)(exportDirectoryTable.Base + i), VirtualAddress = pe.ImageBase + a }).ToDictionary(x => x.Ordinal, x => x);
+            var exports = exportAddresses
+                .Select((a, i) => new Export { Ordinal = (int)(exportDirectoryTable.Base + i), VirtualAddress = pe.ImageBase + a })
+                .ToDictionary(x => x.Ordinal, x => x);
 
             // Get export names
             var nameCount = (int)exportDirectoryTable.NumberOfNames;
@@ -213,7 +217,9 @@ namespace Il2CppInspector
                 return true;
             }
 
-            var section = sections.FirstOrDefault(x => uiAddr - pe.ImageBase >= x.VirtualAddress && uiAddr - pe.ImageBase < x.VirtualAddress + x.SizeOfRawData);
+            var section = sections.FirstOrDefault(x =>
+                uiAddr - pe.ImageBase >= x.VirtualAddress && uiAddr - pe.ImageBase < x.VirtualAddress + x.SizeOfRawData
+            );
             if (section == null)
             {
                 fileOffset = 0;
@@ -229,7 +235,9 @@ namespace Il2CppInspector
             if (uiAddr == 0)
                 return 0;
 
-            var section = sections.First(x => uiAddr - pe.ImageBase >= x.VirtualAddress && uiAddr - pe.ImageBase < x.VirtualAddress + x.SizeOfRawData);
+            var section = sections.First(x =>
+                uiAddr - pe.ImageBase >= x.VirtualAddress && uiAddr - pe.ImageBase < x.VirtualAddress + x.SizeOfRawData
+            );
             return (uint)(uiAddr - section.VirtualAddress - pe.ImageBase + section.PointerToRawData);
         }
 

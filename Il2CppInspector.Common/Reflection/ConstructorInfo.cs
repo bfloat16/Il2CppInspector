@@ -19,7 +19,12 @@ namespace Il2CppInspector.Reflection
         // Struct construvctors must initialize all non-literal fields in the struct
         // If any of them are of an unsafe type, the constructor must also be declared unsafe
         public override bool RequiresUnsafeContext =>
-            base.RequiresUnsafeContext || (!IsAbstract && DeclaringType.IsValueType && DeclaringType.DeclaredFields.Any(f => !f.IsLiteral && f.IsStatic == IsStatic && f.RequiresUnsafeContext));
+            base.RequiresUnsafeContext
+            || (
+                !IsAbstract
+                && DeclaringType.IsValueType
+                && DeclaringType.DeclaredFields.Any(f => !f.IsLiteral && f.IsStatic == IsStatic && f.RequiresUnsafeContext)
+            );
 
         public override MemberTypes MemberType => MemberTypes.Constructor;
 
@@ -34,6 +39,7 @@ namespace Il2CppInspector.Reflection
 
         protected override MethodBase MakeGenericMethodImpl(TypeInfo[] typeArguments) => new ConstructorInfo(this, typeArguments);
 
-        public override string ToString() => DeclaringType.Name + GetFullTypeParametersString() + "(" + string.Join(", ", DeclaredParameters.Select(x => x.ParameterType.Name)) + ")";
+        public override string ToString() =>
+            DeclaringType.Name + GetFullTypeParametersString() + "(" + string.Join(", ", DeclaredParameters.Select(x => x.ParameterType.Name)) + ")";
     }
 }

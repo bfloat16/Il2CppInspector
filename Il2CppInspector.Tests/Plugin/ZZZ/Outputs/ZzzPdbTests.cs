@@ -9,7 +9,10 @@ internal static class ZzzPdbTests
         var before = model.ResolvedGenericMethods.Count;
         var app = new AppModel(model, false).Build(new UnityVersion("2019.4.40f1"));
         var result = new PdbOutput(app).Write(Path.Combine(output, "GameAssembly.pdb"), (_, message) => Console.WriteLine(message));
-        Check(result.Functions > 800000 && result.TypedFunctions > 800000 && result.TypeRecords > 100000, "ZZZ PDB exports native functions and typed layouts directly from the analysis pipeline");
+        Check(
+            result.Functions > 800000 && result.TypedFunctions > 800000 && result.TypeRecords > 100000,
+            "ZZZ PDB exports native functions and typed layouts directly from the analysis pipeline"
+        );
         Check(model.ResolvedGenericMethods.Count == before, "PDB generation keeps constructed method objects lazy");
         var vector = app.RuntimeCppTypes.GetComplexType(app.GameNativeModel.Name(context.Vector));
         Check(

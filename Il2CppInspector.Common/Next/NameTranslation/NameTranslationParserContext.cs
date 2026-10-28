@@ -115,7 +115,9 @@ public ref struct NameTranslationParserContext
             if (nameTranslationMap.TryGetValue(obfuscatedName, out var alreadySeenName))
             {
                 if (alreadySeenName != deobfuscatedName)
-                    throw new InvalidDataException($"Name translation collision detected for name {obfuscatedName}: {alreadySeenName} vs. {deobfuscatedName}");
+                    throw new InvalidDataException(
+                        $"Name translation collision detected for name {obfuscatedName}: {alreadySeenName} vs. {deobfuscatedName}"
+                    );
             }
             else
             {

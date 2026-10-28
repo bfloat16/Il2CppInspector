@@ -158,7 +158,10 @@ namespace Il2CppInspector.Reflection
         }
 
         // True if the type contains unresolved generic type parameters
-        public bool ContainsGenericParameters => (HasElementType && ElementType.ContainsGenericParameters) || IsGenericParameter || genericArguments.Any(ga => ga.ContainsGenericParameters);
+        public bool ContainsGenericParameters =>
+            (HasElementType && ElementType.ContainsGenericParameters)
+            || IsGenericParameter
+            || genericArguments.Any(ga => ga.ContainsGenericParameters);
 
         // Custom attributes for this member
         public override IEnumerable<CustomAttributeData> CustomAttributes => CustomAttributeData.GetCustomAttributes(genericTypeDefinition ?? this);
@@ -215,7 +218,15 @@ namespace Il2CppInspector.Reflection
         }
 
         public List<MemberInfo> DeclaredMembers =>
-            new IEnumerable<MemberInfo>[] { DeclaredConstructors, DeclaredEvents, DeclaredFields, DeclaredMethods, DeclaredNestedTypes, DeclaredProperties }
+            new IEnumerable<MemberInfo>[]
+            {
+                DeclaredConstructors,
+                DeclaredEvents,
+                DeclaredFields,
+                DeclaredMethods,
+                DeclaredNestedTypes,
+                DeclaredProperties,
+            }
                 .SelectMany(m => m)
                 .ToList();
 
@@ -314,7 +325,10 @@ namespace Il2CppInspector.Reflection
                 if (!constructedMembers.TryGetValue(definition.RootDefinition, out var member))
                     constructedMembers.Add(definition.RootDefinition, member = new MethodInfo((MethodInfo)definition.RootDefinition, this));
                 if (definition.IsGenericMethod && !definition.IsGenericMethodDefinition)
-                    return (MethodInfo)member.MakeGenericMethod(definition.GetGenericArguments().Select(t => t.SubstituteGenericArguments(genericArguments)).ToArray());
+                    return (MethodInfo)
+                        member.MakeGenericMethod(
+                            definition.GetGenericArguments().Select(t => t.SubstituteGenericArguments(genericArguments)).ToArray()
+                        );
                 return (MethodInfo)member;
             }
             return definition;
@@ -446,9 +460,19 @@ namespace Il2CppInspector.Reflection
             else
             {
                 var n = CSharpBaseName;
-                var ga = IsNested ? GetGenericArguments().Where(p => DeclaringType.GetGenericArguments().All(dp => dp.Name != p.Name)) : GetGenericArguments();
+                var ga = IsNested
+                    ? GetGenericArguments().Where(p => DeclaringType.GetGenericArguments().All(dp => dp.Name != p.Name))
+                    : GetGenericArguments();
                 if (ga.Any())
-                    n += "<" + string.Join(", ", ga.Select(x => (!x.IsGenericTypeParameter ? x.Namespace + "." : "") + x.GetCSharpTypeDeclarationName(includeVariance: true))) + ">";
+                    n +=
+                        "<"
+                        + string.Join(
+                            ", ",
+                            ga.Select(x =>
+                                (!x.IsGenericTypeParameter ? x.Namespace + "." : "") + x.GetCSharpTypeDeclarationName(includeVariance: true)
+                            )
+                        )
+                        + ">";
                 if (includeVariance)
                 {
                     if ((GenericParameterAttributes & GenericParameterAttributes.Covariant) == GenericParameterAttributes.Covariant)
@@ -577,7 +601,9 @@ namespace Il2CppInspector.Reflection
                     ? declaringScope
                     // Check to see if there is a namespace in our using directives which brings this type into scope
                     // Sort by descending order of length to search the deepest namespaces first
-                    : scope.Namespaces?.OrderByDescending(n => n.Length).FirstOrDefault(n => declaringScope == n || declaringScope.StartsWith(n + "."));
+                    : scope
+                        .Namespaces?.OrderByDescending(n => n.Length)
+                        .FirstOrDefault(n => declaringScope == n || declaringScope.StartsWith(n + "."));
 
             // minimallyScopedName will eventually contain the least qualified name needed to access the type
             // Initially we set it as follows:
@@ -603,7 +629,9 @@ namespace Il2CppInspector.Reflection
             // If the using scope is a child of the declaring scope, we can try every parent scope until we find one that doesn't hide the type
             // Otherwise, we just try the unqualified outer (least nested) type name to make sure it's accessible
             // and revert to the fully qualified name if it's hidden
-            var nsAndTypeHierarchy = usingScopeIsChildOfDeclaringScope ? [.. usingDirective.Split('.'), minimallyScopedName] : new[] { outerTypeName };
+            var nsAndTypeHierarchy = usingScopeIsChildOfDeclaringScope
+                ? [.. usingDirective.Split('.'), minimallyScopedName]
+                : new[] { outerTypeName };
 
             var hidden = true;
             var foundTypeInAncestorScope = false;
@@ -641,7 +669,8 @@ namespace Il2CppInspector.Reflection
                 outerTypeName = minimallyScopedName.Split('.')[0];
 
                 // Take matching type names from all namespaces in scope
-                var matchingNamespaces = scope.Namespaces?.Where(n => Assembly.Model.TypesByFullName.ContainsKey(n + "." + outerTypeName)).ToList() ?? [];
+                var matchingNamespaces =
+                    scope.Namespaces?.Where(n => Assembly.Model.TypesByFullName.ContainsKey(n + "." + outerTypeName)).ToList() ?? [];
 
                 // The global namespace is in scope so take every matching type from that too
                 if (Assembly.Model.TypesByFullName.ContainsKey(outerTypeName))
@@ -725,7 +754,10 @@ namespace Il2CppInspector.Reflection
             if (HasElementType)
                 n = ElementType.GetScopedCSharpName(usingScope);
 
-            return (IsByRef && !omitRef ? "ref " : "") + n + (IsArray ? "[" + new string(',', GetArrayRank() - 1) + "]" : "") + (IsPointer ? "*" : "");
+            return (IsByRef && !omitRef ? "ref " : "")
+                + n
+                + (IsArray ? "[" + new string(',', GetArrayRank() - 1) + "]" : "")
+                + (IsPointer ? "*" : "");
         }
         #endregion
 
@@ -764,7 +796,10 @@ namespace Il2CppInspector.Reflection
         private int genericParameterPosition;
         public int GenericParameterPosition
         {
-            get => IsGenericParameter ? genericParameterPosition : throw new InvalidOperationException("The current type does not represent a type parameter");
+            get =>
+                IsGenericParameter
+                    ? genericParameterPosition
+                    : throw new InvalidOperationException("The current type does not represent a type parameter");
             private set => genericParameterPosition = value;
         }
 
@@ -800,7 +835,8 @@ namespace Il2CppInspector.Reflection
         }
 
         // Get only interfaces not inherited from base interfaces
-        public IEnumerable<TypeInfo> NonInheritedInterfaces => ImplementedInterfaces.Except(ImplementedInterfaces.SelectMany(t => t.ImplementedInterfaces));
+        public IEnumerable<TypeInfo> NonInheritedInterfaces =>
+            ImplementedInterfaces.Except(ImplementedInterfaces.SelectMany(t => t.ImplementedInterfaces));
 
         public bool IsAbstract => (Attributes & TypeAttributes.Abstract) == TypeAttributes.Abstract;
         public bool IsArray { get; }
@@ -825,7 +861,24 @@ namespace Il2CppInspector.Reflection
         // Primitive types table: https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/built-in-types-table (we exclude Object and String)
         public bool IsPrimitive =>
             Namespace == "System"
-            && new[] { "Boolean", "Byte", "SByte", "Int16", "UInt16", "Int32", "UInt32", "Int64", "UInt64", "IntPtr", "UIntPtr", "Char", "Decimal", "Double", "Single" }.Contains(Name);
+            && new[]
+            {
+                "Boolean",
+                "Byte",
+                "SByte",
+                "Int16",
+                "UInt16",
+                "Int32",
+                "UInt32",
+                "Int64",
+                "UInt64",
+                "IntPtr",
+                "UIntPtr",
+                "Char",
+                "Decimal",
+                "Double",
+                "Single",
+            }.Contains(Name);
         public bool IsPublic => (Attributes & TypeAttributes.VisibilityMask) == TypeAttributes.Public;
         public bool IsSealed => (Attributes & TypeAttributes.Sealed) == TypeAttributes.Sealed;
 #pragma warning disable SYSLIB0050
@@ -862,7 +915,10 @@ namespace Il2CppInspector.Reflection
 
         public int GetArrayRank() => arrayRank;
 
-        public string[] GetEnumNames() => IsEnum ? DeclaredFields.Where(x => x.Name != "value__").Select(x => x.Name).ToArray() : throw new InvalidOperationException("Type is not an enumeration");
+        public string[] GetEnumNames() =>
+            IsEnum
+                ? DeclaredFields.Where(x => x.Name != "value__").Select(x => x.Name).ToArray()
+                : throw new InvalidOperationException("Type is not an enumeration");
 
         // The underlying type of an enumeration (int by default)
         private readonly TypeRef enumUnderlyingTypeReference = null;
@@ -875,7 +931,9 @@ namespace Il2CppInspector.Reflection
         }
 
         public Array GetEnumValues() =>
-            IsEnum ? DeclaredFields.Where(x => x.Name != "value__").Select(x => x.DefaultValue).ToArray() : throw new InvalidOperationException("Type is not an enumeration");
+            IsEnum
+                ? DeclaredFields.Where(x => x.Name != "value__").Select(x => x.DefaultValue).ToArray()
+                : throw new InvalidOperationException("Type is not an enumeration");
 
         // Initialize type from TypeDef using specified index in metadata
         public TypeInfo(int typeIndex, Assembly owner)
@@ -908,7 +966,10 @@ namespace Il2CppInspector.Reflection
                 // Store the generic type parameters for later instantiation
                 var container = pkg.GenericContainers[Definition.GenericContainerIndex];
 
-                genericArguments = Enumerable.Range((int)container.GenericParameterStart, container.TypeArgc).Select(index => Assembly.Model.GetGenericParameterType(index)).ToArray();
+                genericArguments = Enumerable
+                    .Range((int)container.GenericParameterStart, container.TypeArgc)
+                    .Select(index => Assembly.Model.GetGenericParameterType(index))
+                    .ToArray();
                 genericTypeInstances = new Dictionary<TypeInfo[], TypeInfo>(new TypeArgumentsComparer()) { [genericArguments] = this };
             }
 
@@ -936,7 +997,10 @@ namespace Il2CppInspector.Reflection
             // Add all implemented interfaces
             implementedInterfaceReferences = new TypeRef[Definition.InterfacesCount];
             for (var i = 0; i < Definition.InterfacesCount; i++)
-                implementedInterfaceReferences[i] = TypeRef.FromReferenceIndex(Assembly.Model, pkg.InterfaceUsageIndices[Definition.InterfacesIndex + i]);
+                implementedInterfaceReferences[i] = TypeRef.FromReferenceIndex(
+                    Assembly.Model,
+                    pkg.InterfaceUsageIndices[Definition.InterfacesIndex + i]
+                );
 
             // Add all nested types
             declaredNestedTypes = new TypeRef[Definition.NestedTypeCount];
@@ -981,7 +1045,10 @@ namespace Il2CppInspector.Reflection
 
                 // Find setter with no matching getter
                 if (p.Name.Contains(".get_"))
-                    if (pairedEip.FirstOrDefault(pe => pe.get == null && pe.set.Name == p.Name.Replace(".get_", ".set_")) is (MethodInfo get, MethodInfo set) method)
+                    if (
+                        pairedEip.FirstOrDefault(pe => pe.get == null && pe.set.Name == p.Name.Replace(".get_", ".set_")) is
+                        (MethodInfo get, MethodInfo set) method
+                    )
                     {
                         pairedEip.Remove(method);
                         pairedEip.Add((p, method.set));
@@ -991,7 +1058,10 @@ namespace Il2CppInspector.Reflection
 
                 // Find getter with no matching setter
                 if (p.Name.Contains(".set_"))
-                    if (pairedEip.FirstOrDefault(pe => pe.set == null && pe.get.Name == p.Name.Replace(".set_", ".get_")) is (MethodInfo get, MethodInfo set) method)
+                    if (
+                        pairedEip.FirstOrDefault(pe => pe.set == null && pe.get.Name == p.Name.Replace(".set_", ".get_")) is
+                        (MethodInfo get, MethodInfo set) method
+                    )
                     {
                         pairedEip.Remove(method);
                         pairedEip.Add((method.get, p));
@@ -1107,7 +1177,10 @@ namespace Il2CppInspector.Reflection
             // Type constraints
             genericParameterConstraints = new TypeRef[param.ConstraintsCount];
             for (int c = 0; c < param.ConstraintsCount; c++)
-                genericParameterConstraints[c] = TypeRef.FromReferenceIndex(Assembly.Model, Assembly.Model.Package.GenericConstraintIndices[param.ConstraintsStart + c]);
+                genericParameterConstraints[c] = TypeRef.FromReferenceIndex(
+                    Assembly.Model,
+                    Assembly.Model.Package.GenericConstraintIndices[param.ConstraintsStart + c]
+                );
 
             // Base type of object (set by default)
             // TODO: ImplementedInterfaces should be set to interface types constraints
@@ -1360,7 +1433,9 @@ namespace Il2CppInspector.Reflection
                 // Find nearest ancestor base method which has us as a generic type parameter
                 var method = DeclaringMethod
                     .DeclaringType.BaseType.GetAllMethods()
-                    .FirstOrDefault(m => m.IsHideBySig && m.IsVirtual && DeclaringMethod.SignatureEquals(m) && m.GetGenericArguments().Any(p => p.Name == Name));
+                    .FirstOrDefault(m =>
+                        m.IsHideBySig && m.IsVirtual && DeclaringMethod.SignatureEquals(m) && m.GetGenericArguments().Any(p => p.Name == Name)
+                    );
 
                 // Stop if we are inherited from a base method
                 if (method != null)
@@ -1370,12 +1445,22 @@ namespace Il2CppInspector.Reflection
             var constraintList = typeConstraints.Where(c => c.FullName != "System.ValueType").Select(c => c.GetScopedCSharpName(scope)).ToList();
 
             // struct or class must be the first constraint specified
-            if ((GenericParameterAttributes & GenericParameterAttributes.NotNullableValueTypeConstraint) == GenericParameterAttributes.NotNullableValueTypeConstraint)
+            if (
+                (GenericParameterAttributes & GenericParameterAttributes.NotNullableValueTypeConstraint)
+                == GenericParameterAttributes.NotNullableValueTypeConstraint
+            )
                 constraintList.Insert(0, "struct");
-            if ((GenericParameterAttributes & GenericParameterAttributes.ReferenceTypeConstraint) == GenericParameterAttributes.ReferenceTypeConstraint)
+            if (
+                (GenericParameterAttributes & GenericParameterAttributes.ReferenceTypeConstraint)
+                == GenericParameterAttributes.ReferenceTypeConstraint
+            )
                 constraintList.Insert(0, "class");
 
-            if ((GenericParameterAttributes & GenericParameterAttributes.DefaultConstructorConstraint) == GenericParameterAttributes.DefaultConstructorConstraint && !constraintList.Contains("struct"))
+            if (
+                (GenericParameterAttributes & GenericParameterAttributes.DefaultConstructorConstraint)
+                    == GenericParameterAttributes.DefaultConstructorConstraint
+                && !constraintList.Contains("struct")
+            )
                 // new() must be the last constraint specified
                 constraintList.Add("new()");
 

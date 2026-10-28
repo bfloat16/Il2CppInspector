@@ -97,40 +97,56 @@ public class BinaryObjectStreamReader : BinaryObjectStream, ISeekableReader
     public ulong ReadNativeUInt()
     {
         return Endianness == Endianness.Little
-            ? new Reader<LittleEndianSeekableReader<BinaryObjectStreamReader>>(new LittleEndianSeekableReader<BinaryObjectStreamReader>(this), new ReaderConfig(Is32Bit)).ReadNativeUInt()
-            : new Reader<BigEndianSeekableReader<BinaryObjectStreamReader>>(new BigEndianSeekableReader<BinaryObjectStreamReader>(this), new ReaderConfig(Is32Bit)).ReadNativeUInt();
+            ? new Reader<LittleEndianSeekableReader<BinaryObjectStreamReader>>(
+                new LittleEndianSeekableReader<BinaryObjectStreamReader>(this),
+                new ReaderConfig(Is32Bit)
+            ).ReadNativeUInt()
+            : new Reader<BigEndianSeekableReader<BinaryObjectStreamReader>>(
+                new BigEndianSeekableReader<BinaryObjectStreamReader>(this),
+                new ReaderConfig(Is32Bit)
+            ).ReadNativeUInt();
     }
 
     public T ReadVersionedObject<T>()
         where T : IReadable, new()
     {
         return Endianness == Endianness.Little
-            ? new Reader<LittleEndianSeekableReader<BinaryObjectStreamReader>>(new LittleEndianSeekableReader<BinaryObjectStreamReader>(this), new ReaderConfig(Is32Bit)).ReadVersionedObject<T>(
-                Version
-            )
-            : new Reader<BigEndianSeekableReader<BinaryObjectStreamReader>>(new BigEndianSeekableReader<BinaryObjectStreamReader>(this), new ReaderConfig(Is32Bit)).ReadVersionedObject<T>(Version);
+            ? new Reader<LittleEndianSeekableReader<BinaryObjectStreamReader>>(
+                new LittleEndianSeekableReader<BinaryObjectStreamReader>(this),
+                new ReaderConfig(Is32Bit)
+            ).ReadVersionedObject<T>(Version)
+            : new Reader<BigEndianSeekableReader<BinaryObjectStreamReader>>(
+                new BigEndianSeekableReader<BinaryObjectStreamReader>(this),
+                new ReaderConfig(Is32Bit)
+            ).ReadVersionedObject<T>(Version);
     }
 
     public ImmutableArray<T> ReadVersionedObjectArray<T>(long count)
         where T : IReadable, new()
     {
         return Endianness == Endianness.Little
-            ? new Reader<LittleEndianSeekableReader<BinaryObjectStreamReader>>(new LittleEndianSeekableReader<BinaryObjectStreamReader>(this), new ReaderConfig(Is32Bit)).ReadVersionedObjectArray<T>(
-                count,
-                Version
-            )
-            : new Reader<BigEndianSeekableReader<BinaryObjectStreamReader>>(new BigEndianSeekableReader<BinaryObjectStreamReader>(this), new ReaderConfig(Is32Bit)).ReadVersionedObjectArray<T>(
-                count,
-                Version
-            );
+            ? new Reader<LittleEndianSeekableReader<BinaryObjectStreamReader>>(
+                new LittleEndianSeekableReader<BinaryObjectStreamReader>(this),
+                new ReaderConfig(Is32Bit)
+            ).ReadVersionedObjectArray<T>(count, Version)
+            : new Reader<BigEndianSeekableReader<BinaryObjectStreamReader>>(
+                new BigEndianSeekableReader<BinaryObjectStreamReader>(this),
+                new ReaderConfig(Is32Bit)
+            ).ReadVersionedObjectArray<T>(count, Version);
     }
 
     public ImmutableArray<T> ReadPrimitiveArray<T>(long count)
         where T : unmanaged
     {
         return Endianness == Endianness.Little
-            ? new Reader<LittleEndianSeekableReader<BinaryObjectStreamReader>>(new LittleEndianSeekableReader<BinaryObjectStreamReader>(this), new ReaderConfig(Is32Bit)).ReadPrimitiveArray<T>(count)
-            : new Reader<BigEndianSeekableReader<BinaryObjectStreamReader>>(new BigEndianSeekableReader<BinaryObjectStreamReader>(this), new ReaderConfig(Is32Bit)).ReadPrimitiveArray<T>(count);
+            ? new Reader<LittleEndianSeekableReader<BinaryObjectStreamReader>>(
+                new LittleEndianSeekableReader<BinaryObjectStreamReader>(this),
+                new ReaderConfig(Is32Bit)
+            ).ReadPrimitiveArray<T>(count)
+            : new Reader<BigEndianSeekableReader<BinaryObjectStreamReader>>(
+                new BigEndianSeekableReader<BinaryObjectStreamReader>(this),
+                new ReaderConfig(Is32Bit)
+            ).ReadPrimitiveArray<T>(count);
     }
 
     public TType ReadPrimitive<TType>(long addr)

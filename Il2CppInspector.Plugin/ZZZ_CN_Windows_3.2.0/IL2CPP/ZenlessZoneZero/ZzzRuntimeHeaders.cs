@@ -194,7 +194,11 @@ namespace Il2CppInspector
                 int32_t methodSpecIndex; // used when matching duplicate-token generic wrappers
                 """
             ),
-            ("Il2CppClass", ClassPrefix + "\nIl2CppMethodPointer vtable[0]; // runtime_flags bit 0x80 adds const MethodInfo* method[vtable_count] after these pointers"),
+            (
+                "Il2CppClass",
+                ClassPrefix
+                    + "\nIl2CppMethodPointer vtable[0]; // runtime_flags bit 0x80 adds const MethodInfo* method[vtable_count] after these pointers"
+            ),
             ("Il2CppClass_0", ClassPrefix),
             (
                 "Il2CppCodeRegistration",

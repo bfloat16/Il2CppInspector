@@ -41,7 +41,9 @@ namespace Il2CppInspector.Reflection
             Index = index;
             IsStatic = exampleMethod.IsStatic;
 
-            ReturnType = exampleMethod.IsConstructor ? model.TypesByFullName["System.Void"] : mapParameterType(model, ((MethodInfo)exampleMethod).ReturnType);
+            ReturnType = exampleMethod.IsConstructor
+                ? model.TypesByFullName["System.Void"]
+                : mapParameterType(model, ((MethodInfo)exampleMethod).ReturnType);
             ParameterTypes = exampleMethod.DeclaredParameters.Select(p => mapParameterType(model, p.ParameterType)).ToArray();
 
             var start = Package.MethodInvokePointers[Index];
@@ -60,17 +62,22 @@ namespace Il2CppInspector.Reflection
         // Get the machine code of the C++ function
         public byte[] GetMethodBody() => Package.BinaryImage.ReadMappedBytes(VirtualAddress.Start, (int)(VirtualAddress.End - VirtualAddress.Start));
 
-        public string Name => $"RuntimeInvoker_{!IsStatic}{ReturnType.BaseName.ToCIdentifier()}_" + string.Join("_", ParameterTypes.Select(p => p.BaseName.ToCIdentifier()));
+        public string Name =>
+            $"RuntimeInvoker_{!IsStatic}{ReturnType.BaseName.ToCIdentifier()}_"
+            + string.Join("_", ParameterTypes.Select(p => p.BaseName.ToCIdentifier()));
 
         // Display as a C++ method signature; MethodInfo* is the same as RuntimeMethod* (see codegen/il2cpp-codegen-metadata.h)
         public string GetSignature(UnityVersion version) => Signature(version, Name);
 
         private static string Signature(UnityVersion version, string declarator) =>
-            version.CompareTo("2021.1.0") >= 0 ? $"void {declarator}(Il2CppMethodPointer pointer, const MethodInfo* methodMetadata, void* obj, void** args, void* ret)"
-            : version.CompareTo("2017.1.0") >= 0 ? $"void* {declarator}(Il2CppMethodPointer pointer, const MethodInfo* methodMetadata, void* obj, void** args)"
+            version.CompareTo("2021.1.0") >= 0
+                ? $"void {declarator}(Il2CppMethodPointer pointer, const MethodInfo* methodMetadata, void* obj, void** args, void* ret)"
+            : version.CompareTo("2017.1.0") >= 0
+                ? $"void* {declarator}(Il2CppMethodPointer pointer, const MethodInfo* methodMetadata, void* obj, void** args)"
             : $"void* {declarator}(const MethodInfo* method, void* obj, void** args)";
 
-        internal static CppFnPtrType CreateSignature(CppTypeCollection types, UnityVersion version, string name) => CppFnPtrType.FromSignature(types, Signature(version, $"(*{name})"));
+        internal static CppFnPtrType CreateSignature(CppTypeCollection types, UnityVersion version, string name) =>
+            CppFnPtrType.FromSignature(types, Signature(version, $"(*{name})"));
 
         public override string ToString() => GetSignature(new UnityVersion("2017.1.0"));
     }

@@ -10,7 +10,8 @@ public struct DefaultValueDataIndex(int value) : IIndexType<DefaultValueDataInde
 
     private int _value = value;
 
-    public static int Size(in StructVersion version = default, in ReaderConfig config = default) => IIndexType<DefaultValueDataIndex>.IndexSize(version, config);
+    public static int Size(in StructVersion version = default, in ReaderConfig config = default) =>
+        IIndexType<DefaultValueDataIndex>.IndexSize(version, config);
 
     public void Read<TReader>(ref Reader<TReader> reader, in StructVersion version = default)
         where TReader : IReader, allows ref struct

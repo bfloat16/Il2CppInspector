@@ -137,7 +137,13 @@ namespace Il2CppInspector
             ReadMetadata();
         }
 
-        internal static Il2CppInspector Load(IFileFormatStream image, byte[] global, byte[] startup, EventHandler<string> status, Plugins.GamePlugin plugin)
+        internal static Il2CppInspector Load(
+            IFileFormatStream image,
+            byte[] global,
+            byte[] startup,
+            EventHandler<string> status,
+            Plugins.GamePlugin plugin
+        )
         {
             var adapter = new GenshinMorax(image, global, startup, status, plugin);
             var binary = new Il2CppBinaryX64(image, status);
@@ -174,7 +180,14 @@ namespace Il2CppInspector
             for (var n = 0; n < 5; n++)
             {
                 var o = n * 14;
-                if (bytes[o] != 0x48 || bytes[o + 1] != 0x8D || bytes[o + 2] != 0x05 || bytes[o + 7] != 0x48 || bytes[o + 8] != 0x89 || bytes[o + 9] != 0x05)
+                if (
+                    bytes[o] != 0x48
+                    || bytes[o + 1] != 0x8D
+                    || bytes[o + 2] != 0x05
+                    || bytes[o + 7] != 0x48
+                    || bytes[o + 8] != 0x89
+                    || bytes[o + 9] != 0x05
+                )
                     throw new NotSupportedException("Unsupported Genshin registration instructions.");
                 targets[n + 1] = unchecked((ulong)((long)start + o + 7 + I32(bytes, o + 3)));
             }
@@ -211,7 +224,13 @@ namespace Il2CppInspector
             Metadata.Events = Records(global, Base(0x64), events, 14, GenshinRecords.Event);
             var parameters = Metadata.Methods.Max(m => m.ParameterCount == 0 ? 0 : checked((int)m.ParameterStart + m.ParameterCount));
             Metadata.Params = Records(global, Base(0x68), parameters, 8, GenshinRecords.Parameter);
-            Metadata.NestedTypeIndices = Records(global, Base(0x1B8), types.Max(t => t.NestedTypeCount == 0 ? 0 : (int)t.NestedTypeIndex + t.NestedTypeCount), 4, (d, _) => I32(d, 0));
+            Metadata.NestedTypeIndices = Records(
+                global,
+                Base(0x1B8),
+                types.Max(t => t.NestedTypeCount == 0 ? 0 : (int)t.NestedTypeIndex + t.NestedTypeCount),
+                4,
+                (d, _) => I32(d, 0)
+            );
             Metadata.InterfaceUsageIndices = Records(
                 global,
                 Base(0x44),
@@ -226,12 +245,25 @@ namespace Il2CppInspector
                 6,
                 (d, _) => new Il2CppInterfaceOffsetPair { InterfaceTypeIndex = I32(d, 0), Offset = I16(d, 4) }
             );
-            Metadata.VTableMethodIndices = Records(global, Base(0x98), types.Max(t => t.VTableCount == 0 ? 0 : t.VTableIndex + t.VTableCount), 4, (d, _) => U32(d, 0));
-            ExportedTypeIndices = Records(global, Base(0x5C), checked((int)Metadata.Images.Sum(i => (long)i.ExportedTypeCount)), 4, (d, _) => I32(d, 0));
+            Metadata.VTableMethodIndices = Records(
+                global,
+                Base(0x98),
+                types.Max(t => t.VTableCount == 0 ? 0 : t.VTableIndex + t.VTableCount),
+                4,
+                (d, _) => U32(d, 0)
+            );
+            ExportedTypeIndices = Records(
+                global,
+                Base(0x5C),
+                checked((int)Metadata.Images.Sum(i => (long)i.ExportedTypeCount)),
+                4,
+                (d, _) => I32(d, 0)
+            );
             if (ExportedTypeIndices.Any(i => (uint)i >= types.Length))
                 throw new InvalidDataException("Exported type index out of range.");
             Metadata.Assemblies = Records(startup, Slot(0x2C), Metadata.Images.Length, 16, ReadAssembly);
-            var containers = types.Select(t => (int)t.GenericContainerIndex).Concat(Metadata.Methods.Select(m => (int)m.GenericContainerIndex)).Max() + 1;
+            var containers =
+                types.Select(t => (int)t.GenericContainerIndex).Concat(Metadata.Methods.Select(m => (int)m.GenericContainerIndex)).Max() + 1;
             Metadata.GenericContainers = Records(global, Base(0xC8), containers, 16, GenshinRecords.Container);
             var genericParameters = Metadata.GenericContainers.Max(c => (int)c.GenericParameterStart + c.TypeArgc);
             Metadata.GenericParameters = Records(global, Base(0x174), genericParameters, 14, GenshinRecords.GenericParameter);
@@ -287,7 +319,11 @@ namespace Il2CppInspector
                 (d, i) =>
                 {
                     var k = unchecked(0x9A864480u * (uint)i);
-                    return new Il2CppFieldRef { TypeIndex = unchecked((int)(U32(d, 0) + k - 0x7A03B34Au)), FieldIndex = unchecked((int)((U32(d, 4) ^ 0x747BB38Bu) + k + 0x01C1C314u)) };
+                    return new Il2CppFieldRef
+                    {
+                        TypeIndex = unchecked((int)(U32(d, 0) + k - 0x7A03B34Au)),
+                        FieldIndex = unchecked((int)((U32(d, 4) ^ 0x747BB38Bu) + k + 0x01C1C314u)),
+                    };
                 }
             );
             Metadata.AttributeDataRanges = [];
@@ -374,7 +410,10 @@ namespace Il2CppInspector
             return unchecked(key + U32(global, Base(0x88) + i * 4) - 0x7EAAA2FCu);
         }
 
-        private static ulong LiteralSeed(int i) => unchecked(0x29140A6156B9041EUL * ((0x4D613E5575A12594UL * ((0x34044C3B94B40CUL * (uint)i) ^ 0x2C165A1E0D09C29EUL)) ^ 0x1B34FA773FEE107EUL));
+        private static ulong LiteralSeed(int i) =>
+            unchecked(
+                0x29140A6156B9041EUL * ((0x4D613E5575A12594UL * ((0x34044C3B94B40CUL * (uint)i) ^ 0x2C165A1E0D09C29EUL)) ^ 0x1B34FA773FEE107EUL)
+            );
 
         private Il2CppAssemblyDefinition ReadAssembly(ReadOnlySpan<byte> d, int i)
         {

@@ -90,7 +90,14 @@ namespace Il2CppInspector.Plugin.Endfield
                     continue;
 
                 var (offset, size) = ReadSection(data, i);
-                if (size < 0 || offset < 0 || offset > data.Length || size > data.Length - offset || (offset != 0 && offset < ModifiedHeaderSize) || (offset == 0 && size != 0))
+                if (
+                    size < 0
+                    || offset < 0
+                    || offset > data.Length
+                    || size > data.Length - offset
+                    || (offset != 0 && offset < ModifiedHeaderSize)
+                    || (offset == 0 && size != 0)
+                )
                 {
                     throw new InvalidDataException($"Endfield_CN_Android_x.x.x metadata section {i} is outside the payload.");
                 }

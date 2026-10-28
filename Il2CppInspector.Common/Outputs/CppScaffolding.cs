@@ -21,7 +21,8 @@ namespace Il2CppInspector.Outputs
          * which makes decompilation a bit unpleasant due to it only ever checking the lower 32 bits.
          * The better array size type is a union of the actual size (int32_t) and the actual value (uintptr_t) which should hopefully improve decompilation.
          */
-        private readonly bool _useBetterArraySize = model.UnityVersion.CompareTo("2017.2.1") >= 0 && model.Package.BinaryImage.Bits == 64 && useBetterArraySize;
+        private readonly bool _useBetterArraySize =
+            model.UnityVersion.CompareTo("2017.2.1") >= 0 && model.Package.BinaryImage.Bits == 64 && useBetterArraySize;
 
         private StreamWriter _writer;
 
@@ -222,7 +223,9 @@ namespace Il2CppInspector.Outputs
 
                 foreach (var export in exports)
                 {
-                    var offset = _model.Package.Metadata.HasGameAdapter ? export.Value - _model.Package.BinaryImage.ImageBase : _model.Package.BinaryImage.MapVATR(export.Value);
+                    var offset = _model.Package.Metadata.HasGameAdapter
+                        ? export.Value - _model.Package.BinaryImage.ImageBase
+                        : _model.Package.BinaryImage.MapVATR(export.Value);
                     writeCode($"#define {export.Key}_ptr 0x{offset:X8}");
                 }
             }
@@ -238,7 +241,11 @@ namespace Il2CppInspector.Outputs
                 writeHeader();
                 writeSectionHeader("IL2CPP application-specific type definition addresses");
 
-                foreach (var type in (_model.Package.Metadata.HasGameAdapter ? Enumerable.Empty<AppType>() : _model.Types.Values).Where(t => t.TypeClassAddress != 0xffffffff_ffffffff))
+                foreach (
+                    var type in (_model.Package.Metadata.HasGameAdapter ? Enumerable.Empty<AppType>() : _model.Types.Values).Where(t =>
+                        t.TypeClassAddress != 0xffffffff_ffffffff
+                    )
+                )
                 {
                     writeCode($"DO_TYPEDEF(0x{type.TypeClassAddress - _model.Package.BinaryImage.ImageBase:X8}, {type.Name});");
                 }
@@ -262,7 +269,10 @@ namespace Il2CppInspector.Outputs
                 {
                     if (method.HasCompiledCode)
                     {
-                        var arguments = string.Join(", ", method.CppFnPtrType.Arguments.Select(a => a.Type.Name + " " + (a.Name == "this" ? "__this" : a.Name)));
+                        var arguments = string.Join(
+                            ", ",
+                            method.CppFnPtrType.Arguments.Select(a => a.Type.Name + " " + (a.Name == "this" ? "__this" : a.Name))
+                        );
 
                         writeCode(
                             $"DO_APP_FUNC(0x{method.MethodCodeAddress - _model.Package.BinaryImage.ImageBase:X8}, {method.CppFnPtrType.ReturnType.Name}, "
@@ -272,7 +282,9 @@ namespace Il2CppInspector.Outputs
 
                     if (method.HasMethodInfo)
                     {
-                        writeCode($"DO_APP_FUNC_METHODINFO(0x{method.MethodInfoPtrAddress - _model.Package.BinaryImage.ImageBase:X8}, {method.CppFnPtrType.Name}__MethodInfo);");
+                        writeCode(
+                            $"DO_APP_FUNC_METHODINFO(0x{method.MethodInfoPtrAddress - _model.Package.BinaryImage.ImageBase:X8}, {method.CppFnPtrType.Name}__MethodInfo);"
+                        );
                     }
                 }
             }
@@ -309,8 +321,14 @@ namespace Il2CppInspector.Outputs
             }
 
             var main = Resources.Cpp_MainCpp;
-            if (_model.Package.Metadata.HasGameAdapter && (!_model.AvailableAPIs.ContainsKey("il2cpp_thread_attach") || !_model.AvailableAPIs.ContainsKey("il2cpp_domain_get")))
-                main = main.Replace("il2cpp_thread_attach(il2cpp_domain_get());", "// Resolve thread attachment before invoking managed methods in this build.");
+            if (
+                _model.Package.Metadata.HasGameAdapter
+                && (!_model.AvailableAPIs.ContainsKey("il2cpp_thread_attach") || !_model.AvailableAPIs.ContainsKey("il2cpp_domain_get"))
+            )
+                main = main.Replace(
+                    "il2cpp_thread_attach(il2cpp_domain_get());",
+                    "// Resolve thread attachment before invoking managed methods in this build."
+                );
             WriteIfNotExists(Path.Combine(srcUserPath, "main.cpp"), main);
             WriteIfNotExists(Path.Combine(srcUserPath, "main.h"), Resources.Cpp_MainH);
 
@@ -326,7 +344,10 @@ namespace Il2CppInspector.Outputs
             var guid3 = Guid.NewGuid();
             var filtersFile = projectFile + ".filters";
 
-            var filters = Resources.CppProjFilters.Replace("%GUID1%", guid1.ToString()).Replace("%GUID2%", guid2.ToString()).Replace("%GUID3%", guid3.ToString());
+            var filters = Resources
+                .CppProjFilters.Replace("%GUID1%", guid1.ToString())
+                .Replace("%GUID2%", guid2.ToString())
+                .Replace("%GUID3%", guid3.ToString());
 
             WriteIfNotExists(Path.Combine(projectPath, filtersFile), filters);
 
@@ -359,7 +380,9 @@ namespace Il2CppInspector.Outputs
                 foreach (var usage in _model.Package.MetadataUsages.Where(u => u.Type is MetadataUsageType.MethodDef or MetadataUsageType.MethodRef))
                 {
                     var method = _model.Methods[_model.TypeModel.GetMetadataUsageMethod(usage)];
-                    functions.WriteLine($"DO_APP_FUNC_METHODINFO(0x{usage.VirtualAddress - _model.Image.ImageBase:X8}, {method.ToMangledMethodInfoString()});");
+                    functions.WriteLine(
+                        $"DO_APP_FUNC_METHODINFO(0x{usage.VirtualAddress - _model.Image.ImageBase:X8}, {method.ToMangledMethodInfoString()});"
+                    );
                 }
             }
             using var types = new StreamWriter(Path.Combine(path, "il2cpp-types-ptr.h"), false, Encoding.UTF8);

@@ -48,7 +48,8 @@ namespace Il2CppInspector
 
         public ImmutableArray<Il2CppInlineArrayLength> TypeInlineArrays { get; set; }
 
-        public int FieldAndParameterDefaultValueDataOffset => Version >= MetadataVersions.V380 ? Header.FieldAndParameterDefaultValueData.Offset : Header.FieldAndParameterDefaultValueDataOffset;
+        public int FieldAndParameterDefaultValueDataOffset =>
+            Version >= MetadataVersions.V380 ? Header.FieldAndParameterDefaultValueData.Offset : Header.FieldAndParameterDefaultValueDataOffset;
 
         public int AttributeDataOffset => Version >= MetadataVersions.V380 ? Header.AttributeData.Offset : Header.AttributeDataOffset;
 
@@ -117,7 +118,8 @@ namespace Il2CppInspector
                 var typeDefinitionIndexSize = GetIndexSize(Header.TypeDefinitions.Count);
                 var genericContainerIndexSize = GetIndexSize(Header.GenericContainers.Count);
 
-                var tag = $"{TypeDefinitionIndex.TagPrefix}{typeDefinitionIndexSize}" + $"_{GenericContainerIndex.TagPrefix}{genericContainerIndexSize}";
+                var tag =
+                    $"{TypeDefinitionIndex.TagPrefix}{typeDefinitionIndexSize}" + $"_{GenericContainerIndex.TagPrefix}{genericContainerIndexSize}";
 
                 var tempVersion = new StructVersion(Version.Major, Version.Minor, tag);
 
@@ -172,7 +174,9 @@ namespace Il2CppInspector
                     var fieldIndexSize = GetIndexSize(Header.Fields.Count);
                     var defaultValueDataIndex = GetIndexSize(Header.FieldAndParameterDefaultValueData.Count);
                     fullTag +=
-                        $"_{GenericParameterIndex.TagPrefix}{genericParameterIndexSize}" + $"_{FieldIndex.TagPrefix}{fieldIndexSize}" + $"_{DefaultValueDataIndex.TagPrefix}{defaultValueDataIndex}";
+                        $"_{GenericParameterIndex.TagPrefix}{genericParameterIndexSize}"
+                        + $"_{FieldIndex.TagPrefix}{fieldIndexSize}"
+                        + $"_{DefaultValueDataIndex.TagPrefix}{defaultValueDataIndex}";
                 }
 
                 Version = new StructVersion(Version.Major, Version.Minor, fullTag);
@@ -200,7 +204,9 @@ namespace Il2CppInspector
 
             if (realHeaderLength != Sizeof<Il2CppGlobalMetadataHeader>())
             {
-                throw new InvalidOperationException("Could not verify the integrity of the metadata file or accurately identify the metadata sub-version");
+                throw new InvalidOperationException(
+                    "Could not verify the integrity of the metadata file or accurately identify the metadata sub-version"
+                );
             }
 
             // Load all the relevant metadata using offsets provided in the header
@@ -227,15 +233,35 @@ namespace Il2CppInspector
             Methods = ReadMetadataArray<Il2CppMethodDefinition>(Header.MethodsOffset, Header.MethodsSize, Header.Methods);
             Params = ReadMetadataArray<Il2CppParameterDefinition>(Header.ParametersOffset, Header.ParametersSize, Header.Parameters);
             Fields = ReadMetadataArray<Il2CppFieldDefinition>(Header.FieldsOffset, Header.FieldsSize, Header.Fields);
-            FieldDefaultValues = ReadMetadataArray<Il2CppFieldDefaultValue>(Header.FieldDefaultValuesOffset, Header.FieldDefaultValuesSize, Header.FieldDefaultValues);
+            FieldDefaultValues = ReadMetadataArray<Il2CppFieldDefaultValue>(
+                Header.FieldDefaultValuesOffset,
+                Header.FieldDefaultValuesSize,
+                Header.FieldDefaultValues
+            );
             Properties = ReadMetadataArray<Il2CppPropertyDefinition>(Header.PropertiesOffset, Header.PropertiesSize, Header.Properties);
             Events = ReadMetadataArray<Il2CppEventDefinition>(Header.EventsOffset, Header.EventsSize, Header.Events);
             InterfaceUsageIndices = ReadMetadataArray<TypeIndex>(Header.InterfacesOffset, Header.InterfacesSize, Header.Interfaces);
             NestedTypeIndices = ReadMetadataPrimitiveArray<int>(Header.NestedTypesOffset, Header.NestedTypesSize, Header.NestedTypes);
-            GenericContainers = ReadMetadataArray<Il2CppGenericContainer>(Header.GenericContainersOffset, Header.GenericContainersSize, Header.GenericContainers);
-            GenericParameters = ReadMetadataArray<Il2CppGenericParameter>(Header.GenericParametersOffset, Header.GenericParametersSize, Header.GenericParameters);
-            GenericConstraintIndices = ReadMetadataArray<TypeIndex>(Header.GenericParameterConstraintsOffset, Header.GenericParameterConstraintsSize, Header.GenericParameterConstraints);
-            InterfaceOffsets = ReadMetadataArray<Il2CppInterfaceOffsetPair>(Header.InterfaceOffsetsOffset, Header.InterfaceOffsetsSize, Header.InterfaceOffsets);
+            GenericContainers = ReadMetadataArray<Il2CppGenericContainer>(
+                Header.GenericContainersOffset,
+                Header.GenericContainersSize,
+                Header.GenericContainers
+            );
+            GenericParameters = ReadMetadataArray<Il2CppGenericParameter>(
+                Header.GenericParametersOffset,
+                Header.GenericParametersSize,
+                Header.GenericParameters
+            );
+            GenericConstraintIndices = ReadMetadataArray<TypeIndex>(
+                Header.GenericParameterConstraintsOffset,
+                Header.GenericParameterConstraintsSize,
+                Header.GenericParameterConstraints
+            );
+            InterfaceOffsets = ReadMetadataArray<Il2CppInterfaceOffsetPair>(
+                Header.InterfaceOffsetsOffset,
+                Header.InterfaceOffsetsSize,
+                Header.InterfaceOffsets
+            );
             VTableMethodIndices = ReadMetadataPrimitiveArray<uint>(Header.VTableMethodsOffset, Header.VTableMethodsSize, Header.VtableMethods);
 
             var useCompressedAssemblyPublicKeys = Version == MetadataVersions.V242 || Version >= MetadataVersions.V244;
@@ -246,7 +272,10 @@ namespace Il2CppInspector
                 // Note the version comparison matches both 24.2 and 24.3 here since 24.3 is tested for during binary loading
                 var assemblyCount = Header.AssembliesSize / Sizeof<Il2CppAssemblyDefinition>();
                 var changedAssemblyDefStruct = false;
-                if ((Version == MetadataVersions.V241 || Version == MetadataVersions.V242 || Version == MetadataVersions.V243) && assemblyCount < Images.Length)
+                if (
+                    (Version == MetadataVersions.V241 || Version == MetadataVersions.V242 || Version == MetadataVersions.V243)
+                    && assemblyCount < Images.Length
+                )
                 {
                     if (Version == MetadataVersions.V241)
                         changedAssemblyDefStruct = true;
@@ -260,13 +289,25 @@ namespace Il2CppInspector
                 if (changedAssemblyDefStruct)
                     Version = MetadataVersions.V241;
 
-                ParameterDefaultValues = ReadMetadataArray<Il2CppParameterDefaultValue>(Header.ParameterDefaultValuesOffset, Header.ParameterDefaultValuesSize, Header.ParameterDefaultValues);
+                ParameterDefaultValues = ReadMetadataArray<Il2CppParameterDefaultValue>(
+                    Header.ParameterDefaultValuesOffset,
+                    Header.ParameterDefaultValuesSize,
+                    Header.ParameterDefaultValues
+                );
             }
 
             if (Version >= MetadataVersions.V190 && Version < MetadataVersions.V270)
             {
-                MetadataUsageLists = ReadMetadataArray<Il2CppMetadataUsageList>(Header.MetadataUsageListsOffset, Header.MetadataUsageListsCount, default);
-                MetadataUsagePairs = ReadMetadataArray<Il2CppMetadataUsagePair>(Header.MetadataUsagePairsOffset, Header.MetadataUsagePairsCount, default);
+                MetadataUsageLists = ReadMetadataArray<Il2CppMetadataUsageList>(
+                    Header.MetadataUsageListsOffset,
+                    Header.MetadataUsageListsCount,
+                    default
+                );
+                MetadataUsagePairs = ReadMetadataArray<Il2CppMetadataUsagePair>(
+                    Header.MetadataUsagePairsOffset,
+                    Header.MetadataUsagePairsCount,
+                    default
+                );
             }
 
             if (Version >= MetadataVersions.V190)
@@ -277,12 +318,20 @@ namespace Il2CppInspector
             if (Version >= MetadataVersions.V210 && Version < MetadataVersions.V290)
             {
                 AttributeTypeIndices = ReadMetadataPrimitiveArray<int>(Header.AttributesTypesOffset, Header.AttributesTypesCount, default);
-                AttributeTypeRanges = ReadMetadataArray<Il2CppCustomAttributeTypeRange>(Header.AttributesInfoOffset, Header.AttributesInfoCount, default);
+                AttributeTypeRanges = ReadMetadataArray<Il2CppCustomAttributeTypeRange>(
+                    Header.AttributesInfoOffset,
+                    Header.AttributesInfoCount,
+                    default
+                );
             }
 
             if (Version >= MetadataVersions.V290)
             {
-                AttributeDataRanges = ReadMetadataArray<Il2CppCustomAttributeDataRange>(Header.AttributeDataRangeOffset, Header.AttributeDataRangeSize, Header.AttributeDataRanges);
+                AttributeDataRanges = ReadMetadataArray<Il2CppCustomAttributeDataRange>(
+                    Header.AttributeDataRangeOffset,
+                    Header.AttributeDataRangeSize,
+                    Header.AttributeDataRanges
+                );
             }
 
             if (Version >= MetadataVersions.V1040)
@@ -301,7 +350,11 @@ namespace Il2CppInspector
             }
 
             {
-                var stringLiteralList = ReadMetadataArray<Il2CppStringLiteral>(Header.StringLiteralOffset, Header.StringLiteralSize, Header.StringLiterals);
+                var stringLiteralList = ReadMetadataArray<Il2CppStringLiteral>(
+                    Header.StringLiteralOffset,
+                    Header.StringLiteralSize,
+                    Header.StringLiterals
+                );
 
                 var dataOffset = Version >= MetadataVersions.V380 ? Header.StringLiteralData.Offset : Header.StringLiteralDataOffset;
 

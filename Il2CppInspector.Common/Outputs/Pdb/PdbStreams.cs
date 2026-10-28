@@ -5,7 +5,15 @@ namespace Il2CppInspector.Outputs.Pdb;
 
 internal static class PdbStreams
 {
-    public static void Write(string path, Guid guid, uint age, IReadOnlyList<PdbProcedure> procedures, IReadOnlyList<CvTypeRecord> types, byte[] sections, IReadOnlyList<PdbGlobal> data = null)
+    public static void Write(
+        string path,
+        Guid guid,
+        uint age,
+        IReadOnlyList<PdbProcedure> procedures,
+        IReadOnlyList<CvTypeRecord> types,
+        byte[] sections,
+        IReadOnlyList<PdbGlobal> data = null
+    )
     {
         data ??= [];
         using var module = new CvWriter();
@@ -120,7 +128,10 @@ internal static class PdbStreams
                 last = body.Length;
             }
             body.Bytes(record.Bytes);
-            hashes.U32((record.Name != null && !record.Forward ? CvWriter.Hash(Encoding.UTF8.GetBytes(record.Name)) : CvWriter.RecordHash(record.Bytes)) % 0x3FFFF);
+            hashes.U32(
+                (record.Name != null && !record.Forward ? CvWriter.Hash(Encoding.UTF8.GetBytes(record.Name)) : CvWriter.RecordHash(record.Bytes))
+                    % 0x3FFFF
+            );
         }
         var hashLength = (uint)hashes.Length;
         hashes.Bytes(indices.ToArray());

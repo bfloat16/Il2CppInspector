@@ -38,7 +38,11 @@ public class CppTypeDependencyGraph
             {
                 if (pointer.ElementType is CppEnumType)
                     Visit(pointer.ElementType);
-                else if (pointer.ElementType is CppComplexType && declarations.Contains(pointer.ElementType) && forwardNames.Add(pointer.ElementType.Name))
+                else if (
+                    pointer.ElementType is CppComplexType
+                    && declarations.Contains(pointer.ElementType)
+                    && forwardNames.Add(pointer.ElementType.Name)
+                )
                     forwards.Add(new CppForwardDefinitionType(pointer.ElementType.Name) { Group = "required_forward_definitions" });
                 return;
             }

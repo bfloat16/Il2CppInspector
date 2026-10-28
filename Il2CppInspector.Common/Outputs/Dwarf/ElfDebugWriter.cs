@@ -2,7 +2,17 @@ using System.Text;
 
 namespace Il2CppInspector.Outputs.Dwarf;
 
-internal sealed record ElfDebugSection(string Name, uint Type, ulong Flags = 0, ulong Address = 0, ulong Size = 0, DwarfData Data = null, uint Link = 0, uint Info = 0, ulong EntrySize = 0);
+internal sealed record ElfDebugSection(
+    string Name,
+    uint Type,
+    ulong Flags = 0,
+    ulong Address = 0,
+    ulong Size = 0,
+    DwarfData Data = null,
+    uint Link = 0,
+    uint Info = 0,
+    ulong EntrySize = 0
+);
 
 internal static class ElfDebugWriter
 {
@@ -35,7 +45,18 @@ internal static class ElfDebugWriter
         using var abbreviations = DwarfAbbreviations.Build();
         using var sectionNames = new DwarfData();
         var sections = new List<ElfDebugSection> { new("", 0) };
-        sections.AddRange(mappedSections.Select((s, i) => new ElfDebugSection(string.IsNullOrEmpty(s.Name) ? $".mapped.{i}" : s.Name, 8, s.IsExec ? 6UL : 2UL, s.VirtualStart, s.VirtualLength)));
+        sections.AddRange(
+            mappedSections.Select(
+                (s, i) =>
+                    new ElfDebugSection(
+                        string.IsNullOrEmpty(s.Name) ? $".mapped.{i}" : s.Name,
+                        8,
+                        s.IsExec ? 6UL : 2UL,
+                        s.VirtualStart,
+                        s.VirtualLength
+                    )
+            )
+        );
         sections.Add(new(".debug_info", 1, Data: info));
         sections.Add(new(".debug_abbrev", 1, Data: abbreviations));
         sections.Add(new(".debug_line", 1, Data: line));

@@ -216,7 +216,10 @@ namespace Il2CppInspector
                 throw new ArgumentException("TOT key-schedule tail must be exactly 0x4000 bytes.", nameof(tail));
             }
 
-            if (BinaryPrimitives.ReadUInt16LittleEndian(tail.AsSpan(0xC8)) != TotMetadataGate.GateA || BinaryPrimitives.ReadUInt16LittleEndian(tail.AsSpan(0xCA)) != TotMetadataGate.GateB)
+            if (
+                BinaryPrimitives.ReadUInt16LittleEndian(tail.AsSpan(0xC8)) != TotMetadataGate.GateA
+                || BinaryPrimitives.ReadUInt16LittleEndian(tail.AsSpan(0xCA)) != TotMetadataGate.GateB
+            )
             {
                 return FallbackKeySchedule();
             }
@@ -458,7 +461,8 @@ namespace Il2CppInspector
                 var value = 0;
                 for (var b = 0; b < 8; b++)
                 {
-                    var bit = ((x >> b) ^ (x >> ((b + 4) % 8)) ^ (x >> ((b + 5) % 8)) ^ (x >> ((b + 6) % 8)) ^ (x >> ((b + 7) % 8)) ^ (0x63 >> b)) & 1;
+                    var bit =
+                        ((x >> b) ^ (x >> ((b + 4) % 8)) ^ (x >> ((b + 5) % 8)) ^ (x >> ((b + 6) % 8)) ^ (x >> ((b + 7) % 8)) ^ (0x63 >> b)) & 1;
                     value |= bit << b;
                 }
 

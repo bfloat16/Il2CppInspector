@@ -46,7 +46,18 @@ internal static class DwarfAbbreviations
     {
         var data = new DwarfData();
         // A zero low_pc makes the DWARF 4 range-list entries absolute addresses.
-        Add(DwarfAbbrev.Unit, 0x11, true, (0x25, Strp), (0x13, Data2), (Name, Strp), (0x1B, Strp), (0x10, SecOffset), (0x11, Addr), (0x55, SecOffset));
+        Add(
+            DwarfAbbrev.Unit,
+            0x11,
+            true,
+            (0x25, Strp),
+            (0x13, Data2),
+            (Name, Strp),
+            (0x1B, Strp),
+            (0x10, SecOffset),
+            (0x11, Addr),
+            (0x55, SecOffset)
+        );
         Add(DwarfAbbrev.Function, 0x2E, true, (Name, Strp), (LinkageName, Strp), (0x11, Addr), (0x12, Data8), (0x27, Present), (Type, Ref4));
         Add(DwarfAbbrev.UntypedFunction, 0x2E, false, (Name, Strp), (LinkageName, Strp), (0x11, Addr), (0x12, Data8));
         Add(DwarfAbbrev.Parameter, 0x05, false, (Name, Strp), (Type, Ref4));

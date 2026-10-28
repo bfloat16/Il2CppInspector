@@ -21,7 +21,8 @@ namespace Il2CppInspector.Plugin.Endfield
             var decoded = Metadata.FromStream(stream, status);
             var image = FileFormatStream.Load(binary, options, status) ?? throw new InvalidDataException("Unsupported executable file format.");
             var il2cppBinary =
-                Il2CppBinary.Load(image, decoded, status) ?? throw new InvalidDataException("Could not locate the Endfield_CN_Android_x.x.x IL2CPP registration structures in the binary.");
+                Il2CppBinary.Load(image, decoded, status)
+                ?? throw new InvalidDataException("Could not locate the Endfield_CN_Android_x.x.x IL2CPP registration structures in the binary.");
 
             // Repaired records use the stock pipeline, so no game metadata adapter is attached.
             return new Il2CppInspector(il2cppBinary, decoded);
@@ -30,7 +31,8 @@ namespace Il2CppInspector.Plugin.Endfield
         public override void WriteAssemblies(TypeModel model, string path, bool suppressMetadata, EventHandler<string> status) =>
             new AssemblyShims(model) { SuppressMetadata = suppressMetadata }.Write(path, status);
 
-        public override void WriteHeader(AppModel model, string path, bool betterArraySize) => new CppScaffolding(model, betterArraySize).WriteTypes(path);
+        public override void WriteHeader(AppModel model, string path, bool betterArraySize) =>
+            new CppScaffolding(model, betterArraySize).WriteTypes(path);
 
         public override void WriteJson(AppModel model, string path, bool allowComments, bool supplementDebugInfo) =>
             new JSONMetadata(model) { AllowComments = allowComments, SupplementDebugInfo = supplementDebugInfo }.Write(path);

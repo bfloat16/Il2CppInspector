@@ -93,20 +93,74 @@ namespace Il2CppInspector
         private void ReadMetadata()
         {
             Metadata.Images = Records(data, SectionOffset(SlotImages), SectionCount(SlotImages, 40), 40, TotRecords.ReadImageDefinition);
-            Metadata.Assemblies = Records(data, SectionOffset(SlotAssemblies), SectionCount(SlotAssemblies, 64), 64, TotRecords.ReadAssemblyDefinition);
-            Metadata.Types = Records(data, SectionOffset(SlotTypeDefinitions), SectionCount(SlotTypeDefinitions, 100), 100, TotRecords.ReadTypeDefinition);
+            Metadata.Assemblies = Records(
+                data,
+                SectionOffset(SlotAssemblies),
+                SectionCount(SlotAssemblies, 64),
+                64,
+                TotRecords.ReadAssemblyDefinition
+            );
+            Metadata.Types = Records(
+                data,
+                SectionOffset(SlotTypeDefinitions),
+                SectionCount(SlotTypeDefinitions, 100),
+                100,
+                TotRecords.ReadTypeDefinition
+            );
             Metadata.Methods = Records(data, SectionOffset(SlotMethods), SectionCount(SlotMethods, 52), 52, TotRecords.ReadMethodDefinition);
             Metadata.Fields = Records(data, SectionOffset(SlotFields), SectionCount(SlotFields, 12), 12, TotRecords.ReadFieldDefinition);
             Metadata.Params = Records(data, SectionOffset(SlotParameters), SectionCount(SlotParameters, 12), 12, TotRecords.ReadParameterDefinition);
-            Metadata.Properties = Records(data, SectionOffset(SlotProperties), SectionCount(SlotProperties, 20), 20, TotRecords.ReadPropertyDefinition);
+            Metadata.Properties = Records(
+                data,
+                SectionOffset(SlotProperties),
+                SectionCount(SlotProperties, 20),
+                20,
+                TotRecords.ReadPropertyDefinition
+            );
             Metadata.Events = Records(data, SectionOffset(SlotEvents), SectionCount(SlotEvents, 24), 24, TotRecords.ReadEventDefinition);
-            Metadata.GenericContainers = Records(data, SectionOffset(SlotGenericContainers), SectionCount(SlotGenericContainers, 16), 16, TotRecords.ReadGenericContainer);
-            Metadata.GenericParameters = Records(data, SectionOffset(SlotGenericParameters), SectionCount(SlotGenericParameters, 16), 16, TotRecords.ReadGenericParameter);
-            Metadata.InterfaceOffsets = Records(data, SectionOffset(SlotInterfaceOffsets), SectionCount(SlotInterfaceOffsets, 8), 8, TotRecords.ReadInterfaceOffset);
+            Metadata.GenericContainers = Records(
+                data,
+                SectionOffset(SlotGenericContainers),
+                SectionCount(SlotGenericContainers, 16),
+                16,
+                TotRecords.ReadGenericContainer
+            );
+            Metadata.GenericParameters = Records(
+                data,
+                SectionOffset(SlotGenericParameters),
+                SectionCount(SlotGenericParameters, 16),
+                16,
+                TotRecords.ReadGenericParameter
+            );
+            Metadata.InterfaceOffsets = Records(
+                data,
+                SectionOffset(SlotInterfaceOffsets),
+                SectionCount(SlotInterfaceOffsets, 8),
+                8,
+                TotRecords.ReadInterfaceOffset
+            );
             Metadata.FieldRefs = Records(data, SectionOffset(SlotFieldRefs), SectionCount(SlotFieldRefs, 8), 8, TotRecords.ReadFieldRef);
-            Metadata.FieldDefaultValues = Records(data, SectionOffset(SlotFieldDefaultValues), SectionCount(SlotFieldDefaultValues, 12), 12, TotRecords.ReadFieldDefaultValue);
-            Metadata.ParameterDefaultValues = Records(data, SectionOffset(SlotParameterDefaultValues), SectionCount(SlotParameterDefaultValues, 12), 12, TotRecords.ReadParameterDefaultValue);
-            Metadata.AttributeTypeRanges = Records(data, SectionOffset(SlotAttributesInfo), SectionCount(SlotAttributesInfo, 12), 12, TotRecords.ReadCustomAttributeTypeRange);
+            Metadata.FieldDefaultValues = Records(
+                data,
+                SectionOffset(SlotFieldDefaultValues),
+                SectionCount(SlotFieldDefaultValues, 12),
+                12,
+                TotRecords.ReadFieldDefaultValue
+            );
+            Metadata.ParameterDefaultValues = Records(
+                data,
+                SectionOffset(SlotParameterDefaultValues),
+                SectionCount(SlotParameterDefaultValues, 12),
+                12,
+                TotRecords.ReadParameterDefaultValue
+            );
+            Metadata.AttributeTypeRanges = Records(
+                data,
+                SectionOffset(SlotAttributesInfo),
+                SectionCount(SlotAttributesInfo, 12),
+                12,
+                TotRecords.ReadCustomAttributeTypeRange
+            );
             // MetadataUsageList/Pair expose read-only properties, so read them through the stock
             // versioned reader (their v24.1 layout matches the repo model exactly).
             Metadata.MetadataUsageLists = Reader.ReadVersionedObjectArray<Il2CppMetadataUsageList>(
@@ -122,9 +176,27 @@ namespace Il2CppInspector
                 SectionOffset(SlotMetadataUsagePairs)
             );
 
-            Metadata.InterfaceUsageIndices = Records(data, SectionOffset(SlotInterfaces), SectionCount(SlotInterfaces, 4), 4, d => new TypeIndex(TotRecords.I32(d, 0)));
-            Metadata.NestedTypeIndices = Records(data, SectionOffset(SlotNestedTypes), SectionCount(SlotNestedTypes, 4), 4, d => TotRecords.I32(d, 0));
-            Metadata.AttributeTypeIndices = Records(data, SectionOffset(SlotAttributeTypes), SectionCount(SlotAttributeTypes, 4), 4, d => TotRecords.I32(d, 0));
+            Metadata.InterfaceUsageIndices = Records(
+                data,
+                SectionOffset(SlotInterfaces),
+                SectionCount(SlotInterfaces, 4),
+                4,
+                d => new TypeIndex(TotRecords.I32(d, 0))
+            );
+            Metadata.NestedTypeIndices = Records(
+                data,
+                SectionOffset(SlotNestedTypes),
+                SectionCount(SlotNestedTypes, 4),
+                4,
+                d => TotRecords.I32(d, 0)
+            );
+            Metadata.AttributeTypeIndices = Records(
+                data,
+                SectionOffset(SlotAttributeTypes),
+                SectionCount(SlotAttributeTypes, 4),
+                4,
+                d => TotRecords.I32(d, 0)
+            );
             Metadata.GenericConstraintIndices = Records(
                 data,
                 SectionOffset(SlotGenericParameterConstraints),
@@ -132,7 +204,13 @@ namespace Il2CppInspector
                 4,
                 d => new TypeIndex(TotRecords.I32(d, 0))
             );
-            Metadata.VTableMethodIndices = Records(data, SectionOffset(SlotVTableMethods), SectionCount(SlotVTableMethods, 4), 4, d => TotRecords.U32(d, 0));
+            Metadata.VTableMethodIndices = Records(
+                data,
+                SectionOffset(SlotVTableMethods),
+                SectionCount(SlotVTableMethods, 4),
+                4,
+                d => TotRecords.U32(d, 0)
+            );
 
             // The unused sections are left empty rather than throwing: the stock pipeline never needs them.
             Metadata.AttributeDataRanges = [];
@@ -322,7 +400,8 @@ namespace Il2CppInspector
         public override int VTableSlotSize => 8;
 
         // TOT uses the stock shared-generic layout, so no special type layout group is required.
-        public override Il2CppTypeDefinitionSizes LayoutSizes(int group) => binary != null && group >= 0 && group < binary.TypeDefinitionSizes.Length ? binary.TypeDefinitionSizes[group] : default;
+        public override Il2CppTypeDefinitionSizes LayoutSizes(int group) =>
+            binary != null && group >= 0 && group < binary.TypeDefinitionSizes.Length ? binary.TypeDefinitionSizes[group] : default;
 
         public override uint LayoutFieldOffset(int group, int local) => 0;
 

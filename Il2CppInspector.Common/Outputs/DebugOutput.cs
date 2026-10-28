@@ -19,7 +19,9 @@ public static class DebugOutput
         if (image.Format.StartsWith("ELF", StringComparison.Ordinal) || image.Format.StartsWith("Mach-O", StringComparison.Ordinal))
         {
             if (!DwarfOutput.Supports(image))
-                throw new NotSupportedException($"Debug output for {image.Format} ({image.Arch}) requires a little-endian x86, x64, ARM or ARM64 image for DWARF generation.");
+                throw new NotSupportedException(
+                    $"Debug output for {image.Format} ({image.Arch}) requires a little-endian x86, x64, ARM or ARM64 image for DWARF generation."
+                );
             return DebugSymbolFormat.Dwarf;
         }
         throw new NotSupportedException($"Debug output does not support binary format {image.Format} ({image.Arch}).");

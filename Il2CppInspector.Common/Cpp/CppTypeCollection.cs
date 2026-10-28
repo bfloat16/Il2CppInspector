@@ -72,7 +72,10 @@ namespace Il2CppInspector.Cpp
                 throw new ArgumentOutOfRangeException("Architecture word size must be 32 or 64-bit to generate C++ data");
 
             WordSize = wordSize;
-            Types = primitiveTypes.ToDictionary(t => t.Name, t => new CppType(t.Name, t.Size, Math.Min(scalarAlignmentLimit, Math.Max(1, t.SizeBytes))));
+            Types = primitiveTypes.ToDictionary(
+                t => t.Name,
+                t => new CppType(t.Name, t.Size, Math.Min(scalarAlignmentLimit, Math.Max(1, t.SizeBytes)))
+            );
 
             // This is all compiler-dependent, let's hope for the best!
             Add(new CppType("long", longSize));
@@ -99,11 +102,15 @@ namespace Il2CppInspector.Cpp
             using StringReader lines = new(text);
 
             var rgxForwardDecl = new Regex(@"(struct|union)\s+(\S+);");
-            var rgxTypedefAlias = new Regex(@"typedef\s+(?:(struct|union)\s+)?((?:(?:const|volatile|unsigned|signed|struct|union)\s+)*(?:long\s+)?\S+(?:\s*\*)?)\s+(\S+);");
+            var rgxTypedefAlias = new Regex(
+                @"typedef\s+(?:(struct|union)\s+)?((?:(?:const|volatile|unsigned|signed|struct|union)\s+)*(?:long\s+)?\S+(?:\s*\*)?)\s+(\S+);"
+            );
             var rgxTypedefFnPtr = new Regex(@"typedef\s+(?:struct\s+)?" + CppFnPtrType.Regex + ";");
             var rgxDefinition = new Regex(@"^(typedef\s+)?(struct|union|enum)");
             var rgxFieldFnPtr = new Regex(CppFnPtrType.Regex + @";");
-            var rgxField = new Regex(@"^((?:(?:const|volatile|unsigned|signed|struct|enum)\s+)*(?:long\s+)?\S+?\s*(?:\*\s*(?:(?:const|volatile)\s*)?)*)\s*((?:\S|\s*,\s*)+)(?:\s*:\s*([0-9]+))?;");
+            var rgxField = new Regex(
+                @"^((?:(?:const|volatile|unsigned|signed|struct|enum)\s+)*(?:long\s+)?\S+?\s*(?:\*\s*(?:(?:const|volatile)\s*)?)*)\s*((?:\S|\s*,\s*)+)(?:\s*:\s*([0-9]+))?;"
+            );
             var rgxEnumValue = new Regex(@"^\s*([A-Za-z0-9_]+)(?:\s*=\s*(.+?))?,?\s*$");
 
             var rgxCompressPtrs = new Regex(@"\*\s+\*");
@@ -589,7 +596,8 @@ namespace Il2CppInspector.Cpp
 
         // Add a field to a type specifying the field type and/or declaring type name as a string
         // Convenient when the field type is a pointer, or to avoid referencing this.Types or this.WordSize externally
-        public int AddField(CppComplexType declaringType, string fieldName, string typeName, bool isConst = false) => declaringType.AddField(fieldName, GetType(typeName), isConst: isConst);
+        public int AddField(CppComplexType declaringType, string fieldName, string typeName, bool isConst = false) =>
+            declaringType.AddField(fieldName, GetType(typeName), isConst: isConst);
 
         // Helper factories
         // If the type is named, it gets added to the dictionary; otherwise it must be added manually

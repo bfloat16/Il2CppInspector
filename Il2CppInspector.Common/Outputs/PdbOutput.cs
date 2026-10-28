@@ -11,7 +11,8 @@ public sealed record PdbOutputResult(int Functions, int TypedFunctions, int Type
 
 public sealed class PdbOutput(AppModel model)
 {
-    public static bool Supports(IFileFormatStream image) => image.Format.StartsWith("PE", StringComparison.Ordinal) && image.Bits == 64 && image.Arch == "x64";
+    public static bool Supports(IFileFormatStream image) =>
+        image.Format.StartsWith("PE", StringComparison.Ordinal) && image.Bits == 64 && image.Arch == "x64";
 
     public PdbOutputResult Write(string outputFile, EventHandler<string> status = null)
     {
@@ -37,7 +38,10 @@ public sealed class PdbOutput(AppModel model)
                 matching = true;
                 break;
             }
-            status?.Invoke(this, matching ? $"PDB identity: {guid}, age {age}" : "PE has no RSDS record; PDB uses an empty GUID and requires manual symbol loading.");
+            status?.Invoke(
+                this,
+                matching ? $"PDB identity: {guid}, age {age}" : "PE has no RSDS record; PDB uses an empty GUID and requires manual symbol loading."
+            );
             var sectionOffset = checked((int)image.ReadUInt32(0x3C) + 24 + headers.CoffHeader.SizeOfOptionalHeader);
             var sectionHeaders = image.ReadBytes(sectionOffset, checked(headers.SectionHeaders.Length * 40));
             var types = new PdbTypes();
@@ -98,7 +102,12 @@ public sealed class PdbOutput(AppModel model)
                 {
                     var section = headers.SectionHeaders[i];
                     var end = (ulong)(uint)section.VirtualAddress + (uint)section.VirtualSize;
-                    if ((section.SectionCharacteristics & SectionCharacteristics.MemExecute) != 0 || rva < (uint)section.VirtualAddress || rva >= end || (ulong)variable.Type.SizeBytes > end - rva)
+                    if (
+                        (section.SectionCharacteristics & SectionCharacteristics.MemExecute) != 0
+                        || rva < (uint)section.VirtualAddress
+                        || rva >= end
+                        || (ulong)variable.Type.SizeBytes > end - rva
+                    )
                         continue;
                     globals.Add(new(variable.Name, checked((ushort)(i + 1)), rva - (uint)section.VirtualAddress, types.Resolve(variable.Type)));
                     dataAddresses.Add(variable.Address);

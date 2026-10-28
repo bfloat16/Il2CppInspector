@@ -85,7 +85,11 @@ public static class BlobReader
                 {
                     for (int i = 0; i < length; i++)
                     {
-                        array[i] = new ConstantBlobArrayElement(arrayElementDef, GetConstantValueFromBlob(inspector, arrayElementType, blob), arrayElementType);
+                        array[i] = new ConstantBlobArrayElement(
+                            arrayElementDef,
+                            GetConstantValueFromBlob(inspector, arrayElementType, blob),
+                            arrayElementType
+                        );
                     }
                 }
 

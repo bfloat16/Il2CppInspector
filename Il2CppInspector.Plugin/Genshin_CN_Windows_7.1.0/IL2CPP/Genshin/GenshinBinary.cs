@@ -133,9 +133,18 @@ internal sealed partial class GenshinMorax
             FieldOffsetsCount = Metadata.Types.Length,
             TypeDefinitionsSizesCount = Metadata.Types.Length,
         };
-        binary.MethodInvokePointers = Image.ReadMappedUWordArray(binary.CodeRegistration.InvokerPointers, checked((int)binary.CodeRegistration.InvokerPointersCount));
-        binary.CustomAttributeGenerators = Image.ReadMappedUWordArray(binary.CodeRegistration.CustomAttributeGenerators, binary.CodeRegistration.CustomAttributeCount);
-        if (binary.CustomAttributeGenerators.Length != Metadata.AttributeTypeRanges.Length || Metadata.Methods.Any(m => m.InvokerIndex < -1 || m.InvokerIndex >= binary.MethodInvokePointers.Length))
+        binary.MethodInvokePointers = Image.ReadMappedUWordArray(
+            binary.CodeRegistration.InvokerPointers,
+            checked((int)binary.CodeRegistration.InvokerPointersCount)
+        );
+        binary.CustomAttributeGenerators = Image.ReadMappedUWordArray(
+            binary.CodeRegistration.CustomAttributeGenerators,
+            binary.CodeRegistration.CustomAttributeCount
+        );
+        if (
+            binary.CustomAttributeGenerators.Length != Metadata.AttributeTypeRanges.Length
+            || Metadata.Methods.Any(m => m.InvokerIndex < -1 || m.InvokerIndex >= binary.MethodInvokePointers.Length)
+        )
             throw new InvalidDataException("Invoker/custom attribute index out of range.");
         binary.GlobalMethodPointers = Image.ReadMappedUWordArray(binary.CodeRegistration.MethodPointers, Metadata.Methods.Length);
         // Value-type MethodInfo construction consults a separate {methodIndex,u16 pointerIndex} table.
@@ -166,7 +175,11 @@ internal sealed partial class GenshinMorax
             var specIndex = I32(global, o);
             var pointerIndex = I32(global, o + 4);
             var invoker = I32(global, o + 8);
-            if ((uint)specIndex >= specs.Length || (uint)pointerIndex >= genericPointers.Length || (uint)invoker >= binary.MethodInvokePointers.Length)
+            if (
+                (uint)specIndex >= specs.Length
+                || (uint)pointerIndex >= genericPointers.Length
+                || (uint)invoker >= binary.MethodInvokePointers.Length
+            )
                 throw new InvalidDataException("Generic function index out of range.");
             var spec = specs[specIndex];
             var pointer = genericPointers[pointerIndex];
@@ -214,7 +227,8 @@ internal sealed partial class GenshinMorax
             _ => raw,
         };
 
-    internal bool DefinitionHasSplitVTable(Il2CppTypeDefinition d) => (U16(global, Base(0xDC) + ((int)d.Token & 0xFFFFFF) * 70 + 0x32) ^ 0x8BA4) is var bf && (bf & 0x200) != 0;
+    internal bool DefinitionHasSplitVTable(Il2CppTypeDefinition d) =>
+        (U16(global, Base(0xDC) + ((int)d.Token & 0xFFFFFF) * 70 + 0x32) ^ 0x8BA4) is var bf && (bf & 0x200) != 0;
 
     internal int DefinitionExtraVTableSlots(int index)
     {
@@ -259,7 +273,17 @@ internal sealed partial class GenshinMorax
         var bases = new ulong[8];
         foreach (var (kind, offset) in new[] { (0, 0x38), (1, 0x50), (3, 8), (4, 0x58), (5, 0x28), (6, 8), (7, 0x18) })
             bases[kind] = Image.ReadMappedUInt64(UsageAddress + (uint)offset);
-        var limits = new[] { int.MaxValue, typeCount, 0, Metadata.Methods.Length, Metadata.FieldRefs.Length, Metadata.StringLiterals.Length, specCount, typeCount };
+        var limits = new[]
+        {
+            int.MaxValue,
+            typeCount,
+            0,
+            Metadata.Methods.Length,
+            Metadata.FieldRefs.Length,
+            Metadata.StringLiterals.Length,
+            specCount,
+            typeCount,
+        };
         var slots = new Dictionary<ulong, MetadataUsage>();
         for (var i = 0; i < count; i++)
         {
@@ -275,7 +299,13 @@ internal sealed partial class GenshinMorax
             if (kind == 0)
             {
                 var text = DecodeString((dest & 0xFF000000) | (uint)index);
-                runtimeCaches.Add(new("genshinNativeStrings", -1, address, $"NativeString_{Cpp.CppDeclarationGenerator.FieldIdentifier(text)}", "char *") { Length = (int)(dest >> 24), Value = text });
+                runtimeCaches.Add(
+                    new("genshinNativeStrings", -1, address, $"NativeString_{Cpp.CppDeclarationGenerator.FieldIdentifier(text)}", "char *")
+                    {
+                        Length = (int)(dest >> 24),
+                        Value = text,
+                    }
+                );
                 continue;
             }
             if (kind == 7)
@@ -298,7 +328,9 @@ internal sealed partial class GenshinMorax
         var (definition, instance) = GenericClass(type.Data.Value);
         if ((uint)definition >= model.TypesByDefinitionIndex.Length || (uint)instance >= model.Package.GenericInstances.Length)
             throw new InvalidDataException("Generic class index out of range.");
-        var result = model.TypesByDefinitionIndex[definition].MakeGenericType(model.ResolveGenericArguments(model.Package.GenericInstances[instance]));
+        var result = model
+            .TypesByDefinitionIndex[definition]
+            .MakeGenericType(model.ResolveGenericArguments(model.Package.GenericInstances[instance]));
         if (!result.IsEnum && GenericLayoutGroups.TryGetValue(checked((int)type.Data.Value), out var group))
             result.SetGameLayoutGroup(group);
         return result;

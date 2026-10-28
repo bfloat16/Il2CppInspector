@@ -13,12 +13,14 @@ public sealed record DwarfOutputResult(int Functions, int TypedFunctions, int Ty
 public sealed class DwarfOutput(AppModel model)
 {
     public static bool Supports(IFileFormatStream image) =>
-        (image.Bits, image.Arch) is (32, "x86") or (64, "x64") or (32, "ARM") or (64, "ARM64") && image is BinaryObjectStreamReader { Endianness: Endianness.Little };
+        (image.Bits, image.Arch) is (32, "x86") or (64, "x64") or (32, "ARM") or (64, "ARM64")
+        && image is BinaryObjectStreamReader { Endianness: Endianness.Little };
 
     // GNU debuglink lookup requires both the stored file name and a matching CRC.
     public static string GetCompanionName(IFileFormatStream image, string fallback) => ElfDebugLink.GetName(image) ?? fallback;
 
-    public static string CreateDebugLinkImage(IFileFormatStream image, string inputFile, string debugFile) => ElfDebugLink.CreateImage(image, inputFile, debugFile);
+    public static string CreateDebugLinkImage(IFileFormatStream image, string inputFile, string debugFile) =>
+        ElfDebugLink.CreateImage(image, inputFile, debugFile);
 
     public DwarfOutputResult Write(string outputFile, EventHandler<string> status = null) => WriteCore(outputFile, status, null);
 
@@ -50,7 +52,11 @@ public sealed class DwarfOutput(AppModel model)
         var position = image.Position;
         try
         {
-            var sections = image.GetSections().Where(s => (s.IsExec || s.IsData || s.IsBSS) && s.VirtualEnd >= s.VirtualStart && s.VirtualLength != 0).OrderBy(s => s.VirtualStart).ToArray();
+            var sections = image
+                .GetSections()
+                .Where(s => (s.IsExec || s.IsData || s.IsBSS) && s.VirtualEnd >= s.VirtualStart && s.VirtualLength != 0)
+                .OrderBy(s => s.VirtualStart)
+                .ToArray();
             var code = sections.Where(s => s.IsExec).ToArray();
             var data = sections.Where(s => !s.IsExec).ToArray();
             if (code.Length == 0)

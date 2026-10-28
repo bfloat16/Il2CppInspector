@@ -21,7 +21,13 @@ namespace Il2CppInspector
 
         public uint Count { get; }
 
-        public CustomAttributeDataReader(Il2CppInspector inspector, Assembly assembly, BinaryObjectStreamReader data, uint startOffset, uint endOffset)
+        public CustomAttributeDataReader(
+            Il2CppInspector inspector,
+            Assembly assembly,
+            BinaryObjectStreamReader data,
+            uint startOffset,
+            uint endOffset
+        )
         {
             _inspector = inspector;
             _assembly = assembly;
@@ -129,7 +135,11 @@ namespace Il2CppInspector
                     {
                         Type = ConvertTypeDef(blobArray.ArrayTypeDef, blobArray.ArrayTypeEnum),
                         Value = blobArray
-                            .Elements.Select(blobElem => new CustomAttributeArgument { Type = ConvertTypeDef(blobElem.TypeDef, blobElem.TypeEnum), Value = ConvertAttributeValue(blobElem.Value) })
+                            .Elements.Select(blobElem => new CustomAttributeArgument
+                            {
+                                Type = ConvertTypeDef(blobElem.TypeDef, blobElem.TypeEnum),
+                                Value = ConvertAttributeValue(blobElem.Value),
+                            })
                             .ToArray(),
                     };
 
@@ -141,7 +151,9 @@ namespace Il2CppInspector
         }
 
         private TypeInfo ConvertTypeDef(Il2CppTypeDefinition typeDef, Il2CppTypeEnum type) =>
-            typeDef.IsValid ? _assembly.Model.TypesByDefinitionIndex[_inspector.TypeDefinitions.IndexOf(typeDef)] : _assembly.Model.GetTypeDefinitionFromTypeEnum(type);
+            typeDef.IsValid
+                ? _assembly.Model.TypesByDefinitionIndex[_inspector.TypeDefinitions.IndexOf(typeDef)]
+                : _assembly.Model.GetTypeDefinitionFromTypeEnum(type);
 
         private (TypeInfo, int) ReadCustomAttributeNamedArgumentClassAndIndex(TypeInfo attrInfo)
         {
@@ -152,7 +164,10 @@ namespace Il2CppInspector
             memberIndex = -(memberIndex + 1);
 
             var typeDefIndex = _data.ReadCompressedUInt32();
-            var typeInfo = _assembly.Model.Package.Version >= MetadataVersions.V1040 ? _assembly.Model.TypesByReferenceIndex[typeDefIndex] : _assembly.Model.TypesByDefinitionIndex[typeDefIndex];
+            var typeInfo =
+                _assembly.Model.Package.Version >= MetadataVersions.V1040
+                    ? _assembly.Model.TypesByReferenceIndex[typeDefIndex]
+                    : _assembly.Model.TypesByDefinitionIndex[typeDefIndex];
 
             return (typeInfo, memberIndex);
         }

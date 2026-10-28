@@ -11,7 +11,10 @@
     <Compile Include="../TOT_CN_Android_6.1.0/Next/Metadata/*.cs" Link="Next/Metadata/%(Filename)%(Extension)" />
     <Compile Include="../TOT_CN_Android_6.1.0/Model/*.cs" Link="Model/%(Filename)%(Extension)" />
     <Compile Include="../TOT_CN_Android_6.1.0/Reflection/*.cs" Link="Reflection/%(Filename)%(Extension)" />
-    <EmbeddedResource Include="../TOT_CN_Android_6.1.0/Resources/TotWhiteboxTables.bin" LogicalName="Il2CppInspector.Plugin.TOT.TotWhiteboxTables.bin" />
+    <EmbeddedResource
+      Include="../TOT_CN_Android_6.1.0/Resources/TotWhiteboxTables.bin"
+      LogicalName="Il2CppInspector.Plugin.TOT.TotWhiteboxTables.bin"
+    />
     <InternalsVisibleTo Include="Il2CppInspector.Tests" />
   </ItemGroup>
 </Project>

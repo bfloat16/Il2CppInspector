@@ -98,7 +98,9 @@ internal sealed class CppRecordedLayoutType(int bytes, Action<CppComplexType> fi
                     }
                     else
                     {
-                        output.AppendLine($"        struct {{ uint8_t __padding_{padding++}[{member.OffsetBytes - field.OffsetBytes}]; {declaration}; }};");
+                        output.AppendLine(
+                            $"        struct {{ uint8_t __padding_{padding++}[{member.OffsetBytes - field.OffsetBytes}]; {declaration}; }};"
+                        );
                     }
                 }
                 output.AppendLine("    };");

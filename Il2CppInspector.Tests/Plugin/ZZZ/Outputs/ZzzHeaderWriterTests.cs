@@ -12,29 +12,47 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
             var blend = context.Blend;
 
             var native = typeof(AppModel)
-                .GetProperty("GameNativeModel", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
+                .GetProperty(
+                    "GameNativeModel",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public
+                )
                 .GetValue(app);
             var ctype = native
                 .GetType()
-                .GetMethod("CType", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
+                .GetMethod(
+                    "CType",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public
+                )
                 .CreateDelegate<Func<global::Il2CppInspector.Reflection.TypeInfo, string>>(native);
             var complete = native
                 .GetType()
-                .GetMethod("IsSignatureTypeComplete", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
+                .GetMethod(
+                    "IsSignatureTypeComplete",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public
+                )
                 .CreateDelegate<Func<global::Il2CppInspector.Reflection.TypeInfo, bool>>(native);
             var className = native
                 .GetType()
-                .GetMethod("ClassName", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
+                .GetMethod(
+                    "ClassName",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public
+                )
                 .CreateDelegate<Func<global::Il2CppInspector.Reflection.TypeInfo, string>>(native);
             var arrayName = native
                 .GetType()
-                .GetMethod("ArrayName", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
+                .GetMethod(
+                    "ArrayName",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public
+                )
                 .CreateDelegate<Func<global::Il2CppInspector.Reflection.TypeInfo, string>>(native);
             var vectorConstructor = vector.DeclaredConstructors.Single(c => c.DeclaredParameters.Count == 3);
             var vectorMethod = app.Methods[vectorConstructor];
             var vectorSignature = vectorMethod.CppFnPtrType.ToSignatureString();
             Check(
-                vectorSignature.Contains("float x") && vectorSignature.Contains("float y") && vectorSignature.Contains("float z") && vectorMethod.SignatureComplete,
+                vectorSignature.Contains("float x")
+                    && vectorSignature.Contains("float y")
+                    && vectorSignature.Contains("float z")
+                    && vectorMethod.SignatureComplete,
                 "Native method signatures retain the metadata parameter names instead of arg placeholders"
             );
             if (args.Contains("--write-project-pointers"))
@@ -42,7 +60,10 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                 var projectData = Path.Combine(output, "CppScaffolding", "appdata");
                 var scaffolding = new CppScaffolding(app, useBetterArraySize: true);
                 typeof(CppScaffolding)
-                    .GetMethod("WriteGameApplicationPointers", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
+                    .GetMethod(
+                        "WriteGameApplicationPointers",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public
+                    )
                     .Invoke(scaffolding, [projectData]);
                 var functions = 0;
                 var infos = 0;
@@ -59,7 +80,8 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                         infos++;
                 }
                 Check(
-                    functions == 1633672 && infos == input.MetadataUsages.Count(u => u.Type is MetadataUsageType.MethodDef or MetadataUsageType.MethodRef),
+                    functions == 1633672
+                        && infos == input.MetadataUsages.Count(u => u.Type is MetadataUsageType.MethodDef or MetadataUsageType.MethodRef),
                     "C++ project pointers contain all 1,633,672 compiled methods and every MethodInfo usage"
                 );
                 Check(
@@ -79,7 +101,8 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
             Check(
                 ctype(vector.MakeArrayType()) == "struct " + arrayName(vector.MakeArrayType()) + " *"
                     && arrayName(vector.MakeArrayType().MakeArrayType()) == arrayName(vector.MakeArrayType()) + "__Array"
-                    && arrayName(model.TypesByFullName["System.Int32"].MakeArrayType(2)) != arrayName(model.TypesByFullName["System.Int32"].MakeArrayType()),
+                    && arrayName(model.TypesByFullName["System.Int32"].MakeArrayType(2))
+                        != arrayName(model.TypesByFullName["System.Int32"].MakeArrayType()),
                 "Array declarations retain value elements, jagged pointer elements and multidimensional rank"
             );
             Check(
@@ -102,12 +125,27 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                 className(unknown) == "Il2CppClass" && className(model.TypesByDefinitionIndex[1556].MakeGenericType(unknown)) == "Il2CppClass",
                 "Unrecorded constructed types use the generic class prefix and cannot alias a definition's class name"
             );
-            Check(File.ReadAllText(Path.Combine(output, "il2cpp.py")).Contains("-target x86_64-pc-windows-msvc"), "IDA Clang parser uses the PE's Windows x64 ABI");
-            if (args.Contains("--write-native") || args.Contains("--write-header") || args.Contains("--write-project") || args.Contains("--finish-project"))
+            Check(
+                File.ReadAllText(Path.Combine(output, "il2cpp.py")).Contains("-target x86_64-pc-windows-msvc"),
+                "IDA Clang parser uses the PE's Windows x64 ABI"
+            );
+            if (
+                args.Contains("--write-native")
+                || args.Contains("--write-header")
+                || args.Contains("--write-project")
+                || args.Contains("--finish-project")
+            )
             {
                 var headerList = list.MakeGenericType(vector);
                 var listFields = ctype(headerList).Replace("struct ", "").TrimEnd(' ', '*') + "__Fields";
-                var selectedArrays = new[] { vector.MakeArrayType(), vector.MakeArrayType().MakeArrayType(), model.TypesByFullName["System.Int32"].MakeArrayType(2) }.Select(arrayName).ToHashSet();
+                var selectedArrays = new[]
+                {
+                    vector.MakeArrayType(),
+                    vector.MakeArrayType().MakeArrayType(),
+                    model.TypesByFullName["System.Int32"].MakeArrayType(2),
+                }
+                    .Select(arrayName)
+                    .ToHashSet();
                 var selectedDeclarations = new List<string>();
                 var enumName = ctype(model.TypesByFullName["System.DayOfWeek"]);
                 var byteEnumName = ctype(blend);
@@ -124,7 +162,9 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                 semanticAssertions.AppendLine($"static_assert(sizeof(struct {byteEnumName}__Boxed) == 17);");
                 semanticAssertions.AppendLine($"static_assert(__builtin_offsetof(struct {byteEnumName}__Boxed, value) == 16);");
                 semanticAssertions.AppendLine($"static_assert((int){enumName}::Sunday == 0 && (int){enumName}::Saturday == 6);");
-                var interfaceType = model.TypesByDefinitionIndex.First(t => t is { IsInterface: true, IsGenericType: false } && t.Definition.MethodCount > 0 && t.Definition.VTableCount == 0);
+                var interfaceType = model.TypesByDefinitionIndex.First(t =>
+                    t is { IsInterface: true, IsGenericType: false } && t.Definition.MethodCount > 0 && t.Definition.VTableCount == 0
+                );
                 var interfaceView = NativeName(interfaceType) + "__InterfaceVTable";
                 semanticAssertions.AppendLine($"static_assert(sizeof({interfaceView}) == {interfaceType.Definition.MethodCount * 8});");
                 semanticAssertions.AppendLine($"static_assert(sizeof(struct {className(interfaceType)}) == 0xD0);");
@@ -133,7 +173,9 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                     var definition = slotType.Definition.IsValid ? slotType.Definition : slotType.GetGenericTypeDefinition().Definition;
                     var tableName = NativeName(slotType) + "__VTable";
                     var slots = input.GetVTable(definition);
-                    var splitTable = slotType.IsGenericType && !slotType.IsGenericTypeDefinition || slots.Any(u => u.IsValid && u.Type == MetadataUsageType.MethodRef);
+                    var splitTable =
+                        slotType.IsGenericType && !slotType.IsGenericTypeDefinition
+                        || slots.Any(u => u.IsValid && u.Type == MetadataUsageType.MethodRef);
                     semanticAssertions.AppendLine($"static_assert(sizeof({tableName}) == {slots.Length * (splitTable ? 16 : 8)});");
                     for (var slot = 0; slot < slots.Length; slot++)
                     {
@@ -147,7 +189,9 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                         semanticLines.Add($"        Il2CppMethodPointer methodPtr_{slot}_{slotName};");
                         semanticAssertions.AppendLine($"static_assert(__builtin_offsetof({tableName}, methodPtr_{slot}_{slotName}) == {slot * 8});");
                         if (splitTable)
-                            semanticAssertions.AppendLine($"static_assert(__builtin_offsetof({tableName}, method_{slot}_{slotName}) == {(slots.Length + slot) * 8});");
+                            semanticAssertions.AppendLine(
+                                $"static_assert(__builtin_offsetof({tableName}, method_{slot}_{slotName}) == {(slots.Length + slot) * 8});"
+                            );
                     }
                 }
                 var inFields = false;
@@ -172,11 +216,15 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                     "Closed List<Vector3> emits named typed fields instead of an opaque byte buffer"
                 );
                 Check(
-                    selectedArrays.All(name => selectedDeclarations.Any(line => line.StartsWith($"struct {name} {{") && line.Contains(" vector[32];"))),
+                    selectedArrays.All(name =>
+                        selectedDeclarations.Any(line => line.StartsWith($"struct {name} {{") && line.Contains(" vector[32];"))
+                    ),
                     "Typed vector, jagged vector and rank-two array declarations are emitted"
                 );
                 Check(
-                    semanticLines.Count == 0 && selectedDeclarations.Contains("    Sunday = 0x0ULL,") && selectedDeclarations.Contains("    Saturday = 0x6ULL,"),
+                    semanticLines.Count == 0
+                        && selectedDeclarations.Contains("    Sunday = 0x0ULL,")
+                        && selectedDeclarations.Contains("    Saturday = 0x6ULL,"),
                     "Native headers expose enum constants and method names for ordinary, split and generic vtable slots"
                 );
                 File.WriteAllText(
@@ -195,7 +243,9 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                 );
                 File.WriteAllText(
                     Path.Combine(output, "native-analysis-check.cpp"),
-                    "#define _IDA_\n#include \"il2cpp.h\"\n" + $"static_assert(sizeof({byteEnumName}) == 1);\n" + $"static_assert({enumName}_Sunday == 0 && {enumName}_Saturday == 6);\n",
+                    "#define _IDA_\n#include \"il2cpp.h\"\n"
+                        + $"static_assert(sizeof({byteEnumName}) == 1);\n"
+                        + $"static_assert({enumName}_Sunday == 0 && {enumName}_Saturday == 6);\n",
                     Encoding.UTF8
                 );
             }

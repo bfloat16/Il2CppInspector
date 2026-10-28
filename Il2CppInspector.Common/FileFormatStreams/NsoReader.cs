@@ -245,7 +245,10 @@ public class NsoReader : FileFormatStream<NsoReader>
     // Copied and trimmed down from ElfBinary
     private void ApplyRelocations()
     {
-        if (!_dynamicEntries.TryGetValue(DynamicTag.DT_SYMTAB, out var symtabAddress) || !_dynamicEntries.TryGetValue(DynamicTag.DT_SYMENT, out var symtabEntrySize))
+        if (
+            !_dynamicEntries.TryGetValue(DynamicTag.DT_SYMTAB, out var symtabAddress)
+            || !_dynamicEntries.TryGetValue(DynamicTag.DT_SYMENT, out var symtabEntrySize)
+        )
             return;
 
         List<(ulong Start, ulong End)> relocationRegions = [];
@@ -337,7 +340,12 @@ public class NsoReader : FileFormatStream<NsoReader>
             var entrySize = _dynamicEntries[DynamicTag.DT_RELENT];
             var entryCount = size / entrySize;
 
-            return [.. _mappedExecutable.ReadObjectArray<RelEntry>(ImageBase + rva, checked((int)entryCount), default).Select<RelEntry, (ulong, ulong, long?)>(x => (x.Offset, x.Info, null))];
+            return
+            [
+                .. _mappedExecutable
+                    .ReadObjectArray<RelEntry>(ImageBase + rva, checked((int)entryCount), default)
+                    .Select<RelEntry, (ulong, ulong, long?)>(x => (x.Offset, x.Info, null)),
+            ];
         }
 
         List<(ulong, ulong, long?)> ParseRelaSection(ulong rva, ulong size)
@@ -345,7 +353,12 @@ public class NsoReader : FileFormatStream<NsoReader>
             var entrySize = _dynamicEntries[DynamicTag.DT_RELAENT];
             var entryCount = size / entrySize;
 
-            return [.. _mappedExecutable.ReadObjectArray<RelaEntry>(ImageBase + rva, checked((int)entryCount), default).Select<RelaEntry, (ulong, ulong, long?)>(x => (x.Offset, x.Info, x.Addend))];
+            return
+            [
+                .. _mappedExecutable
+                    .ReadObjectArray<RelaEntry>(ImageBase + rva, checked((int)entryCount), default)
+                    .Select<RelaEntry, (ulong, ulong, long?)>(x => (x.Offset, x.Info, x.Addend)),
+            ];
         }
 
         void ApplyRelrRelocations(ulong address, ulong size)

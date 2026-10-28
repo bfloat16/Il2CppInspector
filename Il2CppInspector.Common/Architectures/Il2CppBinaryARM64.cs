@@ -14,7 +14,12 @@ namespace Il2CppInspector
         public Il2CppBinaryARM64(IFileFormatStream stream, EventHandler<string> statusCallback = null)
             : base(stream, statusCallback) { }
 
-        public Il2CppBinaryARM64(IFileFormatStream stream, uint codeRegistration, uint metadataRegistration, EventHandler<string> statusCallback = null)
+        public Il2CppBinaryARM64(
+            IFileFormatStream stream,
+            uint codeRegistration,
+            uint metadataRegistration,
+            EventHandler<string> statusCallback = null
+        )
             : base(stream, codeRegistration, metadataRegistration, statusCallback) { }
 
         private (uint reg, ulong page)? getAdrp(uint inst, ulong pc)
@@ -182,7 +187,13 @@ namespace Il2CppInspector
             // Is it Il2CppCodegenRegistration(void)?
             // In v21 and later, X0-X2 will be set and they will be the only registers set
             // Pre-v21, X0-X1 will be the only registers set
-            if (image.Version >= MetadataVersions.V210 && regs.Count == 3 && regs.TryGetValue(0, out ulong x0) && regs.TryGetValue(1, out x1) && regs.TryGetValue(2, out ulong _))
+            if (
+                image.Version >= MetadataVersions.V210
+                && regs.Count == 3
+                && regs.TryGetValue(0, out ulong x0)
+                && regs.TryGetValue(1, out x1)
+                && regs.TryGetValue(2, out ulong _)
+            )
                 return (x0, x1);
 
             if (image.Version < MetadataVersions.V210 && regs.Count == 2 && regs.TryGetValue(0, out x0) && regs.TryGetValue(1, out x1))

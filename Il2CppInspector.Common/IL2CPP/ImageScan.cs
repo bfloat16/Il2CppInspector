@@ -147,7 +147,13 @@ namespace Il2CppInspector
                             {
                                 for (int i = imagesCount - 1; i >= 0; i--)
                                 {
-                                    foreach (var potentialCodeRegistrationPtr in FindAllPointerChains(imageBytes, potentialCodeGenModules - (ulong)i * ptrSize, 1))
+                                    foreach (
+                                        var potentialCodeRegistrationPtr in FindAllPointerChains(
+                                            imageBytes,
+                                            potentialCodeGenModules - (ulong)i * ptrSize,
+                                            1
+                                        )
+                                    )
                                     {
                                         var expectedImageCountPtr = potentialCodeRegistrationPtr - ptrSize;
                                         var expectedImageCount = Image.ReadMappedWord(expectedImageCountPtr);
@@ -160,7 +166,13 @@ namespace Il2CppInspector
                             {
                                 for (int i = 0; i < imagesCount; i++)
                                 {
-                                    foreach (var potentialCodeRegistrationPtr in FindAllPointerChains(imageBytes, potentialCodeGenModules - (ulong)i * ptrSize, 1))
+                                    foreach (
+                                        var potentialCodeRegistrationPtr in FindAllPointerChains(
+                                            imageBytes,
+                                            potentialCodeGenModules - (ulong)i * ptrSize,
+                                            1
+                                        )
+                                    )
                                     {
                                         return potentialCodeRegistrationPtr;
                                     }
@@ -231,14 +243,20 @@ namespace Il2CppInspector
 
                 // genericAdjustorThunks was inserted before invokerPointersCount in 24.5 and 27.1
                 // pointer expected if we need to bump version
-                if (Image.Version == MetadataVersions.V244 && (cr.InvokerPointersCount > 0x50000 || cr.ReversePInvokeWrapperCount > cr.ReversePInvokeWrappers))
+                if (
+                    Image.Version == MetadataVersions.V244
+                    && (cr.InvokerPointersCount > 0x50000 || cr.ReversePInvokeWrapperCount > cr.ReversePInvokeWrappers)
+                )
                 {
                     Image.Version = MetadataVersions.V245;
                     codeRegistration = codeGenEndPtr - (ulong)Il2CppCodeRegistration.StructSize(Image.Version, readerConfig);
                     cr = Image.ReadMappedVersionedObject<Il2CppCodeRegistration>(codeRegistration);
                 }
 
-                if ((Image.Version == MetadataVersions.V290 || Image.Version == MetadataVersions.V310) && cr.GenericMethodPointersCount >= cr.GenericMethodPointers)
+                if (
+                    (Image.Version == MetadataVersions.V290 || Image.Version == MetadataVersions.V310)
+                    && cr.GenericMethodPointersCount >= cr.GenericMethodPointers
+                )
                 {
                     Image.Version = new StructVersion(Image.Version.Major, 0, MetadataVersions.Tag2022);
                     codeRegistration = codeGenEndPtr - (ulong)Il2CppCodeRegistration.StructSize(Image.Version, readerConfig);

@@ -255,7 +255,10 @@ namespace Il2CppInspector
                 if (code != 0)
                 {
                     RegistrationFunctionPointer = loc + Image.GlobalOffset;
-                    Console.WriteLine("Required structures acquired from code heuristics. Initialization function: 0x{0:X16}", RegistrationFunctionPointer);
+                    Console.WriteLine(
+                        "Required structures acquired from code heuristics. Initialization function: 0x{0:X16}",
+                        RegistrationFunctionPointer
+                    );
                     return (code, metadata);
                 }
             }
@@ -362,7 +365,10 @@ namespace Il2CppInspector
 
                 // Array of pointers to Il2CppCodeGenModule
                 var codeGenModulePointers = Image.ReadMappedUWordArray(CodeRegistration.CodeGenModules, (int)CodeRegistration.CodeGenModulesCount);
-                var modules = Image.ReadMappedVersionedObjectPointerArray<Il2CppCodeGenModule>(CodeRegistration.CodeGenModules, (int)CodeRegistration.CodeGenModulesCount);
+                var modules = Image.ReadMappedVersionedObjectPointerArray<Il2CppCodeGenModule>(
+                    CodeRegistration.CodeGenModules,
+                    (int)CodeRegistration.CodeGenModulesCount
+                );
 
                 foreach (var mp in modules.Zip(codeGenModulePointers, (m, p) => new { Module = m, Pointer = p }))
                 {
@@ -397,7 +403,10 @@ namespace Il2CppInspector
                     {
                         try
                         {
-                            MethodInvokerIndices.Add(module, Image.ReadMappedPrimitiveArray<int>(module.InvokerIndices, (int)module.MethodPointerCount));
+                            MethodInvokerIndices.Add(
+                                module,
+                                Image.ReadMappedPrimitiveArray<int>(module.InvokerIndices, (int)module.MethodPointerCount)
+                            );
                         }
                         catch (InvalidOperationException)
                         {
@@ -423,7 +432,9 @@ namespace Il2CppInspector
 
                 // We detect this by relying on the fact Module, Object, ValueType, Attribute, _Attribute and Int32
                 // are always the first six defined types, and that all but Int32 have no fields
-                fieldOffsetsArePointers = (fieldTest[0] == 0 && fieldTest[1] == 0 && fieldTest[2] == 0 && fieldTest[3] == 0 && fieldTest[4] == 0 && fieldTest[5] > 0);
+                fieldOffsetsArePointers = (
+                    fieldTest[0] == 0 && fieldTest[1] == 0 && fieldTest[2] == 0 && fieldTest[3] == 0 && fieldTest[4] == 0 && fieldTest[5] > 0
+                );
             }
 
             // All older versions use values directly in the array
@@ -434,9 +445,14 @@ namespace Il2CppInspector
 
             // Type references (pointer array)
             var typeRefPointers = Image.ReadMappedUWordArray(MetadataRegistration.Types, (int)MetadataRegistration.TypesCount);
-            TypeReferenceIndicesByAddress = typeRefPointers.Zip(Enumerable.Range(0, typeRefPointers.Length), (a, i) => new { a, i }).ToDictionary(x => x.a, x => x.i);
+            TypeReferenceIndicesByAddress = typeRefPointers
+                .Zip(Enumerable.Range(0, typeRefPointers.Length), (a, i) => new { a, i })
+                .ToDictionary(x => x.a, x => x.i);
 
-            TypeReferences = Image.ReadMappedVersionedObjectPointerArray<Il2CppType>(MetadataRegistration.Types, (int)MetadataRegistration.TypesCount);
+            TypeReferences = Image.ReadMappedVersionedObjectPointerArray<Il2CppType>(
+                MetadataRegistration.Types,
+                (int)MetadataRegistration.TypesCount
+            );
 
             if (TypeReferences.Any(x => x.Type.IsTypeDefinitionEnum() && (uint)x.Data.KlassIndex >= (uint)Metadata.Types.Length))
             {
@@ -490,7 +506,10 @@ namespace Il2CppInspector
             // This is managed in Il2CppInspector for metadata >= 27
             if (Image.Version < MetadataVersions.V270)
             {
-                CustomAttributeGenerators = Image.ReadMappedUWordArray(CodeRegistration.CustomAttributeGenerators, (int)CodeRegistration.CustomAttributeCount);
+                CustomAttributeGenerators = Image.ReadMappedUWordArray(
+                    CodeRegistration.CustomAttributeGenerators,
+                    (int)CodeRegistration.CustomAttributeCount
+                );
             }
 
             // Method.Invoke function pointers
@@ -505,17 +524,29 @@ namespace Il2CppInspector
 
             if (Image.Version < MetadataVersions.V190)
             {
-                VTableMethodReferences = Image.ReadMappedPrimitiveArray<uint>(MetadataRegistration.MethodReferences, (int)MetadataRegistration.MethodReferencesCount);
+                VTableMethodReferences = Image.ReadMappedPrimitiveArray<uint>(
+                    MetadataRegistration.MethodReferences,
+                    (int)MetadataRegistration.MethodReferencesCount
+                );
             }
 
             // Generic type and method specs (open and closed constructed types)
-            MethodSpecs = Image.ReadMappedVersionedObjectArray<Il2CppMethodSpec>(MetadataRegistration.MethodSpecs, (int)MetadataRegistration.MethodSpecsCount);
+            MethodSpecs = Image.ReadMappedVersionedObjectArray<Il2CppMethodSpec>(
+                MetadataRegistration.MethodSpecs,
+                (int)MetadataRegistration.MethodSpecsCount
+            );
 
             // Concrete generic class and method signatures
-            GenericInstances = Image.ReadMappedVersionedObjectPointerArray<Il2CppGenericInst>(MetadataRegistration.GenericInsts, (int)MetadataRegistration.GenericInstsCount);
+            GenericInstances = Image.ReadMappedVersionedObjectPointerArray<Il2CppGenericInst>(
+                MetadataRegistration.GenericInsts,
+                (int)MetadataRegistration.GenericInstsCount
+            );
 
             // Concrete generic method pointers
-            var genericMethodPointers = Image.ReadMappedUWordArray(CodeRegistration.GenericMethodPointers, (int)CodeRegistration.GenericMethodPointersCount);
+            var genericMethodPointers = Image.ReadMappedUWordArray(
+                CodeRegistration.GenericMethodPointers,
+                (int)CodeRegistration.GenericMethodPointersCount
+            );
             var genericMethodTable = Image.ReadMappedVersionedObjectArray<Il2CppGenericMethodFunctionsDefinitions>(
                 MetadataRegistration.GenericMethodTable,
                 (int)MetadataRegistration.GenericMethodTableCount
@@ -540,7 +571,11 @@ namespace Il2CppInspector
         {
             var exports = Image
                 .GetExports()
-                ?.Where(e => e.Name != null && (e.Name.StartsWith("il2cpp_") || e.Name.StartsWith("_il2cpp_") || e.Name.StartsWith("__il2cpp_")) && !e.Name.Contains("il2cpp_z_"));
+                ?.Where(e =>
+                    e.Name != null
+                    && (e.Name.StartsWith("il2cpp_") || e.Name.StartsWith("_il2cpp_") || e.Name.StartsWith("__il2cpp_"))
+                    && !e.Name.Contains("il2cpp_z_")
+                );
 
             if (exports == null)
                 return;

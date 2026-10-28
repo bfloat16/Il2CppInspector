@@ -7,7 +7,8 @@ internal sealed class NativeDebugTypeAliases
 {
     private CppComplexType arraySize;
 
-    public CppType AliasElement(CppAlias alias) => alias is { Name: "il2cpp_array_size_t", SizeBytes: 8 } ? ArraySize(alias.ElementType) : alias.ElementType;
+    public CppType AliasElement(CppAlias alias) =>
+        alias is { Name: "il2cpp_array_size_t", SizeBytes: 8 } ? ArraySize(alias.ElementType) : alias.ElementType;
 
     public CppType FieldType(CppComplexType owner, CppType type, bool isConst = false)
     {

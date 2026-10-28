@@ -174,7 +174,9 @@ namespace Il2CppInspector
         {
             var types = Assembly
                 .GetExecutingAssembly()
-                .DefinedTypes.Where(x => x.ImplementedInterfaces.Contains(typeof(IFileFormatStream)) && !x.IsGenericTypeDefinition && !x.IsAbstract && !x.IsInterface);
+                .DefinedTypes.Where(x =>
+                    x.ImplementedInterfaces.Contains(typeof(IFileFormatStream)) && !x.IsGenericTypeDefinition && !x.IsAbstract && !x.IsInterface
+                );
 
             // Copy to memory-based stream
             var binaryObjectStream = new BinaryObjectStream();
@@ -284,7 +286,8 @@ namespace Il2CppInspector
         protected virtual bool Init() => throw new NotImplementedException();
 
         // Choose an image within the file for multi-architecture binaries
-        public virtual IFileFormatStream this[uint index] => (index == 0) ? this : throw new IndexOutOfRangeException("Binary image index out of bounds");
+        public virtual IFileFormatStream this[uint index] =>
+            (index == 0) ? this : throw new IndexOutOfRangeException("Binary image index out of bounds");
 
         // For images that can be loaded and then tested with Il2CppBinary in multiple ways, get the next possible version of the image
         public virtual IEnumerable<IFileFormatStream> TryNextLoadStrategy()
@@ -399,7 +402,8 @@ namespace Il2CppInspector
 
         public string ReadMappedNullTerminatedString(ulong uiAddr, Encoding encoding = null) => ReadNullTerminatedString(MapVATR(uiAddr), encoding);
 
-        public string ReadMappedFixedLengthString(ulong uiAddr, int length, Encoding encoding = null) => ReadFixedLengthString(MapVATR(uiAddr), length, encoding);
+        public string ReadMappedFixedLengthString(ulong uiAddr, int length, Encoding encoding = null) =>
+            ReadFixedLengthString(MapVATR(uiAddr), length, encoding);
 
         // Read a file format dependent array of words (32 or 64 bits)
         // The primitive mappings in Bin2Object will automatically read a uint if the file is 32-bit

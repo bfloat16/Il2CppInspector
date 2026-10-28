@@ -10,7 +10,8 @@ public struct GenericParameterIndex(int value) : IIndexType<GenericParameterInde
 
     private int _value = value;
 
-    public static int Size(in StructVersion version = default, in ReaderConfig config = default) => IIndexType<GenericParameterIndex>.IndexSize(version, config);
+    public static int Size(in StructVersion version = default, in ReaderConfig config = default) =>
+        IIndexType<GenericParameterIndex>.IndexSize(version, config);
 
     public void Read<TReader>(ref Reader<TReader> reader, in StructVersion version = default)
         where TReader : IReader, allows ref struct

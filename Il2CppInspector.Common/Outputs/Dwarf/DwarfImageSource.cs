@@ -42,8 +42,20 @@ internal sealed class DwarfImageSource : IDisposable
                     stream.ReadExactly(entry);
                     if (BinaryPrimitives.ReadUInt32BigEndian(entry) != cpu || BinaryPrimitives.ReadUInt32BigEndian(entry.AsSpan(4)) != subtype)
                         continue;
-                    offset = checked((long)(entrySize == 20 ? BinaryPrimitives.ReadUInt32BigEndian(entry.AsSpan(8)) : BinaryPrimitives.ReadUInt64BigEndian(entry.AsSpan(8))));
-                    length = checked((long)(entrySize == 20 ? BinaryPrimitives.ReadUInt32BigEndian(entry.AsSpan(12)) : BinaryPrimitives.ReadUInt64BigEndian(entry.AsSpan(16))));
+                    offset = checked(
+                        (long)(
+                            entrySize == 20
+                                ? BinaryPrimitives.ReadUInt32BigEndian(entry.AsSpan(8))
+                                : BinaryPrimitives.ReadUInt64BigEndian(entry.AsSpan(8))
+                        )
+                    );
+                    length = checked(
+                        (long)(
+                            entrySize == 20
+                                ? BinaryPrimitives.ReadUInt32BigEndian(entry.AsSpan(12))
+                                : BinaryPrimitives.ReadUInt64BigEndian(entry.AsSpan(16))
+                        )
+                    );
                     found = true;
                     break;
                 }
@@ -65,7 +77,10 @@ internal sealed class DwarfImageSource : IDisposable
                 )
                     throw new InvalidDataException("The input ELF does not match the analyzed image.");
             }
-            else if (littleMagic != (image.Bits == 64 ? 0xFEEDFACFu : 0xFEEDFACEu) || BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(4)) != Cpu(image.Arch))
+            else if (
+                littleMagic != (image.Bits == 64 ? 0xFEEDFACFu : 0xFEEDFACEu)
+                || BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(4)) != Cpu(image.Arch)
+            )
                 throw new InvalidDataException("The input Mach-O does not match the analyzed image.");
             return source;
         }

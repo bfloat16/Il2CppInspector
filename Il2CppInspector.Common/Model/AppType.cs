@@ -33,7 +33,13 @@ namespace Il2CppInspector.Model
         // The VA of the Il2CppType* (VA of the pointer to the Il2CppType) object which references this type (ClassName__TypeRef)
         public ulong TypeRefPtrAddress { get; internal set; }
 
-        public AppType(TypeInfo ilType, CppComplexType cppType, CppComplexType valueType = null, ulong cppClassPtr = 0xffffffff_ffffffff, ulong cppTypeRefPtr = 0xffffffff_ffffffff)
+        public AppType(
+            TypeInfo ilType,
+            CppComplexType cppType,
+            CppComplexType valueType = null,
+            ulong cppClassPtr = 0xffffffff_ffffffff,
+            ulong cppTypeRefPtr = 0xffffffff_ffffffff
+        )
         {
             CppType = cppType;
             Type = ilType;

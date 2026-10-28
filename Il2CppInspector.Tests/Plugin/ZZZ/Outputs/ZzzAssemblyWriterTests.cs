@@ -22,7 +22,9 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                 foreach (var reference in assembly.MainModule.AssemblyReferences)
                 {
                     if (!assemblies.TryGetValue(reference.Name, out var target) || reference.FullName != target.Name.FullName)
-                        throw new InvalidOperationException($"Assembly reference identity mismatch in {assembly.Name.Name}: {reference.FullName}; target: {target?.Name.FullName}");
+                        throw new InvalidOperationException(
+                            $"Assembly reference identity mismatch in {assembly.Name.Name}: {reference.FullName}; target: {target?.Name.FullName}"
+                        );
                     if (!ReferenceEquals(resolver.Resolve(reference), target))
                         throw new InvalidOperationException($"Assembly reference bypassed the preloaded DLL cache: {reference.FullName}");
                     references++;
@@ -78,7 +80,10 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
             VerifyAssemblyResolution(Path.Combine(output, "SuppressedDll"));
             using var suppressed = ModuleDefMD.Load(Path.Combine(output, "SuppressedDll", "mscorlib.dll"));
             Check(
-                suppressed.GetTypes().SelectMany(t => t.CustomAttributes.Concat(t.Methods.SelectMany(m => m.CustomAttributes))).Any(a => a.AttributeType.FullName == "System.FlagsAttribute")
+                suppressed
+                    .GetTypes()
+                    .SelectMany(t => t.CustomAttributes.Concat(t.Methods.SelectMany(m => m.CustomAttributes)))
+                    .Any(a => a.AttributeType.FullName == "System.FlagsAttribute")
                     && !suppressed.GetAssemblyRefs().Any(a => a.Name == "Il2CppInspector"),
                 "Suppressed DLL output preserves safe real attributes while removing informational helper dependencies"
             );
@@ -121,7 +126,10 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                     if (tokenAttribute == null)
                         continue;
                     var token = Convert.ToUInt32(tokenAttribute.NamedArguments.Single(a => a.Name == "Token").Argument.Value.ToString()[2..], 16);
-                    if (!input.AttributeIndicesByToken.TryGetValue(image.CustomAttributeStart, out var tokenMap) || !tokenMap.TryGetValue(token, out var rangeIndex))
+                    if (
+                        !input.AttributeIndicesByToken.TryGetValue(image.CustomAttributeStart, out var tokenMap)
+                        || !tokenMap.TryGetValue(token, out var rangeIndex)
+                    )
                         continue;
                     var range = input.AttributeTypeRanges[rangeIndex];
                     var informational = owner
@@ -132,10 +140,14 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                     {
                         var attribute = model.TypesByReferenceIndex[input.AttributeTypeIndices[range.Start + a]];
                         var safe =
-                            attribute.DeclaredFields.Count == 0 && attribute.DeclaredProperties.Count == 0 && attribute.DeclaredConstructors.Any(c => !c.IsStatic && c.DeclaredParameters.Count == 0);
+                            attribute.DeclaredFields.Count == 0
+                            && attribute.DeclaredProperties.Count == 0
+                            && attribute.DeclaredConstructors.Any(c => !c.IsStatic && c.DeclaredParameters.Count == 0);
                         if (safe)
                         {
-                            var restored = owner.CustomAttributes.FirstOrDefault(c => c.AttributeType.FullName.Replace('/', '+') == attribute.FullName);
+                            var restored = owner.CustomAttributes.FirstOrDefault(c =>
+                                c.AttributeType.FullName.Replace('/', '+') == attribute.FullName
+                            );
                             if (restored == null || restored.ConstructorArguments.Count != 0 || restored.NamedArguments.Count != 0)
                                 throw new InvalidOperationException(
                                     $"Safe real attribute missing: {attribute.FullName}, base={attribute.BaseType?.FullName}, actual="
@@ -156,15 +168,26 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                 var originalTypes = types
                     .Select(t => (Type: t, Token: t.CustomAttributes.FirstOrDefault(a => a.AttributeType.Name == "TokenAttribute")))
                     .Where(t => t.Token != null)
-                    .ToDictionary(t => Convert.ToUInt32(t.Token.NamedArguments.Single(a => a.Name == "Token").Argument.Value.ToString()[2..], 16), t => t.Type);
+                    .ToDictionary(
+                        t => Convert.ToUInt32(t.Token.NamedArguments.Single(a => a.Name == "Token").Argument.Value.ToString()[2..], 16),
+                        t => t.Type
+                    );
                 if ((uint)dll.Assembly.HashAlgorithm != (uint)input.Assemblies[image.AssemblyIndex].Aname.HashAlg)
                     throw new InvalidOperationException("Exported assembly hash algorithm differs from metadata");
                 var originalAssembly = input.Assemblies[image.AssemblyIndex].Aname;
-                if (dll.Assembly.Version != new Version(originalAssembly.Major, originalAssembly.Minor, originalAssembly.Build, originalAssembly.Revision))
+                if (
+                    dll.Assembly.Version
+                    != new Version(originalAssembly.Major, originalAssembly.Minor, originalAssembly.Build, originalAssembly.Revision)
+                )
                     throw new InvalidOperationException("Exported assembly version differs from decoded runtime identity");
                 var flags = dll.Assembly.CustomAttributes.Single(a => a.AttributeType.Name == "AssemblyFlagsAttribute");
-                if (flags.NamedArguments.Single(a => a.Name == "Flags").Argument.Value.ToString() != $"0x{(uint)originalAssembly.Flags:X}" || dll.Assembly.HasPublicKey)
-                    throw new InvalidOperationException("Shim must preserve recovered flags informationally without claiming a missing strong-name key");
+                if (
+                    flags.NamedArguments.Single(a => a.Name == "Flags").Argument.Value.ToString() != $"0x{(uint)originalAssembly.Flags:X}"
+                    || dll.Assembly.HasPublicKey
+                )
+                    throw new InvalidOperationException(
+                        "Shim must preserve recovered flags informationally without claiming a missing strong-name key"
+                    );
                 for (var ti = image.TypeStart; ti < image.TypeStart + image.TypeCount; ti++)
                 {
                     var td = input.TypeDefinitions[ti];
@@ -177,12 +200,21 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                     {
                         var pack = (int)td.Bitfield.PackingSize;
                         var expectedPack = td.Bitfield.DefaultPackingSize || pack == 0 ? 0 : 1 << (pack - 1);
-                        if (exported.ClassLayout.PackingSize != expectedPack || exported.ClassLayout.ClassSize != Math.Max(0, (long)input.TypeDefinitionSizes[ti].InstanceSize - 16))
+                        if (
+                            exported.ClassLayout.PackingSize != expectedPack
+                            || exported.ClassLayout.ClassSize != Math.Max(0, (long)input.TypeDefinitionSizes[ti].InstanceSize - 16)
+                        )
                             throw new InvalidOperationException("DLL managed layout or packing differs from metadata");
                         checkedPacking++;
                     }
                     var methodsByToken = exported.Methods.ToDictionary(m =>
-                        Convert.ToUInt32(m.CustomAttributes.Single(a => a.AttributeType.Name == "TokenAttribute").NamedArguments.Single(a => a.Name == "Token").Argument.Value.ToString()[2..], 16)
+                        Convert.ToUInt32(
+                            m
+                                .CustomAttributes.Single(a => a.AttributeType.Name == "TokenAttribute")
+                                .NamedArguments.Single(a => a.Name == "Token")
+                                .Argument.Value.ToString()[2..],
+                            16
+                        )
                     );
                     for (var methodIndex = 0; methodIndex < td.MethodCount; methodIndex++)
                     {
@@ -231,7 +263,10 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                             var offset = attribute.NamedArguments.Single(a => a.Name == "Offset").Argument.Value.ToString();
                             if (Convert.ToUInt32(offset[2..], 16) != (uint)(input.FieldOffsets[index] & 0x7FFFFFFF))
                                 throw new InvalidOperationException("DLL static offset differs from model");
-                            if (attribute.NamedArguments.Single(a => a.Name == "StorageTag").Argument.Value.ToString() != (rawOffsets[index] >> 24).ToString())
+                            if (
+                                attribute.NamedArguments.Single(a => a.Name == "StorageTag").Argument.Value.ToString()
+                                != (rawOffsets[index] >> 24).ToString()
+                            )
                                 throw new InvalidOperationException("DLL static storage region differs from runtime tag");
                             staticAttributes++;
                         }
@@ -240,7 +275,9 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                         rvaFields++;
                         var size = storage.Type switch
                         {
-                            Il2CppTypeEnum.IL2CPP_TYPE_VALUETYPE => checked((int)input.TypeDefinitionSizes[storage.Data.KlassIndex].InstanceSize - 16),
+                            Il2CppTypeEnum.IL2CPP_TYPE_VALUETYPE => checked(
+                                (int)input.TypeDefinitionSizes[storage.Data.KlassIndex].InstanceSize - 16
+                            ),
                             Il2CppTypeEnum.IL2CPP_TYPE_I8 => 8,
                             Il2CppTypeEnum.IL2CPP_TYPE_I4 => 4,
                             _ => throw new InvalidOperationException("Unexpected FieldRVA storage type"),
@@ -249,12 +286,19 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                             scalarRvaFields++;
                         var expected = input.Metadata.ReadBytes((long)input.FieldDefaultValue[index].Item1, size);
                         if (field.RVA == 0 || !field.InitialValue.SequenceEqual(expected))
-                            throw new InvalidOperationException($"DLL FieldRVA payload differs from metadata: {field.FullName}, expected size {size}, actual size {field.InitialValue?.Length}");
+                            throw new InvalidOperationException(
+                                $"DLL FieldRVA payload differs from metadata: {field.FullName}, expected size {size}, actual size {field.InitialValue?.Length}"
+                            );
                         if (
-                            field.CustomAttributes.Single(a => a.AttributeType.Name == "MetadataPreviewAttribute").NamedArguments.Single(a => a.Name == "Data").Argument.Value.ToString()
-                                != Convert.ToHexString(expected)
+                            field
+                                .CustomAttributes.Single(a => a.AttributeType.Name == "MetadataPreviewAttribute")
+                                .NamedArguments.Single(a => a.Name == "Data")
+                                .Argument.Value.ToString() != Convert.ToHexString(expected)
                             || Convert.ToUInt64(
-                                field.CustomAttributes.Single(a => a.AttributeType.Name == "MetadataOffsetAttribute").NamedArguments.Single(a => a.Name == "Offset").Argument.Value.ToString()[2..],
+                                field
+                                    .CustomAttributes.Single(a => a.AttributeType.Name == "MetadataOffsetAttribute")
+                                    .NamedArguments.Single(a => a.Name == "Offset")
+                                    .Argument.Value.ToString()[2..],
                                 16
                             ) != input.FieldDefaultValue[index].Item1
                         )
@@ -262,7 +306,9 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                     }
                 }
                 methods += types.Sum(t => t.Methods.Count);
-                addressAttributes += types.SelectMany(t => t.Methods).Count(m => m.CustomAttributes.Any(a => a.AttributeType.Name.String is "AddressAttribute" or "GenericInstAddressAttribute"));
+                addressAttributes += types
+                    .SelectMany(t => t.Methods)
+                    .Count(m => m.CustomAttributes.Any(a => a.AttributeType.Name.String is "AddressAttribute" or "GenericInstAddressAttribute"));
                 fields += types.Sum(t => t.Fields.Count);
                 properties += types.Sum(t => t.Properties.Count);
                 events += types.Sum(t => t.Events.Count);
@@ -289,14 +335,26 @@ namespace Il2CppInspector.Tests.Plugin.ZZZ.Outputs
                 "All 1,020 DLL FieldRVA payloads match metadata, including 24 scalars; static attributes retain runtime buffer offsets and tags"
             );
             Check(nestedTypes == 28346, "DLL nesting matches all 28,346 metadata children");
-            Check(addressAttributes == 817194, $"817,194 DLL methods have ordinary or generic-instantiation address metadata (actual {addressAttributes})");
+            Check(
+                addressAttributes == 817194,
+                $"817,194 DLL methods have ordinary or generic-instantiation address metadata (actual {addressAttributes})"
+            );
             using var unity = ModuleDefMD.Load(Path.Combine(output, "DummyDll", "UnityEngine.CoreModule.dll"));
             var v = unity.GetTypes().Single(t => t.FullName == "UnityEngine.Vector3");
-            Check(v.Fields.Single(f => f.Name == "kEpsilon").Constant.Value is float epsilon && epsilon > 0 && epsilon < 0.001f, "Exported Vector3 constant is a typed float");
-            Check(v.Methods.Any(m => m.CustomAttributes.Any(a => a.AttributeType.Name == "AddressAttribute")), "DLL methods retain address attributes");
+            Check(
+                v.Fields.Single(f => f.Name == "kEpsilon").Constant.Value is float epsilon && epsilon > 0 && epsilon < 0.001f,
+                "Exported Vector3 constant is a typed float"
+            );
+            Check(
+                v.Methods.Any(m => m.CustomAttributes.Any(a => a.AttributeType.Name == "AddressAttribute")),
+                "DLL methods retain address attributes"
+            );
             using var core = ModuleDefMD.Load(Path.Combine(output, "DummyDll", "mscorlib.dll"));
             var day = core.GetTypes().Single(t => t.FullName == "System.DayOfWeek");
-            Check(day.IsEnum && day.BaseType.FullName == "System.Enum", "Exported enums derive from System.Enum rather than their MORAX storage type");
+            Check(
+                day.IsEnum && day.BaseType.FullName == "System.Enum",
+                "Exported enums derive from System.Enum rather than their MORAX storage type"
+            );
         }
     }
 }

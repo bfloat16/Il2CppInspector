@@ -66,7 +66,11 @@ namespace Il2CppInspector.Outputs
         private void writeMethods()
         {
             writeArray("methodDefinitions", () => writeMethods(model.GetMethodGroup("types_from_methods")), "Method definitions");
-            writeArray("constructedGenericMethods", () => writeMethods(model.GetMethodGroup("types_from_generic_methods")), "Constructed generic methods");
+            writeArray(
+                "constructedGenericMethods",
+                () => writeMethods(model.GetMethodGroup("types_from_generic_methods")),
+                "Constructed generic methods"
+            );
 
             // We could use ILModel.CustomAttributeGenerators here to ensure uniqueness but then we lose function name information
             // TODO: Merge CAG names that deal with multiple attribute types to reflect all of the attribute type names (solving the above)
@@ -86,7 +90,9 @@ namespace Il2CppInspector.Outputs
                 "methodInvokers",
                 () =>
                 {
-                    foreach (var method in model.EnumerateNativeSupportMethods().Where(m => m.Name.StartsWith("Il2CppInvoker_", StringComparison.Ordinal)))
+                    foreach (
+                        var method in model.EnumerateNativeSupportMethods().Where(m => m.Name.StartsWith("Il2CppInvoker_", StringComparison.Ordinal))
+                    )
                         writeObject(() => writeTypedFunctionName(method.Address, method.Signature.ToSignatureString(), method.Name));
                 },
                 "Method.Invoke thunks"
@@ -183,7 +189,11 @@ namespace Il2CppInspector.Outputs
                 "methodInfoPointers",
                 () =>
                 {
-                    foreach (var usage in (model.Package.MetadataUsages ?? []).Where(u => u.Type is MetadataUsageType.MethodDef or MetadataUsageType.MethodRef))
+                    foreach (
+                        var usage in (model.Package.MetadataUsages ?? []).Where(u =>
+                            u.Type is MetadataUsageType.MethodDef or MetadataUsageType.MethodRef
+                        )
+                    )
                     {
                         var method = model.TypeModel.GetMetadataUsageMethod(usage);
                         writeObject(() =>
@@ -224,7 +234,9 @@ namespace Il2CppInspector.Outputs
                 () =>
                 {
                     writeObject(() => writeTypedName(binary.CodeRegistrationPointer, "struct Il2CppCodeRegistration", "g_CodeRegistration"));
-                    writeObject(() => writeTypedName(binary.MetadataRegistrationPointer, "struct Il2CppMetadataRegistration", "g_MetadataRegistration"));
+                    writeObject(() =>
+                        writeTypedName(binary.MetadataRegistrationPointer, "struct Il2CppMetadataRegistration", "g_MetadataRegistration")
+                    );
 
                     foreach (var ptr in binary.CodeGenModulePointers)
                         writeObject(() => writeTypedName(ptr.Value, "struct Il2CppCodeGenModule", $"g_{ptr.Key.Replace(".dll", "")}CodeGenModule"));
@@ -257,7 +269,14 @@ namespace Il2CppInspector.Outputs
                 {
                     if (model.Package.Version >= MetadataVersions.V242)
                     {
-                        writeObject(() => writeTypedArray(binary.CodeRegistration.CodeGenModules, binary.Modules.Count, "struct Il2CppCodeGenModule *", "g_CodeGenModules"));
+                        writeObject(() =>
+                            writeTypedArray(
+                                binary.CodeRegistration.CodeGenModules,
+                                binary.Modules.Count,
+                                "struct Il2CppCodeGenModule *",
+                                "g_CodeGenModules"
+                            )
+                        );
                     }
                 },
                 "IL2CPP Array Metadata"

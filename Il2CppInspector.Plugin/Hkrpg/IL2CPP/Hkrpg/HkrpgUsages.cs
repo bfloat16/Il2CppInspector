@@ -24,8 +24,12 @@ internal sealed class HkrpgUsages
         var span = header.UsagePairsOffset - header.UsageListsOffset;
         if (span < 8 || span % 4 != 0)
             throw new InvalidDataException("Invalid HSR usage-lists span.");
-        var lists = metadata.ReadGlobal(header.UsageListsOffset, checked((int)(span / 4)), 4, (d, i) =>
-            unchecked(U32(d, 0) + ((uint)((0x8CD81660EE8UL * (ulong)i >> 17) + 0x7AFCE30FUL) ^ 0xEF048154u) - 0x6E8B512Du));
+        var lists = metadata.ReadGlobal(
+            header.UsageListsOffset,
+            checked((int)(span / 4)),
+            4,
+            (d, i) => unchecked(U32(d, 0) + ((uint)((0x8CD81660EE8UL * (ulong)i >> 17) + 0x7AFCE30FUL) ^ 0xEF048154u) - 0x6E8B512Du)
+        );
         if (lists[0] != 0 || lists.Zip(lists.Skip(1)).Any(p => p.First > p.Second))
             throw new InvalidDataException("HSR usage lists are not monotonic or do not start at zero.");
         var count = checked((int)lists[^1]);
@@ -60,16 +64,21 @@ internal sealed class HkrpgUsages
         MethodSpecCount = usagePairs.Where(p => p.Kind == 6).Select(p => p.Source + 1).DefaultIfEmpty().Max();
         MaxTypeIndex = usagePairs.Where(p => p.Kind is 1 or 7).Select(p => p.Source).DefaultIfEmpty().Max();
         var refs = usagePairs.Where(p => p.Kind == 4).Select(p => p.Source + 1).DefaultIfEmpty().Max();
-        metadata.Model.FieldRefs = metadata.ReadGlobal(header.FieldRefsOffset, refs, 8, (d, i) =>
-        {
-            var v = unchecked((ulong)i * 0x28651E907697UL + 0x032D18E4D3C97CDFUL);
-            var k = unchecked((uint)(450973069UL * (v >> 20) >> 18)) ^ 0x746F8BFBu;
-            return new Il2CppFieldRef
+        metadata.Model.FieldRefs = metadata.ReadGlobal(
+            header.FieldRefsOffset,
+            refs,
+            8,
+            (d, i) =>
             {
-                TypeIndex = unchecked((int)(k ^ (U32(d, 4) - 388656835u))),
-                FieldIndex = unchecked((int)(k ^ (U32(d, 0) - 1800319632u))),
-            };
-        });
+                var v = unchecked((ulong)i * 0x28651E907697UL + 0x032D18E4D3C97CDFUL);
+                var k = unchecked((uint)(450973069UL * (v >> 20) >> 18)) ^ 0x746F8BFBu;
+                return new Il2CppFieldRef
+                {
+                    TypeIndex = unchecked((int)(k ^ (U32(d, 4) - 388656835u))),
+                    FieldIndex = unchecked((int)(k ^ (U32(d, 0) - 1800319632u))),
+                };
+            }
+        );
         var literalCount = usagePairs.Where(p => p.Kind == 5).Select(p => p.Source + 1).DefaultIfEmpty().Max();
         var literals = new string[literalCount];
         Array.Fill(literals, "");
@@ -78,10 +87,21 @@ internal sealed class HkrpgUsages
             if (pair.Kind == 0)
             {
                 var value = metadata.DecodeString((pair.Destination & 0xFF000000) | (uint)pair.Source);
-                additionalUsages.Add(new("moraxNativeStrings", -1, pair.Address, $"NativeString_{pair.Address:X}", "const char *") { Value = value, Length = Encoding.UTF8.GetByteCount(value) });
+                additionalUsages.Add(
+                    new("moraxNativeStrings", -1, pair.Address, $"NativeString_{pair.Address:X}", "const char *")
+                    {
+                        Value = value,
+                        Length = Encoding.UTF8.GetByteCount(value),
+                    }
+                );
             }
             else if (pair.Kind == 7)
-                additionalUsages.Add(new("moraxRuntimeCaches", pair.Source, pair.Address, $"RuntimeType_{pair.Source}_{pair.Destination >> 24}", "void *") { Subtype = pair.Destination >> 24 });
+                additionalUsages.Add(
+                    new("moraxRuntimeCaches", pair.Source, pair.Address, $"RuntimeType_{pair.Source}_{pair.Destination >> 24}", "void *")
+                    {
+                        Subtype = pair.Destination >> 24,
+                    }
+                );
             else
             {
                 Usages.Add(new((MetadataUsageType)pair.Kind, pair.Source, pair.Address));
@@ -90,7 +110,10 @@ internal sealed class HkrpgUsages
             }
         }
         metadata.Model.StringLiterals = literals;
-        status?.Invoke(this, $"HSR: {count} usage pairs, {Usages.Count} unique standard usages, {additionalUsages.Count} runtime caches/native strings.");
+        status?.Invoke(
+            this,
+            $"HSR: {count} usage pairs, {Usages.Count} unique standard usages, {additionalUsages.Count} runtime caches/native strings."
+        );
     }
 
     private static string DecodeLiteral(HkrpgMetadata metadata, int index)
@@ -104,7 +127,9 @@ internal sealed class HkrpgUsages
         var length = unchecked(end - start);
         if (length > 0x10000)
             throw new InvalidDataException($"HSR literal {index} has invalid length {length}.");
-        var offset = checked((int)((long)header.PayloadOffset + unchecked((int)(header.LiteralDataOffset - 0x08EEB1A7u)) + unchecked((int)(start + 0x3BD9429Bu))));
+        var offset = checked(
+            (int)((long)header.PayloadOffset + unchecked((int)(header.LiteralDataOffset - 0x08EEB1A7u)) + unchecked((int)(start + 0x3BD9429Bu)))
+        );
         var key = unchecked(((ulong)index * 0xDE8C09C836133DBDUL ^ 0x18D025C96EE74E86UL) + 0x2C6833CC6F0A9C48UL);
         return metadata.DecodeBlocks(offset, (int)length, key, 0x464C46540F730312UL, Encoding.UTF8);
     }

@@ -31,7 +31,8 @@ public readonly struct NameTranslationApplierContext
         return false;
     }
 
-    private string TranslateNamespace(string className, string currentNamespace) => _nameTranslationInfo.ClassNamespaces.GetValueOrDefault(className, currentNamespace);
+    private string TranslateNamespace(string className, string currentNamespace) =>
+        _nameTranslationInfo.ClassNamespaces.GetValueOrDefault(className, currentNamespace);
 
     private void Process(Assembly assemblyDefinition)
     {

@@ -85,7 +85,13 @@ namespace Il2CppInspector.Outputs
                     continue;
                 var localNamespaces = string.IsNullOrEmpty(type.Namespace)
                     ? namespaces
-                    : type.GetAllTypeReferences().Select(t => t.Namespace).Where(n => !string.IsNullOrEmpty(n) && n != type.Namespace).Concat(namespaces).Distinct().OrderBy(n => n).ToArray();
+                    : type.GetAllTypeReferences()
+                        .Select(t => t.Namespace)
+                        .Where(n => !string.IsNullOrEmpty(n) && n != type.Namespace)
+                        .Concat(namespaces)
+                        .Distinct()
+                        .OrderBy(n => n)
+                        .ToArray();
                 var body = generateType(type, localNamespaces);
                 if (body.Length == 0)
                     continue;
@@ -132,7 +138,10 @@ namespace Il2CppInspector.Outputs
                         ) && separateAttributes
                     )
                     {
-                        File.WriteAllText(Path.Combine(outPath, $"AssemblyInfo_{Path.GetFileNameWithoutExtension(asm.ShortName)}.cs"), generateAssemblyInfo(new[] { asm }));
+                        File.WriteAllText(
+                            Path.Combine(outPath, $"AssemblyInfo_{Path.GetFileNameWithoutExtension(asm.ShortName)}.cs"),
+                            generateAssemblyInfo(new[] { asm })
+                        );
                     }
                 }
             );
@@ -162,8 +171,16 @@ namespace Il2CppInspector.Outputs
                 () => new HashSet<Assembly>(),
                 (type, _, used) =>
                 {
-                    string relPath = Path.Combine($"{type.Namespace}{(type.Namespace.Length > 0 ? "." : "")}{Regex.Replace(type.Name, "`[0-9]", "")}".Split('.'));
-                    if (writeFile(Path.Combine(outPath, Path.GetFileNameWithoutExtension(type.Assembly.ShortName), $"{relPath}.cs"), new[] { type }, outputAssemblyAttributes: !separateAttributes))
+                    string relPath = Path.Combine(
+                        $"{type.Namespace}{(type.Namespace.Length > 0 ? "." : "")}{Regex.Replace(type.Name, "`[0-9]", "")}".Split('.')
+                    );
+                    if (
+                        writeFile(
+                            Path.Combine(outPath, Path.GetFileNameWithoutExtension(type.Assembly.ShortName), $"{relPath}.cs"),
+                            new[] { type },
+                            outputAssemblyAttributes: !separateAttributes
+                        )
+                    )
                         used.Add(type.Assembly);
                     return used;
                 },
@@ -176,7 +193,10 @@ namespace Il2CppInspector.Outputs
 
             if (separateAttributes && usedAssemblies.Any() && lastException == null)
                 foreach (var asm in usedAssemblies)
-                    File.WriteAllText(Path.Combine(outPath, Path.GetFileNameWithoutExtension(asm.ShortName), "AssemblyInfo.cs"), generateAssemblyInfo(new[] { asm }));
+                    File.WriteAllText(
+                        Path.Combine(outPath, Path.GetFileNameWithoutExtension(asm.ShortName), "AssemblyInfo.cs"),
+                        generateAssemblyInfo(new[] { asm })
+                    );
 
             return usedAssemblies;
         }
@@ -203,7 +223,10 @@ namespace Il2CppInspector.Outputs
                 var name = Path.GetFileNameWithoutExtension(asm.ShortName);
                 var csProjFile = Path.Combine(name, $"{name}.csproj");
 
-                var def = Resources.SlnProjectDefinition.Replace("%PROJECTGUID%", guid.ToString()).Replace("%PROJECTNAME%", name).Replace("%CSPROJRELATIVEPATH%", csProjFile);
+                var def = Resources
+                    .SlnProjectDefinition.Replace("%PROJECTGUID%", guid.ToString())
+                    .Replace("%PROJECTNAME%", name)
+                    .Replace("%CSPROJRELATIVEPATH%", csProjFile);
 
                 slnProjectDefs.Append(def);
 
@@ -212,14 +235,19 @@ namespace Il2CppInspector.Outputs
                 slnProjectConfigs.Append(config);
 
                 // Determine all the assemblies on which this assembly depends
-                var dependencyTypes = asm.DefinedTypes.SelectMany(t => t.GetAllTypeReferences()).Union(asm.CustomAttributes.SelectMany(a => a.AttributeType.GetAllTypeReferences())).Distinct();
+                var dependencyTypes = asm
+                    .DefinedTypes.SelectMany(t => t.GetAllTypeReferences())
+                    .Union(asm.CustomAttributes.SelectMany(a => a.AttributeType.GetAllTypeReferences()))
+                    .Distinct();
                 var dependencyAssemblies = dependencyTypes.Select(t => t.Assembly).Distinct().Except(new[] { asm });
 
                 // Only create project references to those assemblies actually output in our solution
                 dependencyAssemblies = dependencyAssemblies.Intersect(assemblies);
 
                 var referenceXml = string.Concat(
-                    dependencyAssemblies.Select(a => $@"    <ProjectReference Include=""..\{a.ShortName.Replace(".dll", "")}\{a.ShortName.Replace(".dll", "")}.csproj""/>" + "\n")
+                    dependencyAssemblies.Select(a =>
+                        $@"    <ProjectReference Include=""..\{a.ShortName.Replace(".dll", "")}\{a.ShortName.Replace(".dll", "")}.csproj""/>" + "\n"
+                    )
                 );
 
                 // Create a .csproj file using the project Guid
@@ -234,7 +262,9 @@ namespace Il2CppInspector.Outputs
             }
 
             // Merge everything into .sln file
-            var sln = Resources.CsSlnTemplate.Replace("%PROJECTDEFINITIONS%", slnProjectDefs.ToString()).Replace("%PROJECTCONFIGURATIONS%", slnProjectConfigs.ToString());
+            var sln = Resources
+                .CsSlnTemplate.Replace("%PROJECTDEFINITIONS%", slnProjectDefs.ToString())
+                .Replace("%PROJECTCONFIGURATIONS%", slnProjectConfigs.ToString());
 
             var filename = Path.GetFileName(outPath);
             if (filename == "")
@@ -433,7 +463,11 @@ namespace Il2CppInspector.Outputs
             return true;
         }
 
-        private string generateAssemblyInfo(IEnumerable<Reflection.Assembly> assemblies, IEnumerable<string> namespaces = null, bool outputAssemblyAttributes = true)
+        private string generateAssemblyInfo(
+            IEnumerable<Reflection.Assembly> assemblies,
+            IEnumerable<string> namespaces = null,
+            bool outputAssemblyAttributes = true
+        )
         {
             var text = new StringBuilder();
 
@@ -533,10 +567,15 @@ namespace Il2CppInspector.Outputs
                     if (field.HasFieldRVA && !SuppressMetadata)
                     {
                         var size = model.Package.Metadata.HasGameAdapter
-                            ? model.Package.Metadata.GameAdapter.FieldRvaSize(model.Package.TypeReferences[field.Definition.TypeIndex], model.Package.Binary)
+                            ? model.Package.Metadata.GameAdapter.FieldRvaSize(
+                                model.Package.TypeReferences[field.Definition.TypeIndex],
+                                model.Package.Binary
+                            )
                             : field.FieldType.Sizes.NativeSize;
                         var preview = model.Package.Metadata.ReadBytes((long)field.DefaultValueMetadataAddress, size);
-                        sb.Append($" // Static value (base64): {Convert.ToBase64String(preview)} - Metadata: {field.DefaultValueMetadataAddress.ToAddressString()}");
+                        sb.Append(
+                            $" // Static value (base64): {Convert.ToBase64String(preview)} - Metadata: {field.DefaultValueMetadataAddress.ToAddressString()}"
+                        );
                     }
                     sb.Append("\n");
                 }
@@ -549,7 +588,10 @@ namespace Il2CppInspector.Outputs
             foreach (var prop in type.DeclaredProperties)
             {
                 // Attributes
-                sb.Append(prop.CustomAttributes.OrderBy(a => a.AttributeType.Name).ToString(scope, prefix + "\t", emitPointer: !SuppressMetadata, mustCompile: MustCompile));
+                sb.Append(
+                    prop.CustomAttributes.OrderBy(a => a.AttributeType.Name)
+                        .ToString(scope, prefix + "\t", emitPointer: !SuppressMetadata, mustCompile: MustCompile)
+                );
 
                 // The access mask enum values go from 1 (private) to 6 (public) in order from most to least restrictive
                 var getAccess = (prop.GetMethod?.Attributes ?? 0) & MethodAttributes.MemberAccessMask;
@@ -574,7 +616,12 @@ namespace Il2CppInspector.Outputs
                         sb.Append(prop.CSharpName.Substring(0, prop.CSharpName.LastIndexOf('.') + 1));
                     sb.Append(
                         "this["
-                            + string.Join(", ", primary.DeclaredParameters.SkipLast(getAccess >= setAccess ? 0 : 1).Select(p => p.GetParameterString(scope, !SuppressMetadata, MustCompile)))
+                            + string.Join(
+                                ", ",
+                                primary
+                                    .DeclaredParameters.SkipLast(getAccess >= setAccess ? 0 : 1)
+                                    .Select(p => p.GetParameterString(scope, !SuppressMetadata, MustCompile))
+                            )
                             + "] { "
                     );
                     getBody = " => default;";
@@ -624,7 +671,10 @@ namespace Il2CppInspector.Outputs
             foreach (var evt in type.DeclaredEvents)
             {
                 // Attributes
-                sb.Append(evt.CustomAttributes.OrderBy(a => a.AttributeType.Name).ToString(scope, prefix + "\t", emitPointer: !SuppressMetadata, mustCompile: MustCompile));
+                sb.Append(
+                    evt.CustomAttributes.OrderBy(a => a.AttributeType.Name)
+                        .ToString(scope, prefix + "\t", emitPointer: !SuppressMetadata, mustCompile: MustCompile)
+                );
 
                 string modifiers = evt.AddMethod?.GetModifierString();
                 sb.Append($"{prefix}\t{modifiers}event {evt.EventHandlerType.GetScopedCSharpName(scope)} {evt.CSharpName}");
@@ -639,7 +689,12 @@ namespace Il2CppInspector.Outputs
                         m.Add("remove", evt.RemoveMethod.VirtualAddress);
                     if (evt.RaiseMethod != null)
                         m.Add("raise", evt.RaiseMethod.VirtualAddress);
-                    sb.Append(string.Join("\n", m.Select(x => $"{prefix}\t\t{x.Key};{(SuppressMetadata ? "" : " // " + x.Value.ToAddressString())}")) + "\n" + prefix + "\t}\n");
+                    sb.Append(
+                        string.Join("\n", m.Select(x => $"{prefix}\t\t{x.Key};{(SuppressMetadata ? "" : " // " + x.Value.ToAddressString())}"))
+                            + "\n"
+                            + prefix
+                            + "\t}\n"
+                    );
                 }
                 else
                     sb.Append(";\n");
@@ -651,20 +706,36 @@ namespace Il2CppInspector.Outputs
             codeBlocks.Add("Events", sb);
 
             // Nested types
-            codeBlocks.Add("Nested types", new StringBuilder().AppendJoin("\n", type.DeclaredNestedTypes.Select(n => generateType(n, namespaces, prefix + "\t")).Where(c => c.Length > 0)));
+            codeBlocks.Add(
+                "Nested types",
+                new StringBuilder().AppendJoin(
+                    "\n",
+                    type.DeclaredNestedTypes.Select(n => generateType(n, namespaces, prefix + "\t")).Where(c => c.Length > 0)
+                )
+            );
 
             // Constructors
             sb = new StringBuilder();
             var fields = type.DeclaredFields.Where(f => !f.GetCustomAttributes(CGAttribute).Any());
 
             // Crete a parameterless constructor for every relevant type when making code that compiles to mitigate CS1729 and CS7036
-            if (MustCompile && !type.IsInterface && !(type.IsAbstract && type.IsSealed) && !type.IsValueType && type.DeclaredConstructors.All(c => c.IsStatic || c.DeclaredParameters.Any()))
+            if (
+                MustCompile
+                && !type.IsInterface
+                && !(type.IsAbstract && type.IsSealed)
+                && !type.IsValueType
+                && type.DeclaredConstructors.All(c => c.IsStatic || c.DeclaredParameters.Any())
+            )
                 sb.Append($"{prefix}\t{(type.IsAbstract ? "protected" : "public")} {type.CSharpBaseName}() {{}} // Dummy constructor\n");
 
             foreach (var method in type.DeclaredConstructors)
             {
                 // Attributes
-                sb.Append(method.CustomAttributes.OrderBy(a => a.AttributeType.Name).ToString(scope, prefix + "\t", emitPointer: !SuppressMetadata, mustCompile: MustCompile));
+                sb.Append(
+                    method
+                        .CustomAttributes.OrderBy(a => a.AttributeType.Name)
+                        .ToString(scope, prefix + "\t", emitPointer: !SuppressMetadata, mustCompile: MustCompile)
+                );
 
                 sb.Append($"{prefix}\t{method.GetModifierString()}{method.DeclaringType.CSharpBaseName}{method.GetTypeParametersString(scope)}");
                 sb.Append($"({method.GetParametersString(scope, !SuppressMetadata)})");
@@ -692,7 +763,9 @@ namespace Il2CppInspector.Outputs
                                 " {\n"
                                     + string.Join(
                                         "\n",
-                                        fields.Where(f => !f.IsLiteral && f.IsStatic == method.IsStatic).Select(f => $"{prefix}\t\t{(paramNames.Contains(f.Name) ? "this." : "")}{f.Name} = default;")
+                                        fields
+                                            .Where(f => !f.IsLiteral && f.IsStatic == method.IsStatic)
+                                            .Select(f => $"{prefix}\t\t{(paramNames.Contains(f.Name) ? "this." : "")}{f.Name} = default;")
                                     )
                                     + $"\n{prefix}\t}}"
                             );
@@ -716,7 +789,12 @@ namespace Il2CppInspector.Outputs
             usedMethods.AddRange(methods);
 
             // Extension methods
-            codeBlocks.Add("Extension methods", type.DeclaredMethods.Except(usedMethods).Select(m => generateMethod(m, scope, prefix)).Aggregate(new StringBuilder(), (r, i) => r.Append(i)));
+            codeBlocks.Add(
+                "Extension methods",
+                type.DeclaredMethods.Except(usedMethods)
+                    .Select(m => generateMethod(m, scope, prefix))
+                    .Aggregate(new StringBuilder(), (r, i) => r.Append(i))
+            );
 
             // Type declaration
             sb = new StringBuilder();
@@ -778,7 +856,13 @@ namespace Il2CppInspector.Outputs
             // Enumeration
             if (type.IsEnum)
             {
-                sb.AppendJoin(",\n", type.GetEnumNames().Zip(type.GetEnumValues().OfType<object>(), (k, v) => new { k, v }).OrderBy(x => x.v).Select(x => $"{prefix}\t{x.k} = {x.v}"));
+                sb.AppendJoin(
+                    ",\n",
+                    type.GetEnumNames()
+                        .Zip(type.GetEnumValues().OfType<object>(), (k, v) => new { k, v })
+                        .OrderBy(x => x.v)
+                        .Select(x => $"{prefix}\t{x.k} = {x.v}")
+                );
                 sb.Append("\n");
             }
             // Type definition
@@ -857,11 +941,15 @@ namespace Il2CppInspector.Outputs
                 // Only make a method body if we are trying to compile the output
                 : ";";
 
-            writer.Append(methodBody + (!SuppressMetadata && method.VirtualAddress != null ? $" // {method.VirtualAddress.ToAddressString()}" : "") + "\n");
+            writer.Append(
+                methodBody + (!SuppressMetadata && method.VirtualAddress != null ? $" // {method.VirtualAddress.ToAddressString()}" : "") + "\n"
+            );
 
             // Ref return type requires us to invent a field
             if (MustCompile && method.ReturnType.IsByRef)
-                writer.Append($"{prefix}\tprivate {method.ReturnType.GetScopedCSharpName(scope)} _refReturnTypeFor{method.CSharpName}; // Dummy field\n");
+                writer.Append(
+                    $"{prefix}\tprivate {method.ReturnType.GetScopedCSharpName(scope)} _refReturnTypeFor{method.CSharpName}; // Dummy field\n"
+                );
 
             return writer;
         }

@@ -126,7 +126,9 @@ internal static class DwarfOutputTests
             document.Method(new("Vector3_Length", address + 0x20 + (arch == "ARM" ? 1UL : 0UL), signature));
             document.Method(new("Incomplete", address + 0x30, new CppFnPtrType(bits, new CppType("Unknown", 32), []), false));
             document.Method(new("SharedAddress", address + 0x20, signature));
-            document.Method(new("_ZN7Vector36LengthEf", address + 0x40, new CppFnPtrType(bits, scalar, [("value", scalar)])) { SourceName = "Length" });
+            document.Method(
+                new("_ZN7Vector36LengthEf", address + 0x40, new CppFnPtrType(bits, scalar, [("value", scalar)])) { SourceName = "Length" }
+            );
             document.Method(new("_ZN7Vector35ResetEv", address + 0x50, null, false) { SourceName = "Reset" });
             document.Method(new("OutsideCode", address - 4, signature));
             document.Method(new("NullAddress", 0, signature));
@@ -151,14 +153,20 @@ internal static class DwarfOutputTests
                     new("OpaqueGlobal", data.VirtualStart + 0xC0, new CppForwardDefinitionType("Opaque")),
                 ]
             );
-            Check(document.Functions == 5 && document.TypedFunctions == 3, $"{arch}: DWARF filters unmapped functions and omits incomplete prototypes");
+            Check(
+                document.Functions == 5 && document.TypedFunctions == 3,
+                $"{arch}: DWARF filters unmapped functions and omits incomplete prototypes"
+            );
             Check(document.Globals == 6, $"{arch}: DWARF filters invalid globals, code addresses, unknown storage and duplicate addresses");
             var file = File.ReadAllBytes(path);
             Check(file[4] == (bits == 64 ? 2 : 1) && U16(file, 18) == machine, $"{arch}: ELF class and machine match the input architecture");
             var sections = ReadSections(file);
             var dies = ReadDies(sections[".debug_info"], sections[".debug_abbrev"], bits);
             var byOffset = dies.ToDictionary(d => d.Offset);
-            Check(dies.Where(d => d.Tag == 0x2E).All(d => !d.Attributes.ContainsKey(0x3F)), $"{arch}: synthesized function DIEs do not declare external linkage");
+            Check(
+                dies.Where(d => d.Tag == 0x2E).All(d => !d.Attributes.ContainsKey(0x3F)),
+                $"{arch}: synthesized function DIEs do not declare external linkage"
+            );
             VerifyFunctionBindings(file, sections[".symtab"], bits, document.Functions);
             var strings = sections[".debug_str"];
             string Name(Die die) => die.Attributes.TryGetValue(3, out var offset) ? Text(strings, offset) : "";
@@ -174,7 +182,8 @@ internal static class DwarfOutputTests
                 $"{arch}: inline global structures carry their actual memory address"
             );
             Check(
-                Named("g_Vector3Pointer").Attributes[2] == data.VirtualStart + 0x20 && byOffset[Named("g_Vector3Pointer").Attributes[0x49]].Tag == 0x0F,
+                Named("g_Vector3Pointer").Attributes[2] == data.VirtualStart + 0x20
+                    && byOffset[Named("g_Vector3Pointer").Attributes[0x49]].Tag == 0x0F,
                 $"{arch}: pointer caches remain pointers rather than inline structures"
             );
             Check(
@@ -183,7 +192,10 @@ internal static class DwarfOutputTests
                     && Named("g_OddByte").Attributes[2] == data.VirtualStart + 0x81,
                 $"{arch}: arrays, BSS and odd data addresses retain their storage semantics"
             );
-            Check(Named($"g_Vector3_{data.VirtualStart + 0x90:X}").Attributes[2] == data.VirtualStart + 0x90, $"{arch}: repeated variable names at distinct cache addresses stay unique");
+            Check(
+                Named($"g_Vector3_{data.VirtualStart + 0x90:X}").Attributes[2] == data.VirtualStart + 0x90,
+                $"{arch}: repeated variable names at distinct cache addresses stay unique"
+            );
             foreach (var die in dies.Where(d => d.Attributes.ContainsKey(0x49)))
                 if (!byOffset.ContainsKey(die.Attributes[0x49]))
                     throw new InvalidDataException($"Unresolved DWARF reference at {die.Offset:X}.");
@@ -194,9 +206,15 @@ internal static class DwarfOutputTests
                     die = byOffset[die.Parent];
                 return die.Offset;
             }
-            Check(dies.Where(d => d.Attributes.ContainsKey(0x49)).All(d => UnitOf(d) == UnitOf(byOffset[d.Attributes[0x49]])), $"{arch}: every type reference stays within its compilation unit");
+            Check(
+                dies.Where(d => d.Attributes.ContainsKey(0x49)).All(d => UnitOf(d) == UnitOf(byOffset[d.Attributes[0x49]])),
+                $"{arch}: every type reference stays within its compilation unit"
+            );
             if (arch == "ARM64")
-                Check(document.CompilationUnits > 1 && named["Vector3"].Length > 1, "The IDA fixture repeats complete structure definitions across compilation units");
+                Check(
+                    document.CompilationUnits > 1 && named["Vector3"].Length > 1,
+                    "The IDA fixture repeats complete structure definitions across compilation units"
+                );
             VerifyUnitRanges(sections, dies, bits);
             VerifyLineTables(sections, dies, bits);
             VerifyStringSection(file);
@@ -213,28 +231,48 @@ internal static class DwarfOutputTests
             );
             var vectorDie = Named("Vector3");
             Check(
-                Named("PaddedTail").Attributes[0x0B] == (ulong)(bits == 64 ? 16 : 8) && Named("NestedTail").Attributes[0x0B] == (ulong)(bits == 64 ? 32 : 16),
+                Named("PaddedTail").Attributes[0x0B] == (ulong)(bits == 64 ? 16 : 8)
+                    && Named("NestedTail").Attributes[0x0B] == (ulong)(bits == 64 ? 32 : 16),
                 $"{arch}: serialized structure sizes include tail padding and nested aggregate alignment"
             );
             var constPointer = byOffset[Named("constPointee").Attributes[0x49]];
             Check(
-                constPointer.Tag == 0x0F && byOffset[constPointer.Attributes[0x49]].Tag == 0x26 && byOffset[Named("volatileValue").Attributes[0x49]].Tag == 0x35,
+                constPointer.Tag == 0x0F
+                    && byOffset[constPointer.Attributes[0x49]].Tag == 0x26
+                    && byOffset[Named("volatileValue").Attributes[0x49]].Tag == 0x35,
                 $"{arch}: DWARF retains const pointees and volatile objects at the correct qualifier level"
             );
             var fields = dies.Where(d => d.Parent == vectorDie.Offset).ToArray();
             Check(
-                vectorDie.Attributes[0x0B] == 12 && fields.Select(Name).SequenceEqual(["x", "y", "z"]) && fields.Select(d => d.Attributes[0x38]).SequenceEqual([0UL, 4UL, 8UL]),
+                vectorDie.Attributes[0x0B] == 12
+                    && fields.Select(Name).SequenceEqual(["x", "y", "z"])
+                    && fields.Select(d => d.Attributes[0x38]).SequenceEqual([0UL, 4UL, 8UL]),
                 $"{arch}: vector field sizes and offsets match the C++ model"
             );
             Check(
                 Named("SignedEnum_Negative").Attributes[0x1C] == ulong.MaxValue && Named("UnsignedEnum_Maximum").Attributes[0x1C] == ulong.MaxValue,
                 $"{arch}: qualified enum names and signed/unsigned values survive LEB encoding"
             );
-            Check(Named("ready").Attributes[0x0D] == 1 && Named("mode").Attributes[0x0D] == 3 && Named("mode").Attributes[0x6B] == 1, $"{arch}: bitfield sizes and absolute bit offsets are preserved");
-            Check(Named("ValueUnion").Tag == 0x17 && dies.Where(d => d.Parent == Named("ValueUnion").Offset).All(d => d.Attributes[0x38] == 0), $"{arch}: unions retain overlapping fields");
-            Check(Named("RecursiveOwner").Offset < Named("RecursiveValue").Offset, $"{arch}: recursive pointer cycles do not put a union's value member after the union");
-            Check(dies.Any(d => d.Tag == 0x21 && d.Attributes[0x37] == 4) && dies.Any(d => d.Tag == 0x21 && d.Attributes[0x37] == 2), $"{arch}: nested arrays retain each dimension");
-            Check(byOffset[Named("next").Attributes[0x49]].Attributes[0x49] == Named("Node").Offset, $"{arch}: recursive pointer types resolve without duplicate aggregate declarations");
+            Check(
+                Named("ready").Attributes[0x0D] == 1 && Named("mode").Attributes[0x0D] == 3 && Named("mode").Attributes[0x6B] == 1,
+                $"{arch}: bitfield sizes and absolute bit offsets are preserved"
+            );
+            Check(
+                Named("ValueUnion").Tag == 0x17 && dies.Where(d => d.Parent == Named("ValueUnion").Offset).All(d => d.Attributes[0x38] == 0),
+                $"{arch}: unions retain overlapping fields"
+            );
+            Check(
+                Named("RecursiveOwner").Offset < Named("RecursiveValue").Offset,
+                $"{arch}: recursive pointer cycles do not put a union's value member after the union"
+            );
+            Check(
+                dies.Any(d => d.Tag == 0x21 && d.Attributes[0x37] == 4) && dies.Any(d => d.Tag == 0x21 && d.Attributes[0x37] == 2),
+                $"{arch}: nested arrays retain each dimension"
+            );
+            Check(
+                byOffset[Named("next").Attributes[0x49]].Attributes[0x49] == Named("Node").Offset,
+                $"{arch}: recursive pointer types resolve without duplicate aggregate declarations"
+            );
             Check(
                 Named("ScalarAlias").Tag == 0x16 && byOffset[Named("constant").Attributes[0x49]].Tag == 0x26 && dies.Any(d => d.Tag == 0x15),
                 $"{arch}: typedefs, const fields and function pointers retain type information"
@@ -244,7 +282,9 @@ internal static class DwarfOutputTests
                 $"{arch}: pointer sizes and opaque declarations are correct"
             );
             Check(
-                ReadSymbolAddresses(sections[".symtab"], bits).Take(5).SequenceEqual([address + 0x20, address + 0x30, address + 0x20, address + 0x40, address + 0x50]),
+                ReadSymbolAddresses(sections[".symtab"], bits)
+                    .Take(5)
+                    .SequenceEqual([address + 0x20, address + 0x30, address + 0x20, address + 0x40, address + 0x50]),
                 $"{arch}: ELF symbols preserve aliases sharing a code address"
             );
             VerifyGlobalSymbols(file, sections, globals, byOffset, bits);
@@ -256,10 +296,25 @@ internal static class DwarfOutputTests
                 $"{arch}: ELF symbols use the same native linkage names as DWARF"
             );
             if (arch == "x64")
-                Check(sections[".debug_info"].Length > 1024 * 1024 && Named("member_129999").Attributes[0x38] == 129999 * 4, "Large DWARF layouts resolve fixups across streaming buffer boundaries");
+                Check(
+                    sections[".debug_info"].Length > 1024 * 1024 && Named("member_129999").Attributes[0x38] == 129999 * 4,
+                    "Large DWARF layouts resolve fixups across streaming buffer boundaries"
+                );
             if (readelf != null)
             {
-                var text = Tool(readelf, ["--file-header", "--sections", "--symbols", "--debug-dump=info", "--debug-dump=rawline", "--debug-dump=aranges", "--debug-dump=Ranges", path]);
+                var text = Tool(
+                    readelf,
+                    [
+                        "--file-header",
+                        "--sections",
+                        "--symbols",
+                        "--debug-dump=info",
+                        "--debug-dump=rawline",
+                        "--debug-dump=aranges",
+                        "--debug-dump=Ranges",
+                        path,
+                    ]
+                );
                 Check(
                     text.Contains("Vector3_Length")
                         && text.Contains("DW_TAG_subprogram")
@@ -351,8 +406,14 @@ internal static class DwarfOutputTests
             "DW_AT_name and DW_AT_linkage_name carry the same complete function name"
         );
         var symbols = sections[".symtab"];
-        Check(Enumerable.Range(1, 3).Select(i => Text(sections[".strtab"], U32(symbols, i * 24))).SequenceEqual(names), "ELF function symbols use the same complete names as their DWARF DIEs");
-        Check(names.All(n => !n.Contains('(') && !n.Contains(')')) && dies.All(d => !d.Attributes.ContainsKey(0x3F)), "Complete function names do not reintroduce parameter lists or external linkage");
+        Check(
+            Enumerable.Range(1, 3).Select(i => Text(sections[".strtab"], U32(symbols, i * 24))).SequenceEqual(names),
+            "ELF function symbols use the same complete names as their DWARF DIEs"
+        );
+        Check(
+            names.All(n => !n.Contains('(') && !n.Contains(')')) && dies.All(d => !d.Attributes.ContainsKey(0x3F)),
+            "Complete function names do not reintroduce parameter lists or external linkage"
+        );
     }
 
     private static void RunRangeFixture(string directory, string symbolizer)
@@ -390,7 +451,10 @@ internal static class DwarfOutputTests
                 var dwarfOnly = Path.Combine(directory, "multi-" + arch + "-dwarf-only.sym");
                 Tool("llvm-objcopy", ["--remove-section=.symtab", "--remove-section=.strtab", path, dwarfOnly]);
                 var indices = new[] { 0, 1, 10000, 14999 }.Select(i => i * 7919 % addresses.Length).ToArray();
-                var arguments = new[] { "--no-demangle", "--obj=" + dwarfOnly }.Concat(indices.Select(i => "0x" + addresses[i].ToString("x"))).Append("0x1010").ToArray();
+                var arguments = new[] { "--no-demangle", "--obj=" + dwarfOnly }
+                    .Concat(indices.Select(i => "0x" + addresses[i].ToString("x")))
+                    .Append("0x1010")
+                    .ToArray();
                 var lines = Tool(symbolizer, arguments).Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
                 Check(
                     indices.Select((index, i) => lines[i * 2] == "f" + index).All(match => match) && lines[^2] == "??",
@@ -431,7 +495,10 @@ internal static class DwarfOutputTests
             var debug = Path.Combine(output, name);
             File.WriteAllBytes(input, binary);
             File.WriteAllBytes(debug, Encoding.ASCII.GetBytes("123456789"));
-            Check(DwarfOutput.GetCompanionName(image, "fallback.sym") == name && image.Position == 7, $"{arch}: GNU debuglink name extraction preserves stream position");
+            Check(
+                DwarfOutput.GetCompanionName(image, "fallback.sym") == name && image.Position == 7,
+                $"{arch}: GNU debuglink name extraction preserves stream position"
+            );
             var copy = DwarfOutput.CreateDebugLinkImage(image, input, debug);
             var patched = File.ReadAllBytes(copy);
             Check(U32(patched, crcOffset) == 0xcbf43926, $"{arch}: debuglink CRC matches the standard GNU CRC-32 test vector");
@@ -539,7 +606,10 @@ internal static class DwarfOutputTests
             }
             Check(actual.SequenceEqual(expected), "CU address ranges match its children without including other units or holes");
             var addressRanges = expected
-                .Concat(dies.Where(d => d.Tag == 0x34 && d.Parent == unit.Offset).Select(d => (Low: d.Attributes[2], High: d.Attributes[2] + TypeSize(d.Attributes[0x49]))))
+                .Concat(
+                    dies.Where(d => d.Tag == 0x34 && d.Parent == unit.Offset)
+                        .Select(d => (Low: d.Attributes[2], High: d.Attributes[2] + TypeSize(d.Attributes[0x49])))
+                )
                 .OrderBy(r => r.Low);
             var merged = new List<(ulong Low, ulong High)>();
             foreach (var span in addressRanges)
@@ -583,13 +653,22 @@ internal static class DwarfOutputTests
         }
     }
 
-    private static void VerifyGlobalSymbols(byte[] file, Dictionary<string, byte[]> sections, Die[] globals, Dictionary<ulong, Die> byOffset, int bits)
+    private static void VerifyGlobalSymbols(
+        byte[] file,
+        Dictionary<string, byte[]> sections,
+        Die[] globals,
+        Dictionary<ulong, Die> byOffset,
+        int bits
+    )
     {
         var table = checked((int)(bits == 64 ? U64(file, 40) : U32(file, 32)));
         var headerSize = bits == 64 ? 64 : 40;
         var symbols = sections[".symtab"];
         var symbolSize = bits == 64 ? 24 : 16;
-        var objects = Enumerable.Range(1, symbols.Length / symbolSize - 1).Where(i => symbols[i * symbolSize + (bits == 64 ? 4 : 12)] == 0x11).ToArray();
+        var objects = Enumerable
+            .Range(1, symbols.Length / symbolSize - 1)
+            .Where(i => symbols[i * symbolSize + (bits == 64 ? 4 : 12)] == 0x11)
+            .ToArray();
         Check(objects.Length == globals.Length, "Every DWARF global has a matching ELF STT_OBJECT symbol");
         foreach (var (symbol, global) in objects.Zip(globals))
         {
@@ -601,7 +680,10 @@ internal static class DwarfOutputTests
             ulong sectionStart = bits == 64 ? U64(file, header + 16) : U32(file, header + 12);
             ulong sectionSize = bits == 64 ? U64(file, header + 32) : U32(file, header + 20);
             Check(
-                address == global.Attributes[2] && size == byOffset[global.Attributes[0x49]].Attributes[0x0B] && address >= sectionStart && address + size <= sectionStart + sectionSize,
+                address == global.Attributes[2]
+                    && size == byOffset[global.Attributes[0x49]].Attributes[0x0B]
+                    && address >= sectionStart
+                    && address + size <= sectionStart + sectionSize,
                 "Global ELF symbol addresses, sizes and section indices match their DWARF definitions"
             );
         }
@@ -618,7 +700,10 @@ internal static class DwarfOutputTests
             Check(reader.ReadUInt16() == 4, "Line tables use DWARF version 4");
             var headerLength = reader.ReadUInt32();
             reader.BaseStream.Position += headerLength;
-            Check(reader.ReadByte() == 0 && Uleb(reader) == (ulong)(bits / 8 + 1) && reader.ReadByte() == 2, "DW_LNE_set_address payload length matches the image pointer size");
+            Check(
+                reader.ReadByte() == 0 && Uleb(reader) == (ulong)(bits / 8 + 1) && reader.ReadByte() == 2,
+                "DW_LNE_set_address payload length matches the image pointer size"
+            );
             var address = ReadForm(reader, 1, bits);
             var ranges = ReadRanges(sections[".debug_ranges"], unit.Attributes[0x55], bits);
             Check(address == (ranges.Count == 0 ? 0 : ranges[0].Low), "Line table address matches the first CU range");
@@ -683,12 +768,18 @@ internal static class DwarfOutputTests
     }
 
     private static ulong[] ReadSymbolAddresses(byte[] symbols, int bits) =>
-        Enumerable.Range(1, symbols.Length / (bits == 64 ? 24 : 16) - 1).Select(i => bits == 64 ? U64(symbols, i * 24 + 8) : U32(symbols, i * 16 + 4)).ToArray();
+        Enumerable
+            .Range(1, symbols.Length / (bits == 64 ? 24 : 16) - 1)
+            .Select(i => bits == 64 ? U64(symbols, i * 24 + 8) : U32(symbols, i * 16 + 4))
+            .ToArray();
 
     private static List<Die> ReadDies(byte[] info, byte[] abbrev, int bits)
     {
         var definitions = ReadAbbreviations(abbrev);
-        Check(definitions.Values.SelectMany(d => d.Attributes).Where(a => a.Attribute == 0x49).All(a => a.Form == 0x13), "Every DW_AT_type uses the CU-relative DW_FORM_ref4");
+        Check(
+            definitions.Values.SelectMany(d => d.Attributes).Where(a => a.Attribute == 0x49).All(a => a.Form == 0x13),
+            "Every DW_AT_type uses the CU-relative DW_FORM_ref4"
+        );
         using var reader = new BinaryReader(new MemoryStream(info));
         var result = new List<Die>();
         var units = 0;
@@ -700,7 +791,10 @@ internal static class DwarfOutputTests
             var version = reader.ReadUInt16();
             var abbrevOffset = reader.ReadUInt32();
             var addressSize = reader.ReadByte();
-            Check(length != uint.MaxValue && version == 4 && abbrevOffset == 0 && addressSize == bits / 8, "DWARF uses 32-bit units with version 4 and the image address size");
+            Check(
+                length != uint.MaxValue && version == 4 && abbrevOffset == 0 && addressSize == bits / 8,
+                "DWARF uses 32-bit units with version 4 and the image address size"
+            );
             var cuEnd = checked((long)cuStart + 4 + length);
             var parents = new Stack<ulong>();
             while (reader.BaseStream.Position < cuEnd)
@@ -772,7 +866,10 @@ internal static class DwarfOutputTests
     private static ulong ReadLocation(BinaryReader reader, int bits)
     {
         var length = Uleb(reader);
-        Check(length == (ulong)(bits / 8 + 1) && reader.ReadByte() == 0x03, "Global exprloc contains exactly DW_OP_addr plus one pointer-sized address");
+        Check(
+            length == (ulong)(bits / 8 + 1) && reader.ReadByte() == 0x03,
+            "Global exprloc contains exactly DW_OP_addr plus one pointer-sized address"
+        );
         return ReadForm(reader, 1, bits);
     }
 

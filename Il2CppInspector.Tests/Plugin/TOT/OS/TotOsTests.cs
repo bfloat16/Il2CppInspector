@@ -19,7 +19,8 @@ namespace Il2CppInspector.Tests.Plugin.TOT.OS
             var cn = GamePlugins.Get("TOT_CN_Android_6.1.0");
             // Discovery may use a separate plugin load context from the direct fixture reference.
             Check(
-                os.GetType().FullName == "Il2CppInspector.Plugin.TOT.OS.TotOsPlugin" && os.GetType().Assembly.GetName().Name == "Il2CppInspector.Plugin.TOT.OS",
+                os.GetType().FullName == "Il2CppInspector.Plugin.TOT.OS.TotOsPlugin"
+                    && os.GetType().Assembly.GetName().Name == "Il2CppInspector.Plugin.TOT.OS",
                 "TOT OS is discovered as its own managed plugin"
             );
             var metadata = new byte[MetadataSize];
@@ -45,24 +46,42 @@ namespace Il2CppInspector.Tests.Plugin.TOT.OS
             var plugin = new OsPlugin();
             Check(plugin.Matches(raw) && !new TotPlugin().Matches(raw), "Real OS input is distinguished from CN");
             var outer = OsDecryptor.DecryptOuter(raw);
-            Check(Sha256(outer) == "cbcfc0a4c07a74c43747a1250533051fb37362efdfad545a68c14433cd3959b1", "OS outer plaintext matches the independently recovered CBC IV and round keys");
+            Check(
+                Sha256(outer) == "cbcfc0a4c07a74c43747a1250533051fb37362efdfad545a68c14433cd3959b1",
+                "OS outer plaintext matches the independently recovered CBC IV and round keys"
+            );
             var plain = OsDecryptor.Decrypt(raw, null);
-            Check(Sha256(plain) == "e63cf3f1918b530bf6c3d6e2ba05954ec358e8e730b708047abfcfb5b0db0349", "OS full plaintext matches the independent Python implementation");
+            Check(
+                Sha256(plain) == "e63cf3f1918b530bf6c3d6e2ba05954ec358e8e730b708047abfcfb5b0db0349",
+                "OS full plaintext matches the independent Python implementation"
+            );
             Check(Sha256(raw) == originalHash, "OS decryption preserves the input buffer");
             var metadata = new OsMetadata(plain, null, plugin).Metadata;
             Check(metadata.Types.Length == 29548 && metadata.Methods.Length == 228587, "OS decodes 29548 types and 228587 methods");
             Check(metadata.Fields.Length == 228551 && metadata.Params.Length == 213683, "OS decodes its field and parameter tables");
             Check(metadata.Images.Length == 77 && metadata.Assemblies.Length == 77, "OS decodes 77 images and assemblies");
-            Check(metadata.StringLiterals.Length == 36922 && metadata.StringLiterals[0].StartsWith("Searched all reachable nodes,"), "OS literal count and plaintext agree with native analysis");
-            Check(metadata.Strings[metadata.Types[0].NameIndex] == "<Module>" && metadata.Strings[metadata.Images[0].NameIndex] == "mscorlib.dll", "OS name indices resolve through the OS name table");
+            Check(
+                metadata.StringLiterals.Length == 36922 && metadata.StringLiterals[0].StartsWith("Searched all reachable nodes,"),
+                "OS literal count and plaintext agree with native analysis"
+            );
+            Check(
+                metadata.Strings[metadata.Types[0].NameIndex] == "<Module>" && metadata.Strings[metadata.Images[0].NameIndex] == "mscorlib.dll",
+                "OS name indices resolve through the OS name table"
+            );
             Check(metadata.Strings[metadata.Assemblies[0].Aname.NameIndex] == "mscorlib", "OS preserves the assembly identity at string index zero");
 
             var package =
                 Inspector.LoadFromFile(Path.Combine(nativeDirectory, "libil2cpp.so"), Path.Combine(nativeDirectory, "global-metadata.dat"))?.Single()
                 ?? throw new InvalidOperationException("Could not load TOT OS inputs.");
             Check(package.Metadata.GamePlugin.GameId == GameId, "Full native loading selects the OS plugin automatically");
-            Check(package.Metadata.SuppressGameAdapter && !package.Metadata.HasGameAdapter, "OS uses the standard analysis pipeline after normalization");
-            Check(package.TypeReferences.Length == 219790 && package.MetadataUsages.Count == 170539, "OS standard registration parsing recovers all type references and metadata usages");
+            Check(
+                package.Metadata.SuppressGameAdapter && !package.Metadata.HasGameAdapter,
+                "OS uses the standard analysis pipeline after normalization"
+            );
+            Check(
+                package.TypeReferences.Length == 219790 && package.MetadataUsages.Count == 170539,
+                "OS standard registration parsing recovers all type references and metadata usages"
+            );
             var model = new TypeModel(package);
             var app = new AppModel(model, false).Build();
             Check(app.Types.Count == 87417 && app.Methods.Count == 369742, "OS standard analysis recovers the validated native types and methods");
@@ -78,7 +97,8 @@ namespace Il2CppInspector.Tests.Plugin.TOT.OS
                 var pointers = Path.Combine(output, "pointers");
                 plugin.WriteApplicationPointers(app, pointers);
                 Check(
-                    new FileInfo(Path.Combine(pointers, "il2cpp-functions.h")).Length > 0 && new FileInfo(Path.Combine(pointers, "il2cpp-types-ptr.h")).Length > 0,
+                    new FileInfo(Path.Combine(pointers, "il2cpp-functions.h")).Length > 0
+                        && new FileInfo(Path.Combine(pointers, "il2cpp-types-ptr.h")).Length > 0,
                     "OS exports native pointers through the inherited standard writer"
                 );
                 var assemblies = Path.Combine(output, "DummyDll");

@@ -69,5 +69,6 @@ public static class Il2CppTypeEnumExtensions
                 or Il2CppTypeEnum.IL2CPP_TYPE_OBJECT
                 or Il2CppTypeEnum.IL2CPP_TYPE_TYPEDBYREF;
 
-    public static bool IsGenericParameterEnum(this Il2CppTypeEnum value) => value is Il2CppTypeEnum.IL2CPP_TYPE_VAR or Il2CppTypeEnum.IL2CPP_TYPE_MVAR;
+    public static bool IsGenericParameterEnum(this Il2CppTypeEnum value) =>
+        value is Il2CppTypeEnum.IL2CPP_TYPE_VAR or Il2CppTypeEnum.IL2CPP_TYPE_MVAR;
 }

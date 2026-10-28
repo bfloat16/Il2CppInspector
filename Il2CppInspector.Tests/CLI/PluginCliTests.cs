@@ -6,8 +6,14 @@ namespace Il2CppInspector.Tests.CLI
         {
             var cli = Path.GetFullPath(args[1]);
             var available = RunCli(cli, "ZZZ_CN_Windows_3.2.1");
-            Check(available.Contains("Available games:") && available.Contains("ZZZ_CN_Windows_3.2.0"), "Published CLI discovers game DLLs through the plugin loader library");
-            Check(available.Contains("TOT_CN_Android_6.1.0") && available.Contains("TOT_OS_Android_5.8.1"), "CLI discovers CN and OS TOT plugins as independent builds");
+            Check(
+                available.Contains("Available games:") && available.Contains("ZZZ_CN_Windows_3.2.0"),
+                "Published CLI discovers game DLLs through the plugin loader library"
+            );
+            Check(
+                available.Contains("TOT_CN_Android_6.1.0") && available.Contains("TOT_OS_Android_5.8.1"),
+                "CLI discovers CN and OS TOT plugins as independent builds"
+            );
             var isolated = Path.GetFullPath(args[2]);
             Directory.CreateDirectory(isolated);
             foreach (var file in Directory.EnumerateFiles(Path.GetDirectoryName(cli)))
@@ -19,7 +25,8 @@ namespace Il2CppInspector.Tests.CLI
             }
             var missing = RunCli(Path.Combine(isolated, Path.GetFileName(cli)), "ZZZ_CN_Windows_3.2.0");
             Check(
-                missing.Contains("No installed plugin supports ZZZ_CN_Windows_3.2.0") && missing.TrimEnd().EndsWith("Available games:", StringComparison.Ordinal),
+                missing.Contains("No installed plugin supports ZZZ_CN_Windows_3.2.0")
+                    && missing.TrimEnd().EndsWith("Available games:", StringComparison.Ordinal),
                 "CLI without game DLLs reports the missing plugin clearly"
             );
 
