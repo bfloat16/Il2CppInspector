@@ -19,6 +19,7 @@
     <Project Path="Il2CppInspector.Plugin/Genshin_CN_Windows_7.1.0/Il2CppInspector.Plugin.Genshin_CN_Windows_7.1.0.csproj" />
   </Folder>
   <Folder Name="/Plugins/HSR/">
+    <Project Path="Il2CppInspector.Plugin/HSR_CN_Windows_4.6.51/Il2CppInspector.Plugin.HSR_CN_Windows_4.6.51.csproj" />
     <Project Path="Il2CppInspector.Plugin/HSR_OS_Windows_4.6.0/Il2CppInspector.Plugin.HSR_OS_Windows_4.6.0.csproj" />
   </Folder>
   <Folder Name="/Plugins/TOT/">
