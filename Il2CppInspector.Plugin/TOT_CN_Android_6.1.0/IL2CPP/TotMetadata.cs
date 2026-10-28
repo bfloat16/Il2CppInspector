@@ -10,18 +10,15 @@ using VersionedSerialization;
 namespace Il2CppInspector
 {
     /// <summary>
-    /// C# adapter for the supported TOT Android builds, with per-build offsets from TotBuild.
-    ///
-    /// The decrypted global-metadata.dat is stock IL2CPP v24.1 at the record level, but its 0x158-byte
-    /// header is packer-permuted: sections are stored as (offset, size) pairs at non-stock slots, ~23
-    /// slots are scrambled key material for the inner layer, and the stringLiteral index table stores
-    /// {dataIndex, length} rather than stock {length, dataIndex}. The standard header reader therefore
-    /// cannot parse it, so this adapter reads the permuted slots directly and populates the stock
-    /// Metadata tables (the ZzzMorax construction pattern).
+    /// Reads decrypted TOT metadata: stock v24.1 records behind a permuted 0x158-byte header. Sections are
+    /// (offset, size) pairs at non-stock slots, about 23 slots hold inner-layer key material, and the
+    /// stringLiteral index table stores {dataIndex, length}. TotBuild supplies the per-build offsets.
     /// </summary>
     internal sealed partial class TotMetadata : Plugins.GameMetadataAdapter
     {
-        // Header slot byte offsets of each section's (offset, size) pair. Slot 0x24 is a lone u32 count.
+        // Header slot of each section's (offset, size) pair; slot 0x24 is a single u32.
+        // Identified but not read: 0x58 (unresolved), 0x98 fieldMarshaledSizes, 0xA0 referencedAssemblies,
+        // 0xD0 exportedTypeDefinitions.
         private const int SlotStringLiteralCount = 0x24;
         private const int SlotGenericContainers = 0x28;
         private const int SlotNestedTypes = 0x30;
@@ -29,17 +26,13 @@ namespace Il2CppInspector
         private const int SlotVTableMethods = 0x40;
         private const int SlotInterfaceOffsets = 0x48;
         private const int SlotTypeDefinitions = 0x50;
-        private const int SlotUnresolved = 0x58;
         private const int SlotImages = 0x70;
         private const int SlotAssemblies = 0x78;
         private const int SlotFields = 0x80;
         private const int SlotGenericParameters = 0x88;
         private const int SlotDefaultValueData = 0x90;
-        private const int SlotFieldMarshaledSizes = 0x98;
-        private const int SlotReferencedAssemblies = 0xA0;
         private const int SlotAttributesInfo = 0xA8;
         private const int SlotAttributeTypes = 0xB0;
-        private const int SlotExportedTypeDefinitions = 0xD0;
         private const int SlotParameters = 0xE0;
         private const int SlotGenericParameterConstraints = 0xE8;
         private const int SlotMetadataUsagePairs = 0xF8;
@@ -51,7 +44,7 @@ namespace Il2CppInspector
         private const int SlotFieldDefaultValues = 0x138;
         private const int SlotMetadataUsageLists = 0x150;
 
-        // The string (names) table offset is baked into libunity's string getter, not stored in the header.
+        // The names table offset is hard-coded in libunity's string getter.
         private const int StringTableOffset = TotBuild.StringTableOffset;
 
         internal readonly Metadata Metadata;
@@ -161,8 +154,7 @@ namespace Il2CppInspector
                 12,
                 TotRecords.ReadCustomAttributeTypeRange
             );
-            // MetadataUsageList/Pair expose read-only properties, so read them through the stock
-            // versioned reader (their v24.1 layout matches the repo model exactly).
+            // MetadataUsageList/Pair have read-only properties; their v24.1 layout is stock.
             Metadata.MetadataUsageLists = Reader.ReadVersionedObjectArray<Il2CppMetadataUsageList>(
                 data,
                 SectionCount(SlotMetadataUsageLists, 8),
@@ -212,7 +204,7 @@ namespace Il2CppInspector
                 d => TotRecords.U32(d, 0)
             );
 
-            // The unused sections are left empty rather than throwing: the stock pipeline never needs them.
+            // The stock pipeline does not use these sections.
             Metadata.AttributeDataRanges = [];
             Metadata.TypeInlineArrays = [];
 
@@ -222,9 +214,8 @@ namespace Il2CppInspector
         }
 
         /// <summary>
-        /// The packer does not store v24.1 escaped-hex public keys in the string table (the recorded
-        /// PublicKeyIndex points at raw bytes), so use each assembly's 8-byte public key token. This is
-        /// enough for the assembly-shim writer, which only needs a stable blob per assembly.
+        /// PublicKeyIndex points at raw bytes instead of a v24.1 escaped-hex string, so each assembly's 8-byte
+        /// public key token stands in; the assembly shims only need a stable blob per assembly.
         /// </summary>
         private void ReadAssemblyPublicKeys()
         {
@@ -246,8 +237,7 @@ namespace Il2CppInspector
         }
 
         /// <summary>
-        /// stringLiteralData blob lives at 0x158; its build-specific index table stores {dataIndex, length}
-        /// (swapped relative to stock). The literal bytes were already decrypted by the inner layer.
+        /// stringLiteralData is at 0x158 and already decrypted by L2; the index table stores {dataIndex, length}.
         /// </summary>
         private void ReadLiterals()
         {
@@ -350,8 +340,6 @@ namespace Il2CppInspector
             return Encoding.UTF8.GetString(data, start, end - start);
         }
 
-        // ---------------------------------------------------------- binary phase
-
         /// <summary>Called after the stock binary registration has been discovered.</summary>
         internal void ReadBinary(Il2CppBinary il2CppBinary)
         {
@@ -360,8 +348,7 @@ namespace Il2CppInspector
         }
 
         /// <summary>
-        /// Reconstructs the metadata-usage list the way the stock loader would: destinations are the
-        /// encoded indices from metadataUsagePairs, addresses come from MetadataRegistration.metadataUsages.
+        /// Destinations come from metadataUsagePairs and addresses from MetadataRegistration.metadataUsages, as in stock.
         /// </summary>
         private void BuildUsages()
         {
@@ -399,7 +386,6 @@ namespace Il2CppInspector
 
         public override int VTableSlotSize => 8;
 
-        // TOT uses the stock shared-generic layout, so no special type layout group is required.
         public override Il2CppTypeDefinitionSizes LayoutSizes(int group) =>
             binary != null && group >= 0 && group < binary.TypeDefinitionSizes.Length ? binary.TypeDefinitionSizes[group] : default;
 

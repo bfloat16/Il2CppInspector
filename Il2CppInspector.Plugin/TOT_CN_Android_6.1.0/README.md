@@ -1,9 +1,7 @@
-# Tears of Themis CN 6.1.0 Android
+# TOT_CN_Android_6.1.0
 
-Game ID: `TOT_CN_Android_6.1.0`. Inputs: `libil2cpp.so` and encrypted `global-metadata.dat`.
+Inputs: `libil2cpp.so` and the encrypted `global-metadata.dat`.
 
-The plugin recognizes this build's 39779644-byte metadata and the trailing keybox gate. It decrypts two layers, reads the permuted header and normalizes stock v24.1 records before using standard analysis and exports.
+The plugin recognizes the 39,779,644-byte metadata and its trailing keybox gate, decrypts both layers, reads the permuted header and normalizes the records to stock v24.1.
 
-`TotBuild.cs` owns build-specific framing and table offsets. The [OS 5.8.1 project](../TOT_OS_Android_5.8.1/README.md) links the common TOT decoding/record/model source and the identical table resource into its own DLL, with its own constants and plugin entry point.
-
-See [TOT tests](../../Il2CppInspector.Tests/Plugin/TOT/README.md) for real-input validation.
+`TotBuild.cs` holds the build-specific framing and table offsets. [OS 5.8.1](../TOT_OS_Android_5.8.1/README.md) links all other source and the white-box table resource.

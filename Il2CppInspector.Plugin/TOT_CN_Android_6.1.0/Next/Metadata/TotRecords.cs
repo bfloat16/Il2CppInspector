@@ -1,9 +1,4 @@
-// TOT 6.1.0 Android metadata record readers.
-//
-// The decrypted container uses stock Unity 2018.4 / IL2CPP metadata v24.1 record layouts
-// (verified against Cpp/UnityHeaders/24.1-2018.4.34-2018.4.36.h and against the numeric
-// tiling of the shipped file). Only the header itself is custom/permuted, and the
-// stringLiteral index table stores {dataIndex, length} instead of stock {length, dataIndex}.
+// Decrypted TOT records use the stock Unity 2018.4 / v24.1 layouts (Cpp/UnityHeaders/24.1-2018.4.34-2018.4.36.h).
 using System.Buffers.Binary;
 using Il2CppInspector.Next.Metadata;
 

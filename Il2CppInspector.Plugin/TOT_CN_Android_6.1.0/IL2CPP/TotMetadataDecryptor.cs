@@ -4,51 +4,37 @@ using System.Numerics;
 namespace Il2CppInspector
 {
     /// <summary>
-    /// Static decryption shared by the supported TOT Android builds; TotBuild supplies version constants.
+    /// Two-layer TOT metadata decryption; TotBuild supplies the per-build constants.
     ///
-    /// Two layers are applied in order (outer then inner), matching the analysis report:
-    ///   L1 - 256 independent 64-byte CBC units, unit k at file offset k*TotBuild.UnitStride. Each unit is
-    ///        pt_0 = D(ct_0) ^ IV, pt_i = D(ct_i) ^ ct_{i-1} (i = 1..3). D is an 11-round
-    ///        AES-decryption-shaped block cipher whose four 1 KiB Td tables are byte-scrambled and
-    ///        whose 16-byte InvShiftRows index table lives in libunity.so (see below).
-    ///   L2 - a per-string-literal stream cipher over the build's stringLiteralData range at 0x158.
-    ///        Its keystream comes from a metadata-seeded MT19937-64 table.
+    ///   L1 - 256 independent 64-byte CBC units at k * UnitStride: pt_0 = D(ct_0) ^ IV, pt_i = D(ct_i) ^ ct_{i-1}.
+    ///        D is an 11-round AES-decryption-shaped cipher with byte-scrambled Td tables.
+    ///   L2 - a per-literal stream cipher over stringLiteralData at 0x158, keyed by a metadata-seeded MT19937-64 table.
     ///
-    /// Binary-derived constants
-    /// ------------------------
-    /// D needs 4224 bytes that are only present in libunity.so (a file the plugin's Load(Stream, ...)
-    /// never receives, since the CLI supplies libil2cpp.so):
-    ///   T0..T3 : CN 6.1.0 libunity.so offsets 0x15DD5D8 / 0x15DD9D8 / 0x15DDDD8 / 0x15DE1D8
-    ///   IDX    : CN 6.1.0 libunity.so offset 0x15DD458 (16 little-endian qwords)
-    /// OS 5.8.1 has byte-identical tables at 0x15D3FF8 / 43F8 / 47F8 / 4BF8 and IDX at 0x15D3E78.
-    /// They are embedded as the resource "Il2CppInspector.Plugin.TOT.TotWhiteboxTables.bin"
-    /// (4*1024 + 128 = 4224 bytes, sha256 3ce5c225e242c7f637c37e8a22859455a716bcc751699a3732695a50e72894bc).
-    /// This is a deliberate trade-off: the alternative would be to make the caller supply libunity.so,
-    /// which the plugin contract does not allow.
-    ///
-    /// The tail KDF also needs a hard-wired custom-ChaCha20 constant (MAGIC) that is reproduced
-    /// algorithmically from constants recovered from libunity.so; no table is embedded for it.
+    /// D's tables exist only in libunity.so, which the plugin never receives, so they are embedded
+    /// (4224 bytes, sha256 3ce5c225e242c7f637c37e8a22859455a716bcc751699a3732695a50e72894bc):
+    ///   CN 6.1.0: T0..T3 at 0x15DD5D8 / 0x15DD9D8 / 0x15DDDD8 / 0x15DE1D8, IDX (16 qwords) at 0x15DD458.
+    ///   OS 5.8.1: identical bytes at 0x15D3FF8 / 43F8 / 47F8 / 4BF8, IDX at 0x15D3E78.
+    /// The tail KDF's custom-ChaCha20 constant (MAGIC) is computed, not embedded.
     /// </summary>
     internal static class TotMetadataDecryptor
     {
-        // ---- L1 framing ----
+        // L1 framing
         private const int UnitStride = TotBuild.UnitStride;
         private const int UnitCount = 256;
-        private const int UnitSize = 64;
         private static readonly byte[] Iv = Convert.FromHexString(TotBuild.Iv);
 
-        // ---- tail key material ----
+        // Tail key material
         private const int TailSize = 0x4000;
         private const int KeyScheduleSize = 0xB00;
 
-        // ---- L2 framing ----
+        // L2 framing
         internal const int LiteralDataOffset = 0x158;
         internal const int LiteralIndexOffset = TotBuild.LiteralIndexOffset;
         internal const int LiteralCount = TotBuild.LiteralCount;
         internal const int LiteralBlobSize = TotBuild.LiteralBlobSize;
         private const int LiteralIndexStride = 8;
         private const int LiteralClassPeriod = 10240;
-        private const int TableBytePeriod = 0x5000; // 20480
+        private const int TableBytePeriod = 0x5000;
         private const int MtWordCount = 2560;
         private const int MtDiscard = 6;
 
@@ -89,7 +75,7 @@ namespace Il2CppInspector
         }
 
         /// <summary>Decrypts the container and returns the fully plaintext bytes.</summary>
-        internal static byte[] Decrypt(byte[] data, EventHandler<string> status)
+        internal static byte[] Decrypt(byte[] data, EventHandler<string> status = null)
         {
             var output = DecryptOuter(data, status);
             status?.Invoke(null, "Decrypting TOT global-metadata.dat inner stringLiteral layer (L2)");
@@ -97,7 +83,7 @@ namespace Il2CppInspector
             return output;
         }
 
-        /// <summary>Removes only the outer (L1) layer; exposed for verification.</summary>
+        /// <summary>Removes only the outer (L1) layer.</summary>
         internal static byte[] DecryptOuter(byte[] data, EventHandler<string> status = null)
         {
             if (data.Length < UnitStride * UnitCount || data.Length < TailSize)
@@ -112,7 +98,7 @@ namespace Il2CppInspector
             return output;
         }
 
-        // ------------------------------------------------------------------ L1
+        // L1
 
         private static void OuterDecrypt(byte[] data, byte[] roundKeys)
         {
@@ -173,7 +159,7 @@ namespace Il2CppInspector
             }
         }
 
-        // ---------------------------------------------------------- round keys
+        // Round keys
 
         private static byte[] RoundKeysForTail(ReadOnlySpan<byte> tail)
         {
@@ -225,7 +211,8 @@ namespace Il2CppInspector
             }
 
             var offset = BinaryPrimitives.ReadUInt16LittleEndian(tail.AsSpan(0xD2));
-            if (offset + 0x10 + KeyScheduleSize > TailSize || 0x3010 + KeyScheduleSize > TailSize)
+            // dataC (0x3010 + KeyScheduleSize) always fits; only the tail-supplied offset needs checking.
+            if (offset + 0x10 + KeyScheduleSize > TailSize)
             {
                 return FallbackKeySchedule();
             }
@@ -238,7 +225,7 @@ namespace Il2CppInspector
                 ks[j] ^= (byte)(dataB[j] ^ dataC[j] ^ tail[offset + j % 16] ^ tail[0x3000 + j % 16]);
             }
 
-            // CORR cancels the fallback residual on the valid path, exactly as in the reference.
+            // CORR cancels the fallback residual on the valid path.
             ks[0xAF8] ^= 0xA0;
             ks[0xAF9] ^= 0x76;
             ks[0xAFC] ^= 0x03;
@@ -256,8 +243,8 @@ namespace Il2CppInspector
         }
 
         /// <summary>
-        /// MAGIC is a fixed 0xB00 constant: the 64-byte state of a hard-wired custom ChaCha20 followed by
-        /// the same ChaCha block repeated 43 times (the counter never advances). Recovered from libunity.so.
+        /// MAGIC (0xB00 bytes, from libunity.so): the 64-byte state of a hard-wired custom ChaCha20, then
+        /// the same block 43 more times because the counter never advances.
         /// </summary>
         private static byte[] BuildMagic()
         {
@@ -334,7 +321,7 @@ namespace Il2CppInspector
             s[b] = BitOperations.RotateLeft(s[b] ^ s[c], 7);
         }
 
-        // ------------------------------------------------------------------ L2
+        // L2
 
         private static void InnerDecrypt(byte[] data)
         {
@@ -387,9 +374,8 @@ namespace Il2CppInspector
         }
 
         /// <summary>
-        /// The 2560-word table is MT19937-64 outputs #6..#2565. The twist is the in-place forward variant
-        /// used by libunity (mt[(i+156)%312] may already have been updated this pass), NOT the textbook
-        /// two-array version.
+        /// MT19937-64 outputs #6..#2565, using libunity's in-place twist where mt[(i+156)%312] may already
+        /// be updated in the current pass, not the textbook two-array version.
         /// </summary>
         internal static ulong[] BuildKeystreamTable(ulong seed)
         {
@@ -437,7 +423,7 @@ namespace Il2CppInspector
             return y;
         }
 
-        // ------------------------------------------------------------- AES tables
+        // AES tables
 
         private static void BuildInvSbox()
         {
@@ -499,8 +485,5 @@ namespace Il2CppInspector
 
             return result;
         }
-
-        /// <summary>Fully standalone helper used by tests: decrypts an arbitrary container.</summary>
-        internal static byte[] Decrypt(byte[] data) => Decrypt(data, null);
     }
 }

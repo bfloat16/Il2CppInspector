@@ -5,10 +5,8 @@ using Il2CppInspector.Reflection;
 namespace Il2CppInspector.Plugin.TOT
 {
     /// <summary>
-    /// TOT analysis model. This mirrors the stock AppModel.Build analysis loops (methods, generic
-    /// methods, metadata usages and unused concrete types) so that a caller that keeps the game
-    /// adapter active still gets a populated C++ model. In normal operation TOT suppresses the adapter
-    /// after loading, so the stock pipeline performs this work and these methods are not invoked.
+    /// Mirrors the stock AppModel.Build loops for callers that keep the game adapter active.
+    /// Load() suppresses the adapter, so the stock pipeline normally runs instead.
     /// </summary>
     internal sealed class TotAnalysisModel(AppModel model) : Plugins.IGameAnalysisModel
     {
@@ -16,7 +14,7 @@ namespace Il2CppInspector.Plugin.TOT
         private bool methodsBuilt;
         private bool typesBuilt;
         private bool orderBuilt;
-        private string group = "unused_concrete_types";
+        private string group;
 
         private Il2CppInspector Package => model.Package;
         private TypeModel Reflection => model.TypeModel;
