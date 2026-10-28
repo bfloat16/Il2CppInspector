@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>Il2CppInspector.Plugin.ZZZ</RootNamespace>
+  </PropertyGroup>
+  <Import Project="../Shared/Morax/Morax.props" />
+  <ItemGroup>
+    <ProjectReference Include="../../Il2CppInspector.Common/Il2CppInspector.Common.csproj" />
+    <!-- Sources identical to 3.2.0. Copy a file here before giving it 3.3.0-specific changes. -->
+    <Compile Include="../ZZZ_CN_Windows_3.2.0/ZzzPlugin.cs" Link="ZzzPlugin.cs" />
+    <Compile Include="../ZZZ_CN_Windows_3.2.0/IL2CPP/ZzzDefaults.cs" Link="IL2CPP/ZzzDefaults.cs" />
+    <Compile Include="../ZZZ_CN_Windows_3.2.0/Model/ZzzNativeModel.cs" Link="Model/ZzzNativeModel.cs" />
+    <Compile Include="../ZZZ_CN_Windows_3.2.0/Reflection/ZzzReflectionAdapter.cs" Link="Reflection/ZzzReflectionAdapter.cs" />
+  </ItemGroup>
+</Project>
