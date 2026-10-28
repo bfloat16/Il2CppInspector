@@ -1,4 +1,4 @@
-﻿// Copyright 2020 Robert Xiao - https://robertxiao.ca/
+// Copyright 2020 Robert Xiao - https://robertxiao.ca/
 // Copyright (c) 2020-2021 Katy Coe - http://www.djkaty.com - https://github.com/djkaty
 // Copyright (c) 2023 LukeFZ https://github.com/LukeFZ
 // All rights reserved

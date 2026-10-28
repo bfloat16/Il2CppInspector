@@ -1,4 +1,4 @@
-﻿namespace VersionedSerialization;
+namespace VersionedSerialization;
 
 public static class ReadableExtensions
 {

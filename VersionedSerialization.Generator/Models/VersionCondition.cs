@@ -1,4 +1,4 @@
-﻿namespace VersionedSerialization.Generator.Models;
+namespace VersionedSerialization.Generator.Models;
 
 public sealed record VersionCondition(
     StructVersion? LessThan,

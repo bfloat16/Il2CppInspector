@@ -1,4 +1,4 @@
-﻿# Ghidra-specific implementation
+# Ghidra-specific implementation
 from ghidra.app.cmd.function import ApplyFunctionSignatureCmd
 from ghidra.app.util.cparser.C import CParserUtils
 from ghidra.program.model.data import ArrayDataType, PointerDataType, VoidDataType

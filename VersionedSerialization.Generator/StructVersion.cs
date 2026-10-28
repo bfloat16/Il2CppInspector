@@ -1,4 +1,4 @@
-﻿namespace VersionedSerialization.Generator;
+namespace VersionedSerialization.Generator;
 
 public readonly record struct StructVersion(int Major = 0, int Minor = 0, string? Tag = null)
 {

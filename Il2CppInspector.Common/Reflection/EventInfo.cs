@@ -1,4 +1,4 @@
-﻿/*
+/*
     Copyright 2017-2021 Katy Coe - http://www.djkaty.com - https://github.com/djkaty
 
     All rights reserved.

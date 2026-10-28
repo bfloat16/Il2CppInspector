@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using VersionedSerialization;
 using VersionedSerialization.Attributes;
 

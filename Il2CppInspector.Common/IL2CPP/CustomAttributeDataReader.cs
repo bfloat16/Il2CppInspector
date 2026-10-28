@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Il2CppInspector.Next;
 using Il2CppInspector.Next.BinaryMetadata;
 using Il2CppInspector.Next.Metadata;

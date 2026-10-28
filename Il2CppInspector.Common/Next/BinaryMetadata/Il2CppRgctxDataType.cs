@@ -1,4 +1,4 @@
-﻿// ReSharper disable InconsistentNaming
+// ReSharper disable InconsistentNaming
 namespace Il2CppInspector.Next.BinaryMetadata;
 
 public enum Il2CppRgctxDataType

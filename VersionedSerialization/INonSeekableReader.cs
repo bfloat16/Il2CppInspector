@@ -1,3 +1,3 @@
-﻿namespace VersionedSerialization;
+namespace VersionedSerialization;
 
 public interface INonSeekableReader : IReader;

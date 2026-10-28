@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System.Collections.Immutable;
 using VersionedSerialization;
 using VersionedSerialization.Attributes;
