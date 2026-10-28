@@ -18,7 +18,6 @@ namespace Il2CppInspector
     public class ElfReader32 : ElfReader<uint, elf_32_phdr, elf_32_sym, ElfReader32, Convert32>
     {
         public ElfReader32()
-            : base()
         {
             ElfReloc.GetRelocType = info => (Elf)(info & 0xff);
             ElfReloc.GetSymbolIndex = info => info >> 8;
@@ -33,7 +32,6 @@ namespace Il2CppInspector
     public class ElfReader64 : ElfReader<ulong, elf_64_phdr, elf_64_sym, ElfReader64, Convert64>
     {
         public ElfReader64()
-            : base()
         {
             ElfReloc.GetRelocType = info => (Elf)(info & 0xffff_ffff);
             ElfReloc.GetSymbolIndex = info => info >> 32;
@@ -82,12 +80,12 @@ namespace Il2CppInspector
 
         public elf_dynamic<TWord> GetDynamicEntry(Elf dynamicIndex) => DynamicTable?.FirstOrDefault(x => (Elf)conv.ULong(x.d_tag) == dynamicIndex);
 
-        private Dictionary<string, Symbol> symbolTable = [];
+        private readonly Dictionary<string, Symbol> symbolTable = [];
         private List<Export> exports = [];
 
-        private List<(uint Start, uint End)> reverseMapExclusions = [];
-        private bool preferPHT = false;
-        private bool isMemoryImage = false;
+        private readonly List<(uint Start, uint End)> reverseMapExclusions = [];
+        private bool preferPHT;
+        private bool isMemoryImage;
 
         protected abstract Elf ArchClass { get; }
 
@@ -114,11 +112,9 @@ namespace Il2CppInspector
 
             public override int GetHashCode() => Offset.GetHashCode();
 
-            // Cast operators (makes the below code MUCH easier to read)
             public ElfReloc(elf_rel<TWord> rel, TWord symbolTable)
             {
                 Offset = rel.r_offset;
-                Addend = null;
                 Type = GetRelocType(rel.r_info);
                 SymbolIndex = GetSymbolIndex(rel.r_info);
                 SymbolTable = symbolTable;
@@ -535,7 +531,7 @@ namespace Il2CppInspector
                     if (conv.Gt(conv.FromUInt(symbol.st_name), pTab.stringsCount))
                         break; // Skip invalid symbol table indices, since we might read past it on obfuscated binaries
 
-                    string name = string.Empty;
+                    string name;
                     try
                     {
                         name = ReadNullTerminatedString(conv.Long(pTab.strings) + symbol.st_name);

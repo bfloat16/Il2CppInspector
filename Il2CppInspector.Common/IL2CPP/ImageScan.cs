@@ -85,9 +85,6 @@ namespace Il2CppInspector
                     yield return va;
         }
 
-        // Find all valid virtual address pointers to a set of virtual addresses
-        private IEnumerable<ulong> FindAllMappedWords(byte[] blob, IEnumerable<ulong> va) => va.SelectMany(a => FindAllMappedWords(blob, a));
-
         // Find all valid pointer chains to a set of virtual addresses with the specified number of indirections
         private IEnumerable<ulong> FindAllPointerChains(byte[] blob, ulong va, int indirections)
         {
@@ -105,11 +102,6 @@ namespace Il2CppInspector
                     }
                 }
             }
-
-            //IEnumerable<ulong> vas = va;
-            //for (int i = 0; i < indirections; i++)
-            //    vas = FindAllMappedWords(blob, vas);
-            //return vas;
         }
 
         // Scan the image for the needed data structures
@@ -183,35 +175,6 @@ namespace Il2CppInspector
 
                     return 0;
                 }
-
-                /*
-                // We'll work back one pointer width at a time trying to find the first CodeGenModule
-                // Let's hope there aren't more than 200 DLLs in any given application :)
-                var maxCodeGenModules = 200;
-
-                for (int backtrack = 0; backtrack < maxCodeGenModules && (codeRegVas?.Count() ?? 0) != 1; backtrack++) {
-                    // Unwind from CodeGenModules + x -> CodeRegistration + y
-                    codeRegVas = FindAllMappedWords(imageBytes, vas);
-
-                    // The previous word must be the number of CodeGenModules
-                    if (codeRegVas.Count() == 1) {
-                        var codeGenModuleCount = Image.ReadMappedWord(codeRegVas.First() - ptrSize);
-
-                        // Basic validity check
-                        if (codeGenModuleCount <= 0 || codeGenModuleCount > maxCodeGenModules)
-                            codeRegVas = Enumerable.Empty<ulong>();
-                    }
-
-                    // Move to the previous CodeGenModule if the above fails
-                    vas = vas.Select(va => va - ptrSize);
-                }
-
-                if (!codeRegVas.Any())
-                    return (0, 0);
-
-                if (codeRegVas.Count() > 1)
-                    throw new InvalidOperationException("More than one valid pointer chain found during data heuristics");
-                */
 
                 var codeRegVa = FindCodeRegistration();
 

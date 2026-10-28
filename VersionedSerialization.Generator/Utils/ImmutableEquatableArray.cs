@@ -125,8 +125,4 @@ public static class ImmutableEquatableArray
     public static ImmutableEquatableArray<T> ToImmutableEquatableArray<T>(this IEnumerable<T> values)
         where T : IEquatable<T> =>
         values is ICollection<T> { Count: 0 } ? ImmutableEquatableArray<T>.Empty : ImmutableEquatableArray<T>.UnsafeCreateFromArray(values.ToArray());
-
-    public static ImmutableEquatableArray<T> Create<T>(ReadOnlySpan<T> values)
-        where T : IEquatable<T> =>
-        values.IsEmpty ? ImmutableEquatableArray<T>.Empty : ImmutableEquatableArray<T>.UnsafeCreateFromArray(values.ToArray());
 }

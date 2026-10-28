@@ -92,19 +92,11 @@ namespace Il2CppInspector
                 if (getAdrp(inst, pc) is (uint reg, ulong page))
                 {
                     // If we've had an earlier ADRP for the same register, we'll discard the previous load
-                    if (regs.ContainsKey(reg))
-                        regs[reg] = page;
-                    else
-                        regs.Add(reg, page);
+                    regs[reg] = page;
                 }
 
                 if (getAdr(inst, pc) is (uint reg_adr, ulong addr))
-                {
-                    if (regs.ContainsKey(reg_adr))
-                        regs[reg_adr] = addr;
-                    else
-                        regs.Add(reg_adr, addr);
-                }
+                    regs[reg_adr] = addr;
 
                 // Is it an ADD Xm, Xn, #offset?
                 if (getAdd64(inst) is (uint reg_n, uint reg_d, uint imm))

@@ -22,7 +22,6 @@ namespace Il2CppInspector.Reflection
         public CustomAttributeCtor CtorInfo { get; set; }
 
         // Pre-v29 Properties used for stub Attributes
-
         public (ulong Start, ulong End) VirtualAddress =>
             CtorInfo != null
                 ? (0, 0)
@@ -59,8 +58,6 @@ namespace Il2CppInspector.Reflection
                     yield return typeRef;
             }
 
-            yield break;
-
             static IEnumerable<TypeInfo> GetTypeReferences(IEnumerable<CustomAttributeArgument> arguments)
             {
                 foreach (var arg in arguments)
@@ -89,7 +86,7 @@ namespace Il2CppInspector.Reflection
 
             var pkg = asm.Model.Package;
 
-            // Attribute type ranges weren't included before v21 (customASttributeGenerators was though)
+            // Attribute type ranges weren't included before v21 (customAttributeGenerators was though)
             if (pkg.Version < MetadataVersions.V210)
                 yield break;
 

@@ -194,7 +194,7 @@ class GhidraDisassemblerInterface(BaseDisassemblerInterface):
         createLabel(addr, SymbolUtilities.replaceInvalidChars(label, True), True)
 
     def set_function_name(self, address: int, name: str):
-        return self.set_data_name(address, name)
+        self.set_data_name(address, name)
 
     def add_cross_reference(self, from_address: int, to_address: int):
         self.xrefs.addMemoryReference(

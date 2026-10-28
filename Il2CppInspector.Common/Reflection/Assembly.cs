@@ -62,14 +62,11 @@ namespace Il2CppInspector.Reflection
             var pkt = Convert.ToHexString(nameDef.PublicKeyToken);
             if (pkt == "0000000000000000")
                 pkt = "null";
-            var version = string.Format($"{nameDef.Major}.{nameDef.Minor}.{nameDef.Build}.{nameDef.Revision}");
+            var version = $"{nameDef.Major}.{nameDef.Minor}.{nameDef.Build}.{nameDef.Revision}";
 
-            FullName = string.Format($"{name}, Version={version}, Culture={culture}, PublicKeyToken={pkt.ToLower()}");
+            FullName = $"{name}, Version={version}, Culture={culture}, PublicKeyToken={pkt.ToLower()}";
 
-            if (ImageDefinition.EntryPointIndex != -1)
-            {
-                // TODO: Generate EntryPoint method from entryPointIndex
-            }
+            // TODO: Generate EntryPoint method from ImageDefinition.EntryPointIndex
 
             // Find corresponding module (we'll need this for method pointers on V24.2+)
             if (Model.Package.Modules != null)

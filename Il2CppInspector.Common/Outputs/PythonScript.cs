@@ -26,7 +26,7 @@ namespace Il2CppInspector.Outputs
         public void WriteScriptToFile(
             string outputFile,
             string target,
-            string existingTypeHeaderFIle = null,
+            string existingTypeHeaderFile = null,
             string existingJsonMetadataFile = null,
             bool includeTypeHeader = true
         )
@@ -40,10 +40,10 @@ namespace Il2CppInspector.Outputs
 
             if (!includeTypeHeader)
                 typeHeaderFile = null;
-            else if (string.IsNullOrEmpty(existingTypeHeaderFIle))
-                writeTypes(typeHeaderFile);
+            else if (string.IsNullOrEmpty(existingTypeHeaderFile))
+                new CppScaffolding(model, useBetterArraySize: true).WriteTypes(typeHeaderFile);
             else
-                typeHeaderFile = existingTypeHeaderFIle;
+                typeHeaderFile = existingTypeHeaderFile;
 
             var typeHeaderRelativePath = typeHeaderFile == null ? "" : getRelativePath(outputFile, typeHeaderFile);
 
@@ -58,10 +58,10 @@ namespace Il2CppInspector.Outputs
             var jsonMetadataRelativePath = getRelativePath(outputFile, jsonMetadataFile);
 
             var ns = $"{typeof(PythonScript).Namespace}.ScriptResources";
-            var baseScipt = ResourceHelper.GetText($"{ns}.shared_base.py");
+            var baseScript = ResourceHelper.GetText($"{ns}.shared_base.py");
             var impl = ResourceHelper.GetText($"{ns}.Targets.{target}.py");
 
-            var script = string.Join("\n", baseScipt, impl)
+            var script = string.Join("\n", baseScript, impl)
                 .Replace("%SCRIPTFILENAME%", Path.GetFileName(outputFile))
                 .Replace("%TYPE_HEADER_RELATIVE_PATH%", typeHeaderRelativePath.ToEscapedString())
                 .Replace("%JSON_METADATA_RELATIVE_PATH%", jsonMetadataRelativePath.ToEscapedString())
@@ -88,8 +88,6 @@ namespace Il2CppInspector.Outputs
                 : "pc-linux";
             return cpu + "-" + platform;
         }
-
-        private void writeTypes(string typeHeaderFile) => new CppScaffolding(model, useBetterArraySize: true).WriteTypes(typeHeaderFile);
 
         private string getRelativePath(string from, string to) =>
             Path.GetRelativePath(Path.GetDirectoryName(Path.GetFullPath(from))!, Path.GetDirectoryName(Path.GetFullPath(to))!)

@@ -33,8 +33,6 @@ namespace Il2CppInspector
         private elf_header<ulong> elfHeader;
         private elf_64_phdr[] pht;
 
-        private elf_64_phdr getProgramHeader(Elf programIndex) => pht.FirstOrDefault(x => x.p_type == (uint)programIndex);
-
         protected override bool Init()
         {
             selfHeader = ReadObject<SElfHeader>();

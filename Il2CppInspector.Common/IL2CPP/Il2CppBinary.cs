@@ -98,8 +98,7 @@ namespace Il2CppInspector
         private void StatusUpdate(string status) => OnStatusUpdate?.Invoke(this, status);
 
         // Set if something in the binary has been modified / decrypted
-        private bool isModified = false;
-        public bool IsModified => Image.IsModified || isModified;
+        public bool IsModified => Image.IsModified;
 
         protected Il2CppBinary(IFileFormatStream stream, EventHandler<string> statusCallback = null)
         {
@@ -173,7 +172,6 @@ namespace Il2CppInspector
         }
 
         // Save binary to file, overwriting if necessary
-        // Save metadata to file, overwriting if necessary
         public void SaveToFile(string pathname)
         {
             Image.Position = 0;
@@ -229,13 +227,9 @@ namespace Il2CppInspector
                     Console.WriteLine("No matches in symbol table");
                 }
             }
-            else if (symbols != null)
-            {
-                Console.WriteLine("No symbol table present in binary file");
-            }
             else
             {
-                Console.WriteLine("Symbol table search not implemented for this binary format");
+                Console.WriteLine("No symbol table present in binary file");
             }
             return null;
         }
@@ -247,7 +241,7 @@ namespace Il2CppInspector
             var addrs = Image.GetFunctionTable();
 
             Debug.WriteLine("Function table:");
-            Debug.WriteLine(string.Join(", ", from a in addrs select string.Format($"0x{a:X8}")));
+            Debug.WriteLine(string.Join(", ", from a in addrs select $"0x{a:X8}"));
 
             foreach (var loc in addrs)
             {

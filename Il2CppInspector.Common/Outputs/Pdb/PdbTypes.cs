@@ -15,6 +15,7 @@ internal sealed class PdbTypes
     private readonly Dictionary<(uint Element, int Size), uint> arrays = [];
     private readonly Dictionary<string, uint> procedures = [];
     private readonly Dictionary<string, uint> arguments = [];
+    private readonly Dictionary<string, uint> opaqueTypes = [];
     private readonly Queue<CppComplexType> pending = new();
     private readonly HashSet<CppComplexType> building = [];
 
@@ -41,8 +42,6 @@ internal sealed class PdbTypes
             _ => Primitive(type),
         };
     }
-
-    private readonly Dictionary<string, uint> opaqueTypes = [];
 
     private uint Opaque(string name)
     {

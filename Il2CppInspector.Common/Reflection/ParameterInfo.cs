@@ -78,7 +78,7 @@ namespace Il2CppInspector.Reflection
 
             // Handle unnamed/obfuscated parameter names
             if (string.IsNullOrEmpty(Name))
-                Name = string.Format($"param_{Index:x8}");
+                Name = $"param_{Index:x8}";
 
             Position = paramIndex - declaringMethod.Definition.ParameterStart;
             paramTypeReference = TypeRef.FromReferenceIndex(declaringMethod.Assembly.Model, Definition.TypeIndex);
@@ -145,7 +145,7 @@ namespace Il2CppInspector.Reflection
                         IsOptional
                             ? " = "
                                 + DefaultValue.ToCSharpValue(ParameterType, usingScope)
-                                + (emitPointer && !(DefaultValue is null) ? $" /* Metadata: 0x{(uint)DefaultValueMetadataAddress:X8} */" : "")
+                                + (emitPointer && DefaultValue is not null ? $" /* Metadata: 0x{(uint)DefaultValueMetadataAddress:X8} */" : "")
                             : ""
                     );
 

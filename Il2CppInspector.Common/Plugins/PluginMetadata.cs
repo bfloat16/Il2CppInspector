@@ -16,7 +16,6 @@ namespace Il2CppInspector
         public bool SuppressGameAdapter { get; set; }
 
         public bool HasGameAdapter => GameAdapter != null && !SuppressGameAdapter;
-        public bool IsZenlessZoneZero => GamePlugin?.GameId.StartsWith("ZZZ_", StringComparison.OrdinalIgnoreCase) == true;
 
         public static Metadata CreateForPlugin(
             byte[] data,

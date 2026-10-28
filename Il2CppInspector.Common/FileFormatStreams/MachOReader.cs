@@ -66,13 +66,13 @@ namespace Il2CppInspector
 
         private MachOHeader<TWord> header;
         protected readonly List<MachOSection<TWord>> machoSections = [];
-        private List<Section> sections = [];
+        private readonly List<Section> sections = [];
         private Dictionary<string, Symbol> symbolTable;
 
         private MachOSection<TWord> funcTab;
         private MachOSymtabCommand symTab;
 
-        private List<Export> exports = [];
+        private readonly List<Export> exports = [];
 
         public override string DefaultFilename => "app";
 
@@ -147,7 +147,7 @@ namespace Il2CppInspector
                             // First code section
                             if (section.Name == "__text")
                             {
-                                GlobalOffset = (ulong)Convert.ChangeType(section.Address, typeof(ulong)) - section.ImageOffset;
+                                GlobalOffset = conv.ULong(section.Address) - section.ImageOffset;
                             }
 
                             // Initialization (pre-main) functions
@@ -196,10 +196,8 @@ namespace Il2CppInspector
                 Position = startPos + loadCommand.Size;
             }
 
-            // Note: Some binaries do not have __mod_init_func, but instead just __init_offset with offsets to the init functions. This check is disabled.
-            // Must find __mod_init_func
-            //if (funcTab == null)
-            //    return false;
+            // Note: Some binaries do not have __mod_init_func, but instead just __init_offset with offsets to the init functions,
+            // so a missing funcTab is not treated as an error
 
             // Process relocations
             foreach (var section in machoSections)
@@ -231,27 +229,24 @@ namespace Il2CppInspector
             if (size != 0)
             {
                 var flags = ReadByte();
-                var symbolKind = flags & 0x03;
                 var symbolType = (flags >> 2) & 0x03;
 
                 // 0 = regular, 1 = weak, 2 = re-export, 3 = stub
+                // Re-export and stub payloads are consumed but not recorded
                 switch (symbolType)
                 {
                     case 0:
+                    case 1:
                         var address = ULEB128.Decode(this);
                         exports.Add(new Export { Name = partialSymbol, VirtualAddress = GlobalOffset + address });
                         break;
-                    case 1:
-                        var weakAddress = ULEB128.Decode(this);
-                        exports.Add(new Export { Name = partialSymbol, VirtualAddress = GlobalOffset + weakAddress });
-                        break;
                     case 2:
-                        var ordinal = ULEB128.Decode(this);
-                        var name = ReadNullTerminatedString();
+                        _ = ULEB128.Decode(this); // ordinal
+                        _ = ReadNullTerminatedString(); // name
                         break;
                     case 3:
-                        var stubOffset = ULEB128.Decode(this);
-                        var resolverOffset = ULEB128.Decode(this);
+                        _ = ULEB128.Decode(this); // stub offset
+                        _ = ULEB128.Decode(this); // resolver offset
                         break;
                 }
             }
@@ -286,7 +281,7 @@ namespace Il2CppInspector
             {
                 Position = symTab.StrOffset + symbol.n_strx;
                 var name = (symbol.n_strx != 0) ? ReadNullTerminatedString() : "";
-                var value = (ulong)Convert.ChangeType(symbol.n_value, typeof(ulong));
+                var value = conv.ULong(symbol.n_value);
 
                 // Ignore symbols with no address or name
                 if (value == 0 || name.Length == 0)
@@ -348,12 +343,6 @@ namespace Il2CppInspector
                 // Rebase chains can still be processed even if bind import entries are in an unknown format.
             }
 
-            //var importsBase = info.Offset + chainedFixupsHeader.ImportsOffset;
-            //var imports = ReadPrimitiveArray<uint>(importsBase,
-            //    chainedFixupsHeader.ImportsCount);
-
-            //var symbolsBase = info.Offset + chainedFixupsHeader.SymbolsOffset; // todo: apparently this supports zlib
-
             var startsBase = info.Offset + chainedFixupsHeader.StartsOffset;
             var segmentCount = ReadPrimitive<uint>(startsBase);
             var segmentStartOffsets = ReadPrimitiveArray<uint>(startsBase + 4, segmentCount);
@@ -383,15 +372,13 @@ namespace Il2CppInspector
                     {
                         var currentEntry = ReadVersionedObject<MachODyldChainedPtr64Rebase>((long)chainOffset);
 
-                        var fixedValue = 0ul;
-
                         if (!currentEntry.Bind) // todo: bind
                         {
-                            fixedValue = pointerFormat switch
+                            var fixedValue = pointerFormat switch
                             {
                                 MachODyldChainedPtr.DYLD_CHAINED_PTR_64 or MachODyldChainedPtr.DYLD_CHAINED_PTR_64_OFFSET => currentEntry.High8 << 56
                                     | currentEntry.Target,
-                                _ => fixedValue,
+                                _ => 0ul,
                             };
 
                             Write((long)chainOffset, fixedValue);

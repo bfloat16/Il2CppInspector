@@ -167,7 +167,7 @@ namespace Il2CppInspector.Outputs
         private TypeDef addressAttribute;
         private TypeDef genericInstAddressAttribute;
         private TypeDef assemblyFlagsAttribute;
-        private Dictionary<int, (ulong Address, int Spec)> genericAddresses = [];
+        private readonly Dictionary<int, (ulong Address, int Spec)> genericAddresses = [];
         private TypeDef fieldOffsetAttribute;
         private TypeDef staticFieldOffsetAttribute;
         private TypeDef attributeAttribute;
@@ -182,8 +182,8 @@ namespace Il2CppInspector.Outputs
         private const string rootNamespace = "Il2CppInspector.DLL";
 
         // All modules (single-module assemblies)
-        private Dictionary<Assembly, ModuleDef> modules = [];
-        private Dictionary<ModuleDef, Dictionary<TypeInfo, TypeDefUser>> types = [];
+        private readonly Dictionary<Assembly, ModuleDef> modules = [];
+        private readonly Dictionary<ModuleDef, Dictionary<TypeInfo, TypeDefUser>> types = [];
         private readonly Dictionary<ModuleDef, Dictionary<TypeInfo, TypeSig>> signatureCache = [];
         private readonly Dictionary<ModuleDef, Dictionary<TypeSig, CilBody>> defaultBodies = [];
 
@@ -467,7 +467,6 @@ namespace Il2CppInspector.Outputs
             if (field.HasFieldRVA)
             {
                 // Attempt to get field size
-
                 var fieldSize = model.Package.Metadata.HasGameAdapter
                     ? model.Package.Metadata.GameAdapter.FieldRvaSize(
                         model.Package.TypeReferences[model.Package.Fields[field.Index].TypeIndex],
@@ -557,7 +556,7 @@ namespace Il2CppInspector.Outputs
             foreach (var ca in evt.CustomAttributes)
                 AddCustomAttribute(module, mEvent, ca);
 
-            // Add property to type
+            // Add event to type
             mType.Events.Add(mEvent);
             return mEvent;
         }
@@ -702,16 +701,9 @@ namespace Il2CppInspector.Outputs
 
         private MethodSig GetMethodSig(ModuleDef module, MethodBase method)
         {
-            if (method.IsStatic)
-                return MethodSig.CreateStatic(
-                    method is MethodInfo mi ? GetTypeSig(module, mi.ReturnType) : module.CorLibTypes.Void,
-                    method.DeclaredParameters.Select(p => GetTypeSig(module, p.ParameterType)).ToArray()
-                );
-            else
-                return MethodSig.CreateInstance(
-                    method is MethodInfo mi ? GetTypeSig(module, mi.ReturnType) : module.CorLibTypes.Void,
-                    method.DeclaredParameters.Select(p => GetTypeSig(module, p.ParameterType)).ToArray()
-                );
+            var returnType = method is MethodInfo mi ? GetTypeSig(module, mi.ReturnType) : module.CorLibTypes.Void;
+            var parameters = method.DeclaredParameters.Select(p => GetTypeSig(module, p.ParameterType)).ToArray();
+            return method.IsStatic ? MethodSig.CreateStatic(returnType, parameters) : MethodSig.CreateInstance(returnType, parameters);
         }
 
         // Add a custom attributes attribute to an item, or the attribute itself if it is in our direct apply list
@@ -812,9 +804,6 @@ namespace Il2CppInspector.Outputs
         // Convert Il2CppInspector TypeInfo into type signature
         private TypeSig GetTypeSigImpl(ModuleDef module, TypeInfo type)
         {
-            if (type == null)
-                return null;
-
             // Encode CLR primitive signatures as ELEMENT_TYPE_I4/I8/etc., including RVA fields.
             if (type.IsPrimitive || type.FullName is "System.String" or "System.Object")
             {

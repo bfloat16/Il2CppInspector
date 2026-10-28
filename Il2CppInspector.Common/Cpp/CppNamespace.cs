@@ -55,7 +55,7 @@ namespace Il2CppInspector.Cpp
         public class Namer<T>
         {
             // Parent namespace
-            private CppNamespace ns;
+            private readonly CppNamespace ns;
 
             // Names given out by this Namer.
             private readonly Dictionary<T, string> names = [];

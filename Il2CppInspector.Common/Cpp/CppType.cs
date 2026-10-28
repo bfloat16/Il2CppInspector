@@ -99,7 +99,6 @@ namespace Il2CppInspector.Cpp
         public override int SizeBytes => ElementType.SizeBytes * Length;
 
         public CppArrayType(CppType elementType, int length)
-            : base()
         {
             ElementType = elementType;
             Length = length;
@@ -204,9 +203,8 @@ namespace Il2CppInspector.Cpp
                 {
                     type = FromSignature(types, argument);
                     name = type.Name;
-
-                    // Non-function pointer
                 }
+                // Non-function pointer
                 else
                 {
                     name =
@@ -344,8 +342,8 @@ namespace Il2CppInspector.Cpp
                     }
                     else
                     {
-                        if (flattened.ContainsKey(field.Offset))
-                            flattened[field.Offset].Add(field);
+                        if (flattened.TryGetValue(field.Offset, out var existing))
+                            existing.Add(field);
                         else
                             flattened.Add(field.Offset, [field]);
                     }
@@ -364,15 +362,7 @@ namespace Il2CppInspector.Cpp
 
         private FlattenedFieldsCollection flattenedFields;
 
-        public FlattenedFieldsCollection Flattened
-        {
-            get
-            {
-                if (flattenedFields == null)
-                    flattenedFields = new FlattenedFieldsCollection(this);
-                return flattenedFields;
-            }
-        }
+        public FlattenedFieldsCollection Flattened => flattenedFields ??= new FlattenedFieldsCollection(this);
 
         // The compound type
         public ComplexValueType ComplexValueType;

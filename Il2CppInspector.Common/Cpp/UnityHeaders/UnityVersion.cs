@@ -116,9 +116,7 @@ namespace Il2CppInspector.Cpp.UnityHeaders
                 return 0;
             if (0 != (res = BuildType.CompareTo(other.BuildType)))
                 return res;
-            if (0 != (res = BuildNumber.CompareTo(other.BuildNumber)))
-                return res;
-            return 0;
+            return BuildNumber.CompareTo(other.BuildNumber);
         }
 
         // Equality comparisons

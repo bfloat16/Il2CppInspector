@@ -124,8 +124,7 @@ namespace Il2CppInspector.Reflection
         }
 
         // Output a ulong as a 32 or 64-bit hexadecimal address
-        public static string ToAddressString(this ulong address) =>
-            address <= 0xffff_ffff ? string.Format($"0x{(uint)address:X8}") : string.Format($"0x{address:X16}");
+        public static string ToAddressString(this ulong address) => address <= 0xffff_ffff ? $"0x{(uint)address:X8}" : $"0x{address:X16}";
 
         public static string ToAddressString(this long address) => ((ulong)address).ToAddressString();
 
@@ -137,7 +136,7 @@ namespace Il2CppInspector.Reflection
 
         // C# string literal escape characters
         // Taken from: https://docs.microsoft.com/en-us/dotnet/csharp/programming-guide/strings/#regular-and-verbatim-string-literals
-        private static Dictionary<char, string> escapeChars = new()
+        private static readonly Dictionary<char, string> escapeChars = new()
         {
             ['\''] = @"\'",
             ['"'] = @"\""",
@@ -274,7 +273,7 @@ namespace Il2CppInspector.Reflection
                 // Values like 0x8000_0000_0000_0000 can't be cast to Int64
                 // but values like 0xffff_ffff can't be cast to UInt64 (due to sign extension)
                 // so we're just going to have to try to find a type that doesn't make it explode
-                if (value is byte || value is ushort || value is uint || value is ulong)
+                if (value is byte or ushort or uint or ulong)
                 {
                     var flagValue = Convert.ToUInt64(value);
                     var setFlags = values
@@ -282,7 +281,7 @@ namespace Il2CppInspector.Reflection
                         .Select(x => typeName + "." + x.Key);
                     return string.Join(" | ", setFlags);
                 }
-                else if (value is sbyte || value is short || value is int || value is long)
+                else if (value is sbyte or short or int or long)
                 {
                     var flagValue = Convert.ToInt64(value);
                     var setFlags = values

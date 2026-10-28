@@ -13,7 +13,6 @@ namespace Il2CppInspector
         private readonly Assembly _assembly;
         private readonly BinaryObjectStreamReader _data;
 
-        private readonly uint _start;
         private readonly uint _end;
 
         private readonly long _ctorBufferStart;
@@ -33,10 +32,9 @@ namespace Il2CppInspector
             _assembly = assembly;
             _data = data;
 
-            _start = startOffset;
             _end = endOffset;
 
-            data.Position = _start;
+            data.Position = startOffset;
             Count = data.ReadCompressedUInt32();
 
             _ctorBufferStart = data.Position;
@@ -130,8 +128,7 @@ namespace Il2CppInspector
                 case Il2CppType type:
                     return _assembly.Model.TypesByReferenceIndex[_inspector.TypeReferences.IndexOf(type)];
                 case BlobReader.ConstantBlobArray blobArray:
-                {
-                    var arrValue = new CustomAttributeArgument
+                    return new CustomAttributeArgument
                     {
                         Type = ConvertTypeDef(blobArray.ArrayTypeDef, blobArray.ArrayTypeEnum),
                         Value = blobArray
@@ -142,9 +139,6 @@ namespace Il2CppInspector
                             })
                             .ToArray(),
                     };
-
-                    return arrValue;
-                }
                 default:
                     return value;
             }

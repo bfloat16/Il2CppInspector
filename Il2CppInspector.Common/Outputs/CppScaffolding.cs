@@ -198,9 +198,7 @@ namespace Il2CppInspector.Outputs
                 {
                     var fnName = UnityHeaders.GetFunctionNameFromAPILine(line);
 
-                    if (string.IsNullOrEmpty(fnName))
-                        _writer.WriteLine(line);
-                    else if (_model.AvailableAPIs.ContainsKey(fnName))
+                    if (string.IsNullOrEmpty(fnName) || _model.AvailableAPIs.ContainsKey(fnName))
                         _writer.WriteLine(line);
                 }
             }
@@ -314,7 +312,7 @@ namespace Il2CppInspector.Outputs
             File.WriteAllText(Path.Combine(srcFxPath, "pch-il2cpp.h"), Resources.Cpp_PCHIl2CppH);
 
             // Write user code without overwriting existing code
-            void WriteIfNotExists(string path, string contents)
+            static void WriteIfNotExists(string path, string contents)
             {
                 if (!File.Exists(path))
                     File.WriteAllText(path, contents);
@@ -449,7 +447,6 @@ namespace Il2CppInspector.Outputs
                 text = MsvcAlignRegex().Replace(text, @"__attribute__((aligned($1)))");
 
             var lines = text.Replace("\r", "").Split('\n');
-            //var cleanLines = lines.Select(s => s.ToEscapedString()); Not sure if this is necessary? maybe for some obfuscated assemblies, but those would just fail on other steps
 
             foreach (var line in lines)
                 writeLine(line);

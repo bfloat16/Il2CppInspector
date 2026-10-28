@@ -57,7 +57,7 @@ namespace Il2CppInspector
         public Dictionary<int, byte[]> AssemblyPublicKeys { get; private set; } = [];
 
         // Set if something in the metadata has been modified / decrypted
-        public bool IsModified { get; private set; } = false;
+        public bool IsModified { get; private set; }
 
         // Status update callback
         private EventHandler<string> OnStatusUpdate { get; set; }
@@ -75,8 +75,7 @@ namespace Il2CppInspector
             return metadata;
         }
 
-        private Metadata(EventHandler<string> statusCallback = null)
-            : base() => OnStatusUpdate = statusCallback;
+        private Metadata(EventHandler<string> statusCallback = null) => OnStatusUpdate = statusCallback;
 
         private void Initialize()
         {
@@ -118,8 +117,7 @@ namespace Il2CppInspector
                 var typeDefinitionIndexSize = GetIndexSize(Header.TypeDefinitions.Count);
                 var genericContainerIndexSize = GetIndexSize(Header.GenericContainers.Count);
 
-                var tag =
-                    $"{TypeDefinitionIndex.TagPrefix}{typeDefinitionIndexSize}" + $"_{GenericContainerIndex.TagPrefix}{genericContainerIndexSize}";
+                var tag = $"{TypeDefinitionIndex.TagPrefix}{typeDefinitionIndexSize}_{GenericContainerIndex.TagPrefix}{genericContainerIndexSize}";
 
                 var tempVersion = new StructVersion(Version.Major, Version.Minor, tag);
 
@@ -210,8 +208,7 @@ namespace Il2CppInspector
             }
 
             // Load all the relevant metadata using offsets provided in the header
-            if (Version >= MetadataVersions.V160)
-                Images = ReadMetadataArray<Il2CppImageDefinition>(Header.ImagesOffset, Header.ImagesSize, Header.Images);
+            Images = ReadMetadataArray<Il2CppImageDefinition>(Header.ImagesOffset, Header.ImagesSize, Header.Images);
 
             // As an additional sanity check, all images in the metadata should have Mono.Cecil.MetadataToken == 1
             // In metadata v24.1, two extra fields were added which will cause the below test to fail.
@@ -265,7 +262,6 @@ namespace Il2CppInspector
             VTableMethodIndices = ReadMetadataPrimitiveArray<uint>(Header.VTableMethodsOffset, Header.VTableMethodsSize, Header.VtableMethods);
 
             var useCompressedAssemblyPublicKeys = Version == MetadataVersions.V242 || Version >= MetadataVersions.V244;
-            if (Version >= MetadataVersions.V160)
             {
                 // In v24.4 hashValueIndex was removed from Il2CppAssemblyNameDefinition, which is a field in Il2CppAssemblyDefinition
                 // The number of images and assemblies should be the same. If they are not, we deduce that we are using v24.4
@@ -390,7 +386,7 @@ namespace Il2CppInspector
                     Position = stringOffset + assembly.Aname.PublicKeyIndex;
                     var length = ReadCompressedUInt32();
 
-                    AssemblyPublicKeys[assembly.Aname.PublicKeyIndex] = ReadBytes((int)length).ToArray();
+                    AssemblyPublicKeys[assembly.Aname.PublicKeyIndex] = ReadBytes((int)length);
                 }
             }
             else
@@ -427,7 +423,6 @@ namespace Il2CppInspector
                     AssemblyPublicKeys[assembly.Aname.PublicKeyIndex] = publicKey[..(publicKeyCurrentIndex + 1)];
                 }
             }
-            return;
         }
 
         public ImmutableArray<T> ReadMetadataPrimitiveArray<T>(int oldOffset, int oldSize, Il2CppSectionMetadata newMetadata)

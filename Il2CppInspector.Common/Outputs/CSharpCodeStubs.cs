@@ -35,7 +35,7 @@ namespace Il2CppInspector.Outputs
         private const string DMAttribute = "System.Reflection.DefaultMemberAttribute";
 
         // Assembly attributes we have already emitted
-        private HashSet<CustomAttributeData> usedAssemblyAttributes = [];
+        private readonly HashSet<CustomAttributeData> usedAssemblyAttributes = [];
         private readonly object usedAssemblyAttributesLock = new();
 
         public CSharpCodeStubs(TypeModel model) => this.model = model;
@@ -191,7 +191,7 @@ namespace Il2CppInspector.Outputs
                 }
             );
 
-            if (separateAttributes && usedAssemblies.Any() && lastException == null)
+            if (separateAttributes && lastException == null)
                 foreach (var asm in usedAssemblies)
                     File.WriteAllText(
                         Path.Combine(outPath, Path.GetFileNameWithoutExtension(asm.ShortName), "AssemblyInfo.cs"),
@@ -272,7 +272,7 @@ namespace Il2CppInspector.Outputs
             File.WriteAllText(Path.Combine(outPath, $"{filename}.sln"), sln);
         }
 
-        private bool writeFile(string outFile, IEnumerable<TypeInfo> types, bool useNamespaceSyntax = true, bool outputAssemblyAttributes = true)
+        private bool writeFile(string outFile, IEnumerable<TypeInfo> types, bool outputAssemblyAttributes = true)
         {
             var nsRefs = new HashSet<string>();
             var code = new StringBuilder();
@@ -346,30 +346,23 @@ namespace Il2CppInspector.Outputs
                     continue;
 
                 // Determine if we need to change namespace (after we have established the code block is not empty)
-                if (useNamespaceSyntax)
+                if (type.Namespace != nsContext)
                 {
-                    if (type.Namespace != nsContext)
-                    {
-                        if (!string.IsNullOrEmpty(nsContext))
-                            code.Remove(code.Length - 1, 1).Append("}\n\n");
-
-                        if (!string.IsNullOrEmpty(type.Namespace))
-                            code.Append("namespace " + type.Namespace + "\n{\n");
-
-                        nsContext = type.Namespace;
-                    }
-
                     if (!string.IsNullOrEmpty(nsContext))
-                    {
-                        text.Insert(0, "\t");
-                        text.Replace("\n", "\n\t");
-                        text.Length--;
-                    }
+                        code.Remove(code.Length - 1, 1).Append("}\n\n");
+
+                    if (!string.IsNullOrEmpty(type.Namespace))
+                        code.Append("namespace " + type.Namespace + "\n{\n");
+
+                    nsContext = type.Namespace;
                 }
 
-                // Append namespace
-                if (!useNamespaceSyntax)
-                    code.Append($"// Namespace: {(!string.IsNullOrEmpty(type.Namespace) ? type.Namespace : "<global namespace>")}\n");
+                if (!string.IsNullOrEmpty(nsContext))
+                {
+                    text.Insert(0, "\t");
+                    text.Replace("\n", "\n\t");
+                    text.Length--;
+                }
 
                 // Append type definition
                 code.Append(text);
@@ -384,7 +377,7 @@ namespace Il2CppInspector.Outputs
                 return false;
 
             // Close namespace
-            if (useNamespaceSyntax && !string.IsNullOrEmpty(nsContext))
+            if (!string.IsNullOrEmpty(nsContext))
                 code.Remove(code.Length - 1, 1).Append("}\n");
 
             // Determine using directives (put System namespaces first)
@@ -484,7 +477,7 @@ namespace Il2CppInspector.Outputs
                     {
                         text.Append(
                             asm.CustomAttributes.Where(a => a.AttributeType.FullName != ExtAttribute)
-                                .Except(usedAssemblyAttributes ?? [])
+                                .Except(usedAssemblyAttributes)
                                 .OrderBy(a => a.AttributeType.Name)
                                 .ToString(
                                     new Scope { Current = null, Namespaces = namespaces ?? new List<string>() },
@@ -819,7 +812,6 @@ namespace Il2CppInspector.Outputs
 
                 var del = type.GetMethod("Invoke");
                 // IL2CPP doesn't seem to retain return type attributes
-                //sb.Append(del.ReturnType.CustomAttributes.ToString(prefix, "return: ", emitPointer: !SuppressMetadata, mustCompile: MustCompile));
                 if (del.RequiresUnsafeContext)
                     sb.Append("unsafe ");
                 sb.Append($"delegate {del.ReturnType.GetScopedCSharpName(scope)} {type.GetCSharpTypeDeclarationName()}(");
@@ -889,7 +881,6 @@ namespace Il2CppInspector.Outputs
             );
 
             // IL2CPP doesn't seem to retain return type attributes
-            //writer.Append(method.ReturnType.CustomAttributes.ToString(prefix + "\t", "return: ", emitPointer: !SuppressMetadata));
             writer.Append($"{prefix}\t{method.GetModifierString()}");
 
             // Finalizers become destructors

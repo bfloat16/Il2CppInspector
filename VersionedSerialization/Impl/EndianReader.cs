@@ -26,9 +26,6 @@ file static class EndianReader
     private static void ReverseEndianness<T>(ReadOnlySpan<T> input, Span<T> output)
         where T : unmanaged
     {
-        if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
-            throw new InvalidOperationException();
-
         if (Unsafe.SizeOf<T>() == sizeof(short))
         {
             var src = Cast<T, short>(input);
@@ -53,8 +50,10 @@ file static class EndianReader
             var dst = Cast<T, Int128>(output);
             BinaryPrimitives.ReverseEndianness(src, dst);
         }
-
-        Debug.Assert(false, "Failed to reverse endianness for type");
+        else
+        {
+            Debug.Assert(false, "Failed to reverse endianness for type");
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

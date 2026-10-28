@@ -75,7 +75,7 @@ namespace Il2CppInspector.Cpp
             return offset + prefix + field + suffix;
         }
 
-        public override string ToString() => ToString();
+        public override string ToString() => ToString("");
     }
 
     // An enum key and value pair

@@ -91,7 +91,7 @@ namespace Il2CppInspector.Reflection
         }
 
         // List of all generated CustomAttributeData objects by their instanceIndex into AttributeTypeIndices
-        public ConcurrentDictionary<int, CustomAttributeData> AttributesByIndices { get; } = new ConcurrentDictionary<int, CustomAttributeData>();
+        public ConcurrentDictionary<int, CustomAttributeData> AttributesByIndices { get; } = new();
         public ConcurrentDictionary<int, List<CustomAttributeData>> AttributesByDataIndices { get; } = [];
 
         // List of unique custom attributes generators indexed by type (multiple indices above may refer to a single generator function)
@@ -126,6 +126,43 @@ namespace Il2CppInspector.Reflection
                 + method.DeclaringType.Name
                 + "."
                 + method.Name;
+        }
+
+        // Streaming DLL/stub writers only need definitions;
+        // materialize each constructed method when a vtable/usage or native output needs it.
+        internal MethodBase GetGenericMethod(Il2CppMethodSpec spec)
+        {
+            if (genericMethods.TryGetValue(spec, out var existing))
+                return existing;
+            var method = CreateGenericMethod(spec);
+            genericMethods.Add(spec, method);
+            if (Package.GenericMethodInvokerIndices.TryGetValue(spec, out var index) && index >= 0)
+            {
+                methodInvokers[index] ??= new MethodInvoker(method, index);
+                method.Invoker = methodInvokers[index];
+                method.ReleaseTransientParameters();
+            }
+            types = null;
+            return method;
+        }
+
+        // Create a constructed method from a MethodSpec (which incorporates TypeSpec in IL2CPP)
+        private MethodBase CreateGenericMethod(Il2CppMethodSpec spec)
+        {
+            var definition = MethodsByDefinitionIndex[spec.MethodDefinitionIndex];
+            var declaring = definition.DeclaringType;
+
+            // Concrete instance of a generic class
+            // If the class index is not specified, this is a generic method in a non-generic class
+            if (spec.ClassIndexIndex != -1)
+                declaring = declaring.MakeGenericType(ResolveGenericArguments(Package.GenericInstances[spec.ClassIndexIndex]));
+            MethodBase method = definition is ConstructorInfo ctor
+                ? declaring.GetConstructorByDefinition(ctor)
+                : declaring.GetMethodByDefinition((MethodInfo)definition);
+            if (spec.MethodIndexIndex != -1)
+                method = method.MakeGenericMethod(ResolveGenericArguments(Package.GenericInstances[spec.MethodIndexIndex]));
+            method.VirtualAddress = Package.GetGenericMethodPointer(spec);
+            return method;
         }
 
         // Create type model
@@ -186,32 +223,7 @@ namespace Il2CppInspector.Reflection
             Report("Generic methods", false, true);
             foreach (var spec in specs)
             {
-                var methodDefinition = MethodsByDefinitionIndex[spec.MethodDefinitionIndex];
-                var declaringType = methodDefinition.DeclaringType;
-
-                // Concrete instance of a generic class
-                // If the class index is not specified, we will later create a generic method in a non-generic class
-                if (spec.ClassIndexIndex != -1)
-                {
-                    var genericInstance = Package.GenericInstances[spec.ClassIndexIndex];
-                    var genericArguments = ResolveGenericArguments(genericInstance);
-                    declaringType = declaringType.MakeGenericType(genericArguments);
-                }
-
-                MethodBase method;
-                if (methodDefinition is ConstructorInfo)
-                    method = declaringType.GetConstructorByDefinition((ConstructorInfo)methodDefinition);
-                else
-                    method = declaringType.GetMethodByDefinition((MethodInfo)methodDefinition);
-
-                if (spec.MethodIndexIndex != -1)
-                {
-                    var genericInstance = Package.GenericInstances[spec.MethodIndexIndex];
-                    var genericArguments = ResolveGenericArguments(genericInstance);
-                    method = method.MakeGenericMethod(genericArguments);
-                }
-                method.VirtualAddress = Package.GetGenericMethodPointer(spec);
-                genericMethods[spec] = method;
+                genericMethods[spec] = CreateGenericMethod(spec);
                 Report("Generic methods");
             }
             total -= specs.Length - genericMethods.Count;
@@ -289,33 +301,6 @@ namespace Il2CppInspector.Reflection
             ApplyNameTranslation(lines);
         }
 
-        // Streaming DLL/stub writers only need definitions;
-        // materialize each constructed method when a vtable/usage or native output needs it.
-        internal MethodBase GetGenericMethod(Il2CppMethodSpec spec)
-        {
-            if (genericMethods.TryGetValue(spec, out var existing))
-                return existing;
-            var definition = MethodsByDefinitionIndex[spec.MethodDefinitionIndex];
-            var declaring = definition.DeclaringType;
-            if (spec.ClassIndexIndex != -1)
-                declaring = declaring.MakeGenericType(ResolveGenericArguments(Package.GenericInstances[spec.ClassIndexIndex]));
-            MethodBase method = definition is ConstructorInfo ctor
-                ? declaring.GetConstructorByDefinition(ctor)
-                : declaring.GetMethodByDefinition((MethodInfo)definition);
-            if (spec.MethodIndexIndex != -1)
-                method = method.MakeGenericMethod(ResolveGenericArguments(Package.GenericInstances[spec.MethodIndexIndex]));
-            method.VirtualAddress = Package.GetGenericMethodPointer(spec);
-            genericMethods.Add(spec, method);
-            if (Package.GenericMethodInvokerIndices.TryGetValue(spec, out var index) && index >= 0)
-            {
-                methodInvokers[index] ??= new MethodInvoker(method, index);
-                method.Invoker = methodInvokers[index];
-                method.ReleaseTransientParameters();
-            }
-            types = null;
-            return method;
-        }
-
         public void ApplyNameTranslation(ReadOnlySpan<string> nameTranslationLines)
         {
             RetainMethodParameters = true;
@@ -330,7 +315,7 @@ namespace Il2CppInspector.Reflection
             // Get list of pointers to type parameters (both unresolved and concrete)
             var genericTypeArguments = Package.BinaryImage.ReadMappedUWordArray(inst.TypeArgv, (int)inst.TypeArgc);
 
-            return genericTypeArguments.Select(a => GetTypeFromVirtualAddress(a)).ToArray();
+            return genericTypeArguments.Select(GetTypeFromVirtualAddress).ToArray();
         }
 
         // Initialize type from type reference (TypeRef)

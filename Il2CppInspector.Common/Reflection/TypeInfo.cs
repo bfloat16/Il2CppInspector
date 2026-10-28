@@ -30,7 +30,6 @@ namespace Il2CppInspector.Reflection
                 ResolveGameLayout();
                 return sizes;
             }
-            private set => sizes = value;
         }
         internal int? GameLayoutGroup
         {
@@ -70,7 +69,7 @@ namespace Il2CppInspector.Reflection
 
         // This dictionary will cache all instantiated generic types out of this definition.
         // Only valid for GenericTypeDefinition - not valid on instantiated types!
-        private Dictionary<TypeInfo[], TypeInfo> genericTypeInstances;
+        private readonly Dictionary<TypeInfo[], TypeInfo> genericTypeInstances;
 
         public class TypeArgumentsComparer : EqualityComparer<TypeInfo[]>
         {
@@ -120,7 +119,7 @@ namespace Il2CppInspector.Reflection
                 }
                 if (IsGenericParameter)
                 {
-                    var res = GetGenericParameterConstraints().Where(t => !t.IsInterface).FirstOrDefault();
+                    var res = GetGenericParameterConstraints().FirstOrDefault(t => !t.IsInterface);
                     if (res != null)
                         return res;
                 }
@@ -285,10 +284,10 @@ namespace Il2CppInspector.Reflection
         // Get a field by its name
         public FieldInfo GetField(string name) => DeclaredFields.FirstOrDefault(f => f.Name == name);
 
-        private TypeRef[] genericParameterConstraints;
+        private readonly TypeRef[] genericParameterConstraints;
 
         // Get type constraints on a generic parameter
-        public TypeInfo[] GetGenericParameterConstraints() => genericParameterConstraints?.Select(t => t.Value)?.ToArray() ?? Array.Empty<TypeInfo>();
+        public TypeInfo[] GetGenericParameterConstraints() => genericParameterConstraints?.Select(t => t.Value).ToArray() ?? Array.Empty<TypeInfo>();
 
         private readonly TypeInfo genericTypeDefinition;
 
@@ -761,14 +760,13 @@ namespace Il2CppInspector.Reflection
         }
         #endregion
 
-        // Get the generic type parameters for a specific usage of this type based on its scope,
-        // or all generic type parameters if no scope specified
-        private IEnumerable<TypeInfo> getGenericTypeParameters(Scope scope = null)
+        // Get the generic type parameters for a specific usage of this type based on its scope
+        private IEnumerable<TypeInfo> getGenericTypeParameters(Scope scope)
         {
             var ga = GetGenericArguments();
 
-            // If no scope or empty scope specified, or no type parameters, stop here
-            if (scope?.Current == null || !ga.Any())
+            // If empty scope specified, or no type parameters, stop here
+            if (scope.Current == null || !ga.Any())
                 return ga;
 
             // In order to elide generic type parameters, the using scope must be a parent of the declaring scope
@@ -793,15 +791,11 @@ namespace Il2CppInspector.Reflection
 
         // Generic parameter position in list of non-concrete type parameters
         // See: https://docs.microsoft.com/en-us/dotnet/api/system.type.genericparameterposition?view=netframework-4.8
-        private int genericParameterPosition;
-        public int GenericParameterPosition
-        {
-            get =>
-                IsGenericParameter
-                    ? genericParameterPosition
-                    : throw new InvalidOperationException("The current type does not represent a type parameter");
-            private set => genericParameterPosition = value;
-        }
+        private readonly int genericParameterPosition;
+        public int GenericParameterPosition =>
+            IsGenericParameter
+                ? genericParameterPosition
+                : throw new InvalidOperationException("The current type does not represent a type parameter");
 
         // For a generic type definition: the list of generic type parameters
         // For an open generic type: a mix of generic type parameters and generic type arguments
@@ -845,7 +839,7 @@ namespace Il2CppInspector.Reflection
         public bool IsEnum { get; }
         public bool IsGenericParameter { get; }
         public bool IsGenericType { get; }
-        public bool IsGenericTypeDefinition => (Definition.IsValid) && genericArguments.Any();
+        public bool IsGenericTypeDefinition => Definition.IsValid && genericArguments.Any();
         public bool IsImport => (Attributes & TypeAttributes.Import) == TypeAttributes.Import;
         public bool IsInterface => (Attributes & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Interface;
         public bool IsNested => (MemberType & MemberTypes.NestedType) == MemberTypes.NestedType;
@@ -921,7 +915,7 @@ namespace Il2CppInspector.Reflection
                 : throw new InvalidOperationException("Type is not an enumeration");
 
         // The underlying type of an enumeration (int by default)
-        private readonly TypeRef enumUnderlyingTypeReference = null;
+        private readonly TypeRef enumUnderlyingTypeReference;
 
         public TypeInfo GetEnumUnderlyingType()
         {
@@ -942,7 +936,7 @@ namespace Il2CppInspector.Reflection
             var pkg = Assembly.Model.Package;
 
             definitionIndex = typeIndex;
-            Sizes = pkg.TypeDefinitionSizes[typeIndex];
+            sizes = pkg.TypeDefinitionSizes[typeIndex];
             MetadataToken = (int)Definition.Token;
             Index = typeIndex;
             Namespace = Regex.Replace(pkg.Strings[Definition.NamespaceIndex], @"[^A-Za-z0-9_\-\.<>{}]", "");
@@ -961,7 +955,6 @@ namespace Il2CppInspector.Reflection
             if (Definition.GenericContainerIndex >= 0)
             {
                 IsGenericType = true;
-                IsGenericParameter = false;
 
                 // Store the generic type parameters for later instantiation
                 var container = pkg.GenericContainers[Definition.GenericContainerIndex];
@@ -987,12 +980,6 @@ namespace Il2CppInspector.Reflection
                 var enumUnderlyingTypeIndex = Definition.GetEnumElementTypeIndex(Assembly.Model.Package.Version);
                 enumUnderlyingTypeReference = TypeRef.FromReferenceIndex(Assembly.Model, enumUnderlyingTypeIndex);
             }
-
-            // Pass-by-reference type
-            // NOTE: This should actually always evaluate to false in the current implementation
-            // This field is no longer present in metadata v27
-            // IsByRef = Index == Definition.byrefTypeIndex;
-            IsByRef = false;
 
             // Add all implemented interfaces
             implementedInterfaceReferences = new TypeRef[Definition.InterfacesCount];
@@ -1101,7 +1088,6 @@ namespace Il2CppInspector.Reflection
             Name = genericTypeDefinition.BaseName; // use BaseName to exclude the type parameters so we can supply our own
             MemberType = genericTypeDefinition.MemberType;
 
-            IsGenericParameter = false;
             IsGenericType = true;
 
             genericArguments = genericArgs;
@@ -1123,8 +1109,7 @@ namespace Il2CppInspector.Reflection
                 throw new ArgumentException("The number of generic arguments provided does not match the generic type definition.");
             }
 
-            TypeInfo result;
-            if (genericTypeInstances.TryGetValue(typeArguments, out result))
+            if (genericTypeInstances.TryGetValue(typeArguments, out var result))
                 return result;
             result = new TypeInfo(this, typeArguments);
             genericTypeInstances[typeArguments] = result;
@@ -1182,17 +1167,13 @@ namespace Il2CppInspector.Reflection
                     Assembly.Model.Package.GenericConstraintIndices[param.ConstraintsStart + c]
                 );
 
-            // Base type of object (set by default)
-            // TODO: ImplementedInterfaces should be set to interface types constraints
-
             // Name of parameter
             Name = Assembly.Model.Package.Strings[param.NameIndex];
 
             // Position
-            GenericParameterPosition = param.Num;
+            genericParameterPosition = param.Num;
 
             IsGenericParameter = true;
-            IsGenericType = false;
         }
 
         // Initialize a type that is a generic parameter of a generic method
@@ -1232,27 +1213,16 @@ namespace Il2CppInspector.Reflection
         public TypeInfo MakeArrayType(int rank = 1)
         {
             generatedArrayTypes ??= [];
-            TypeInfo type;
-            if (generatedArrayTypes.TryGetValue(rank, out type))
+            if (generatedArrayTypes.TryGetValue(rank, out var type))
                 return type;
             type = new TypeInfo(this, rank);
             generatedArrayTypes[rank] = type;
             return type;
         }
 
-        public TypeInfo MakeByRefType()
-        {
-            if (generatedByRefType == null)
-                generatedByRefType = new TypeInfo(this, isPointer: false);
-            return generatedByRefType;
-        }
+        public TypeInfo MakeByRefType() => generatedByRefType ??= new TypeInfo(this, isPointer: false);
 
-        public TypeInfo MakePointerType()
-        {
-            if (generatedPointerType == null)
-                generatedPointerType = new TypeInfo(this, isPointer: true);
-            return generatedPointerType;
-        }
+        public TypeInfo MakePointerType() => generatedPointerType ??= new TypeInfo(this, isPointer: true);
 
         // Get all the other types directly referenced by this type (single level depth; no recursion)
         public List<TypeInfo> GetAllTypeReferences()

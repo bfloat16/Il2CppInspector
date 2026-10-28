@@ -27,7 +27,6 @@ public ref struct NameTranslationParserContext
 
     private NameTranslationParserContext(ReadOnlySpan<string> nameTranslationLines, char seperator)
     {
-        _currentSection = CurrentSection.None;
         _nameTranslationLines = nameTranslationLines;
         _seperator = seperator;
     }
@@ -134,7 +133,6 @@ public ref struct NameTranslationParserContext
     private string ParseFullName(string fullName) =>
         _currentSection switch
         {
-            CurrentSection.Classes => ParseFullClassName(fullName).Item1,
             CurrentSection.Methods or CurrentSection.Properties => ParseFullMemberWithArgumentsName(fullName),
             CurrentSection.Fields or CurrentSection.Events => ParseFullMemberName(fullName),
             CurrentSection.Parameters => ParseFullParameterName(fullName),

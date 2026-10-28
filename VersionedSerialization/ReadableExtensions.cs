@@ -12,18 +12,6 @@ public static class ReadableExtensions
             bool littleEndian = true,
             ReaderConfig config = default,
             in StructVersion version = default
-        )
-        {
-            if (littleEndian)
-            {
-                var reader = Reader.LittleEndian(data, config: config);
-                return reader.ReadVersionedObject<TReadable>(version);
-            }
-            else
-            {
-                var reader = Reader.BigEndian(data, config: config);
-                return reader.ReadVersionedObject<TReadable>(version);
-            }
-        }
+        ) => Reader.ReadVersionedObject<TReadable>(data, version, littleEndian: littleEndian, config: config);
     }
 }

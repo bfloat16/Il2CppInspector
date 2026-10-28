@@ -19,17 +19,8 @@ public readonly struct NameTranslationApplierContext
 
     private string TranslateName(string name) => _nameTranslationInfo.NameTranslation.GetValueOrDefault(name, name);
 
-    private bool TryTranslateName(string name, out string translatedName)
-    {
-        if (_nameTranslationInfo.NameTranslation.TryGetValue(name, out var translated))
-        {
-            translatedName = translated;
-            return true;
-        }
-
-        translatedName = null;
-        return false;
-    }
+    private bool TryTranslateName(string name, out string translatedName) =>
+        _nameTranslationInfo.NameTranslation.TryGetValue(name, out translatedName);
 
     private string TranslateNamespace(string className, string currentNamespace) =>
         _nameTranslationInfo.ClassNamespaces.GetValueOrDefault(className, currentNamespace);

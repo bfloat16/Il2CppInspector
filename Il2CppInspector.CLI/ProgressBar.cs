@@ -21,9 +21,7 @@ namespace Il2CppInspector.CLI
                 if (active == null || active.Value.Label != progress.Label)
                 {
                     FinishLine();
-                    Elapsed.Restart();
-                    lastBucket = -2;
-                    lastRefresh = -100;
+                    RestartTiming();
                 }
                 active = progress;
                 bool complete = progress.Total >= 0 && progress.Current >= progress.Total;
@@ -65,9 +63,7 @@ namespace Il2CppInspector.CLI
                 running = true;
                 id = ++generation;
                 active = new OperationProgress(label, 0, -1);
-                Elapsed.Restart();
-                lastBucket = -2;
-                lastRefresh = -100;
+                RestartTiming();
             }
             using var timer = new Timer(
                 _ =>
@@ -164,6 +160,13 @@ namespace Il2CppInspector.CLI
             }
             lastBucket = bucket;
             lastRefresh = Elapsed.ElapsedMilliseconds;
+        }
+
+        private static void RestartTiming()
+        {
+            Elapsed.Restart();
+            lastBucket = -2;
+            lastRefresh = -100;
         }
 
         private static void FinishLine()

@@ -6,7 +6,7 @@
 
 namespace Il2CppInspector
 {
-    // A code file function export - end addresses are inclusive
+    // A code file section - end addresses are inclusive
     public class Section
     {
         public ulong VirtualStart;

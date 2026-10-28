@@ -224,7 +224,7 @@ namespace Il2CppInspector
             get => IsModified;
             set => IsModified = value;
         }
-        public bool IsModified { get; protected set; } = false;
+        public bool IsModified { get; protected set; }
 
         public uint NumImages { get; protected set; } = 1;
 
@@ -275,11 +275,7 @@ namespace Il2CppInspector
             OnStatusUpdate = statusCallback;
             Position = 0;
 
-            if (Init())
-            {
-                return true;
-            }
-            return false;
+            return Init();
         }
 
         // Confirm file is valid and set up RVA mappings
@@ -438,7 +434,7 @@ namespace Il2CppInspector
             where TType : IReadable, new()
         {
             var pointers = ReadMappedUWordArray(addr, count);
-            var builder = ImmutableArray.CreateBuilder<TType>((int)count);
+            var builder = ImmutableArray.CreateBuilder<TType>(count);
             for (long i = 0; i < count; i++)
                 builder.Add(ReadMappedVersionedObject<TType>(pointers[i]));
 

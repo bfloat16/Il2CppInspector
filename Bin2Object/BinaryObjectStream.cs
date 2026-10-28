@@ -7,7 +7,6 @@ namespace Bin2Object;
 // Combined BinaryObjectReader and BinaryObjectWriter that works with a MemoryStream
 public class BinaryObjectStream : MemoryStream
 {
-    // The reader and writer
     public BinaryObjectReader Reader { get; }
     public BinaryObjectWriter Writer { get; }
 

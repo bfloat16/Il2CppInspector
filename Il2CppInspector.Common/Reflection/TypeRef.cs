@@ -15,7 +15,7 @@ namespace Il2CppInspector.Reflection
         private TypeModel model;
         private int referenceIndex = -1;
         private int definitionIndex = -1;
-        private TypeInfo typeInfo = null;
+        private TypeInfo typeInfo;
 
         private TypeRef() { }
 

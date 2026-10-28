@@ -42,7 +42,7 @@ namespace Il2CppInspector
             if (index < 2)
                 return null;
 
-            var lea = getLea(buff, (int)i - 2);
+            var lea = getLea(buff, i - 2);
 
             return (i - 2, lea.Value.reg, lea.Value.operand);
         }
@@ -130,8 +130,6 @@ namespace Il2CppInspector
             //           or "this" in rdi, and the arguments in rsi (our wanted pointer), edx (always zero) and ecx (always zero)
             // Version 2 has a standard prologue and loads the wanted pointer into rax or rbp (lea rax/rbp)
 
-            (int reg, uint operand)? lea;
-
             // Check for regular version
             // Generalize it as follows:
             // - each instruction must be lea r64, imm32 or xor r32, r32
@@ -140,13 +138,12 @@ namespace Il2CppInspector
             // - the last instruction should always be jmp (not currently enforced)
             // - function length should not be longer than 5 instructions (two leas, two xors and one jmp)
 
-            offset = 0;
             for (var instructions = 0; instructions < 4; instructions++)
             {
                 // All allowed instruction types
                 var xor32 = getXorR32R32(buff, offset);
                 var xor64 = getXorR64R64(buff, offset);
-                lea = getLea(buff, offset);
+                var lea = getLea(buff, offset);
 
                 if (xor32 != null && xor32.Value.reg_op1 == xor32.Value.reg_op2)
                 {
@@ -166,7 +163,7 @@ namespace Il2CppInspector
                         {
                             // We may have found Il2CppCodegenRegistration(void)
                             pCgr = image.GlobalOffset + loc + (ulong)offset + lea.Value.operand;
-                            var newLoc = image.MapVATR(pCgr);
+                            image.MapVATR(pCgr);
                         }
                         catch (InvalidOperationException)
                         {
@@ -287,7 +284,7 @@ namespace Il2CppInspector
 
             // Find the address of the last item in the second function table
             var leaOfLastItem = findLea(buff, leaOfEnd.Value.foundOffset + leaSize, buffSize - (leaOfEnd.Value.foundOffset + leaSize));
-            if (leaOfLastItem == null || leaOfLastItem.Value.reg != 0b11) // Must be lea rbx
+            if (leaOfLastItem == null || leaOfLastItem.Value.reg != RBX) // Must be lea rbx
                 return (0, 0);
 
             var entrySize = 8; // 64-bit array entries

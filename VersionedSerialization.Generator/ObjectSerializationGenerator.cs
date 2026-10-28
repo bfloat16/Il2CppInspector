@@ -13,8 +13,6 @@ public sealed class ObjectSerializationGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        //Debugger.Launch();
-
         var valueProvider = context
             .SyntaxProvider.ForAttributeWithMetadataName(
                 Constants.VersionedStructAttribute,
@@ -138,7 +136,6 @@ public sealed class ObjectSerializationGenerator : IIncrementalGenerator
 
             generator.EnterScope();
             generator.AppendLine(property.Type.NeedsAssignmentToMember() ? $"this.{property.Name} = {property.ReadMethod}" : property.ReadMethod);
-
             generator.LeaveScope();
         }
 
@@ -199,7 +196,6 @@ public sealed class ObjectSerializationGenerator : IIncrementalGenerator
         var classSymbol = model.GetDeclaredSymbol(contextClass, cancellationToken) ?? throw new InvalidOperationException();
         var classIsPublic = classSymbol.DeclaredAccessibility == Accessibility.Public;
 
-        //var versionedStructAttribute = compilation.GetTypeByMetadataName(Constants.VersionedStructAttribute);
         var versionConditionAttribute = compilation.GetTypeByMetadataName(Constants.VersionConditionAttribute);
         var nativeIntegerAttribute = compilation.GetTypeByMetadataName(Constants.NativeIntegerAttribute);
         var inlineArrayAttribute = compilation.GetTypeByMetadataName(Constants.InlineArrayAttribute);
@@ -228,8 +224,6 @@ public sealed class ObjectSerializationGenerator : IIncrementalGenerator
             }
 
             var typeInfo = ParseType(type, inlineArrayAttribute);
-            string? readMethod = null;
-            string? sizeExpression = null;
 
             foreach (var attribute in member.GetAttributes())
             {
@@ -286,34 +280,32 @@ public sealed class ObjectSerializationGenerator : IIncrementalGenerator
 
                     var complexTypeName = typeInfo.ComplexTypeName == "" ? typeInfo.Type.GetTypeName() : typeInfo.ComplexTypeName;
 
-                    typeInfo = (nativeIntegerType, complexTypeName, typeInfo.IsArray);
+                    typeInfo = (nativeIntegerType, complexTypeName);
                 }
             }
 
             canGenerateSizeMethod &= typeInfo.Type != PropertyType.String;
 
-            if (readMethod == null)
+            string readMethod;
+            if (typeInfo.Type == PropertyType.None)
             {
-                if (typeInfo.Type == PropertyType.None)
-                {
-                    readMethod = $"reader.ReadVersionedObject<{typeInfo.ComplexTypeName}>(in version);";
-                }
-                else if (typeInfo.Type == PropertyType.Bytes)
-                {
-                    readMethod = $"reader.Read<byte>({member.Name});";
-                }
-                else
-                {
-                    readMethod = typeInfo.Type.IsSeperateMethod()
-                        ? $"reader.Read{typeInfo.Type.GetTypeName()}();"
-                        : $"reader.ReadPrimitive<{typeInfo.Type.GetTypeName()}>();";
+                readMethod = $"reader.ReadVersionedObject<{typeInfo.ComplexTypeName}>(in version);";
+            }
+            else if (typeInfo.Type == PropertyType.Bytes)
+            {
+                readMethod = $"reader.Read<byte>({member.Name});";
+            }
+            else
+            {
+                readMethod = typeInfo.Type.IsSeperateMethod()
+                    ? $"reader.Read{typeInfo.Type.GetTypeName()}();"
+                    : $"reader.ReadPrimitive<{typeInfo.Type.GetTypeName()}>();";
 
-                    if (typeInfo.ComplexTypeName != "")
-                        readMethod = $"({typeInfo.ComplexTypeName}){readMethod}";
-                }
+                if (typeInfo.ComplexTypeName != "")
+                    readMethod = $"({typeInfo.ComplexTypeName}){readMethod}";
             }
 
-            sizeExpression ??= typeInfo.Type switch
+            var sizeExpression = typeInfo.Type switch
             {
                 PropertyType.None => $"{typeInfo.ComplexTypeName}.StructSize(in version, in config)",
                 PropertyType.NativeInteger or PropertyType.UNativeInteger => "config.Is32Bit ? sizeof(uint) : sizeof(ulong)",
@@ -350,18 +342,15 @@ public sealed class ObjectSerializationGenerator : IIncrementalGenerator
         );
     }
 
-    private static (PropertyType Type, string ComplexTypeName, bool IsArray) ParseType(ITypeSymbol typeSymbol, INamedTypeSymbol? inlineArraySymbol)
+    private static (PropertyType Type, string ComplexTypeName) ParseType(ITypeSymbol typeSymbol, INamedTypeSymbol? inlineArraySymbol)
     {
         switch (typeSymbol)
         {
             case IArrayTypeSymbol arrayTypeSymbol:
-            {
-                var elementType = ParseType(arrayTypeSymbol.ElementType, inlineArraySymbol);
-                return (elementType.Type, elementType.ComplexTypeName, true);
-            }
+                return ParseType(arrayTypeSymbol.ElementType, inlineArraySymbol);
             case INamedTypeSymbol { EnumUnderlyingType: not null } namedTypeSymbol:
                 var res = ParseType(namedTypeSymbol.EnumUnderlyingType, inlineArraySymbol);
-                return (res.Type, typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), false);
+                return (res.Type, typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
         }
 
         if (typeSymbol.SpecialType != SpecialType.None)
@@ -381,7 +370,7 @@ public sealed class ObjectSerializationGenerator : IIncrementalGenerator
                 _ => PropertyType.Unsupported,
             };
 
-            return (type, "", false);
+            return (type, "");
         }
 
         var complexType = typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
@@ -389,9 +378,9 @@ public sealed class ObjectSerializationGenerator : IIncrementalGenerator
         foreach (var attribute in typeSymbol.GetAttributes())
         {
             if (SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, inlineArraySymbol))
-                return (PropertyType.Bytes, complexType, false);
+                return (PropertyType.Bytes, complexType);
         }
 
-        return (PropertyType.None, complexType, false);
+        return (PropertyType.None, complexType);
     }
 }

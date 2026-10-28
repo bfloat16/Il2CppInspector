@@ -93,11 +93,7 @@ internal static class ElfDebugWriter
             else if (section.Data == symbols)
                 orderedSymbols.CopyTo(file);
             else
-            {
-                section.Data.Writer.Flush();
-                section.Data.Stream.Position = 0;
-                section.Data.Stream.CopyTo(file);
-            }
+                DwarfImageWriter.Copy(section.Data, file);
         }
         Align();
         var sectionHeaderOffset = checked((ulong)file.Position);
