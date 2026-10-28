@@ -136,7 +136,8 @@ class ScriptContext:
         self._backend.set_data_comment(addr, definition["dotNetSignature"])
         if "methodAddress" in definition:
             method_addr = self.from_hex(definition["methodAddress"])
-            self._backend.add_cross_reference(method_addr, addr)
+            if method_addr != 0:
+                self._backend.add_cross_reference(method_addr, addr)
 
     def define_cpp_function(self, definition: dict):
         addr = self.parse_address(definition)
