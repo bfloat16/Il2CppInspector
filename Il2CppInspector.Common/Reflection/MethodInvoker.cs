@@ -76,8 +76,16 @@ namespace Il2CppInspector.Reflection
                 ? $"void* {declarator}(Il2CppMethodPointer pointer, const MethodInfo* methodMetadata, void* obj, void** args)"
             : $"void* {declarator}(const MethodInfo* method, void* obj, void** args)";
 
-        internal static CppFnPtrType CreateSignature(CppTypeCollection types, UnityVersion version, string name) =>
-            CppFnPtrType.FromSignature(types, Signature(version, $"(*{name})"));
+        internal static CppFnPtrType CreateSignature(CppTypeCollection types, UnityVersion version, string name)
+        {
+            // Runtime forks may backport the result-buffer ABI independently of their Unity version.
+            var invoker = (CppFnPtrType)((CppAlias)types.GetType("InvokerMethod")).ElementType;
+            var signature =
+                invoker.Arguments.Count == 5
+                    ? $"void (*{name})(Il2CppMethodPointer pointer, const MethodInfo* methodMetadata, void* obj, void** args, void* ret)"
+                    : Signature(version, $"(*{name})");
+            return CppFnPtrType.FromSignature(types, signature);
+        }
 
         public override string ToString() => GetSignature(new UnityVersion("2017.1.0"));
     }

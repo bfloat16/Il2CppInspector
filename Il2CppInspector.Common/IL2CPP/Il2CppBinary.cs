@@ -335,7 +335,7 @@ namespace Il2CppInspector
                 // have reached these limits during normal use. Maybe we should just remove them
                 // at this point?
                 || CodeRegistration.UnresolvedVirtualCallCount > 0x8000 // >= 22
-                || CodeRegistration.InteropDataCount > 0x2000 // >= 23
+                || CodeRegistration.InteropDataCount > 0x10000 // >= 23; Endfield 1.6.3 has 0x23FC
                 || (Image.Version <= MetadataVersions.V241 && CodeRegistration.InvokerPointersCount > CodeRegistration.MethodPointersCount)
             )
                 throw new NotSupportedException("The detected Il2CppCodeRegistration / Il2CppMetadataRegistration structs do not pass validation.");

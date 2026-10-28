@@ -27,5 +27,8 @@ namespace Il2CppInspector.Plugins
         public abstract int FieldRvaSize(Il2CppType type, Il2CppBinary binary);
         public abstract string StorageBase(uint tag);
         public virtual IEnumerable<AdditionalMetadataUsage> AdditionalUsages => [];
+
+        /// <summary>Offset of a normalized serialized attribute blob, or -1 to use the metadata header.</summary>
+        public virtual int AttributeDataOffset => -1;
     }
 }
