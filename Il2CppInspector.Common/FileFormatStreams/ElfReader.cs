@@ -1,4 +1,4 @@
-﻿/*
+/*
     Copyright 2017 Perfare - https://github.com/Perfare/Il2CppDumper
     Copyright 2017-2021 Katy Coe - http://www.djkaty.com - https://github.com/djkaty
 

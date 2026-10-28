@@ -1,4 +1,4 @@
-﻿namespace Il2CppInspector.Next.Metadata;
+namespace Il2CppInspector.Next.Metadata;
 
 public enum Il2CppMetadataUsageType
 {

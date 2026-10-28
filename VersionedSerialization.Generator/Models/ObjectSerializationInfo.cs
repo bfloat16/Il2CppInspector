@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp;
 using VersionedSerialization.Generator.Utils;
 
 namespace VersionedSerialization.Generator.Models;

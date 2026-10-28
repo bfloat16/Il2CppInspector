@@ -1,4 +1,4 @@
-﻿namespace VersionedSerialization.Attributes;
+namespace VersionedSerialization.Attributes;
 
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
 public class NativeIntegerAttribute : Attribute;

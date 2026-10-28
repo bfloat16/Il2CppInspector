@@ -1,4 +1,4 @@
-﻿using VersionedSerialization.Generator.Utils;
+using VersionedSerialization.Generator.Utils;
 
 namespace VersionedSerialization.Generator.Models;
 

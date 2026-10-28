@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using VersionedSerialization;
 
 namespace Il2CppInspector.Next.Metadata;

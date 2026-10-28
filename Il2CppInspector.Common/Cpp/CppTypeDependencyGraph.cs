@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using Il2CppInspector.Reflection;
 
 namespace Il2CppInspector.Cpp;

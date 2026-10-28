@@ -1,4 +1,4 @@
-﻿// Constants from il2cpp/tabledefs.h
+// Constants from il2cpp/tabledefs.h
 
 namespace Il2CppInspector
 {

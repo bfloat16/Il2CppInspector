@@ -1,4 +1,4 @@
-﻿using Il2CppInspector.Reflection;
+using Il2CppInspector.Reflection;
 
 namespace Il2CppInspector.Next.NameTranslation;
 

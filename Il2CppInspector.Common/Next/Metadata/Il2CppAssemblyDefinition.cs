@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using VersionedSerialization.Attributes;
 
 namespace Il2CppInspector.Next.Metadata;

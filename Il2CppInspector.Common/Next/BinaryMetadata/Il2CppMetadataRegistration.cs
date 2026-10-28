@@ -1,4 +1,4 @@
-﻿using Il2CppInspector.Next.Metadata;
+using Il2CppInspector.Next.Metadata;
 using VersionedSerialization.Attributes;
 
 namespace Il2CppInspector.Next.BinaryMetadata;

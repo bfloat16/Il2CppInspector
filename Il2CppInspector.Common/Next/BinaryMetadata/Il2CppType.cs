@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using Il2CppInspector.Next.Metadata;
 using VersionedSerialization;
 

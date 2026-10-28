@@ -1,4 +1,4 @@
-﻿namespace VersionedSerialization.Generator.Utils;
+namespace VersionedSerialization.Generator.Utils;
 
 public static class Constants
 {

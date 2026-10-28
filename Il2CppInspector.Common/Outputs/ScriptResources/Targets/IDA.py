@@ -1,4 +1,4 @@
-﻿# IDA-specific implementation
+# IDA-specific implementation
 import ida_kernwin
 import ida_name
 import ida_idaapi

@@ -1,4 +1,4 @@
-﻿// *************************************************
+// *************************************************
 // Created by Aron Weiler
 // Feel free to use this code in any way you like,
 // just don't blame me when your coworkers think you're awesome.

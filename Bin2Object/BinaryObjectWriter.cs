@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2021 Katy Coe - http://www.djkaty.com - https://github.com/djkaty/Bin2Object/
+// Copyright (c) 2021 Katy Coe - http://www.djkaty.com - https://github.com/djkaty/Bin2Object/
 
 using System.Reflection;
 using System.Text;

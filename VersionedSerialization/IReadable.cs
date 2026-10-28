@@ -1,4 +1,4 @@
-﻿namespace VersionedSerialization;
+namespace VersionedSerialization;
 
 public interface IReadable
 {
