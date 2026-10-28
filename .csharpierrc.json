@@ -1,4 +1,6 @@
 {
-  "endOfLine": "crlf",
-  "printWidth": 200
+  "printWidth": 150,
+  "useTabs": false,
+  "tabWidth": 4,
+  "endOfLine": "lf"
 }
