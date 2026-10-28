@@ -4,9 +4,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>Il2CppInspector.Plugin.Endfield</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../Il2CppInspector.Common/Il2CppInspector.Common.csproj" />
-    <InternalsVisibleTo Include="Il2CppInspector.Tests" />
   </ItemGroup>
 </Project>

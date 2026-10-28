@@ -5,7 +5,7 @@
   <Folder Name="/Plugins/">
     <Project Path="Il2CppInspector.Plugin/Genshin_CN_Windows_7.1.0/Il2CppInspector.Plugin.Genshin.csproj" />
     <Project Path="Il2CppInspector.Plugin/BH3_CN_Windows_9.1.0/Il2CppInspector.Plugin.BH3.csproj" />
-    <Project Path="Il2CppInspector.Plugin/Endfield_CN_Android_x.x.x/Il2CppInspector.Plugin.Endfield.csproj" />
+    <Project Path="Il2CppInspector.Plugin/Endfield_CN_Android_x.x.x/Il2CppInspector.Plugin.Endfield_CN_Android_x.x.x.csproj" />
     <Project Path="Il2CppInspector.Plugin/Hkrpg/Il2CppInspector.Plugin.Hkrpg.csproj" Id="45b53450-5b27-4aae-8bc6-87d7b062a3ac" />
     <Project Path="Il2CppInspector.Plugin/TOT_CN_Android_6.1.0/Il2CppInspector.Plugin.TOT_CN_Android_6.1.0.csproj" />
     <Project Path="Il2CppInspector.Plugin/TOT_OS_Android_5.8.1/Il2CppInspector.Plugin.TOT_OS_Android_5.8.1.csproj" />

@@ -83,7 +83,7 @@ namespace Il2CppInspector.Plugin.Endfield
                 throw new InvalidDataException("Endfield_CN_Android_x.x.x requires decoded v29 metadata with a 0x108-byte header.");
             }
 
-            // The two Windows Runtime entries are replaced by the original repair algorithm.
+            // The supplied repair rebuilds the two Windows Runtime entries.
             for (var i = 0; i < SectionCount; i++)
             {
                 if (i is WindowsRuntimeTypeNames or WindowsRuntimeStrings)

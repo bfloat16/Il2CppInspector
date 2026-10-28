@@ -1,6 +1,5 @@
 using Il2CppInspector.Cpp.UnityHeaders;
 using Il2CppInspector.Model;
-using Il2CppInspector.Outputs;
 using Il2CppInspector.Plugins;
 using Il2CppInspector.Reflection;
 
@@ -27,15 +26,6 @@ namespace Il2CppInspector.Plugin.Endfield
             // Repaired records use the stock pipeline, so no game metadata adapter is attached.
             return new Il2CppInspector(il2cppBinary, decoded);
         }
-
-        public override void WriteAssemblies(TypeModel model, string path, bool suppressMetadata, EventHandler<string> status) =>
-            new AssemblyShims(model) { SuppressMetadata = suppressMetadata }.Write(path, status);
-
-        public override void WriteHeader(AppModel model, string path, bool betterArraySize) =>
-            new CppScaffolding(model, betterArraySize).WriteTypes(path);
-
-        public override void WriteJson(AppModel model, string path, bool allowComments, bool supplementDebugInfo) =>
-            new JSONMetadata(model) { AllowComments = allowComments, SupplementDebugInfo = supplementDebugInfo }.Write(path);
 
         // Adapter hooks are not used: Unity headers, layouts and pointers come from the stock model.
         public override UnityHeaders GetHeaders() => throw StockPipelineOnly();
