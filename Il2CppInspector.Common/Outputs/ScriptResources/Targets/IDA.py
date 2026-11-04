@@ -88,6 +88,10 @@ class IDADisassemblerInterface(BaseDisassemblerInterface):
         self._cached_genflags = ida_ida.inf_get_genflags()
         ida_ida.inf_set_genflags(self._cached_genflags & ~ida_ida.INFFL_AUTO)
 
+        # Explicit boundary creation must also run on binaries with .pdata.
+        if self.function_boundaries_only:
+            return
+
         # Set name mangling to GCC 3.x and display demangled as default
         ida_ida.inf_set_demnames(ida_ida.DEMNAM_GCC3 | ida_ida.DEMNAM_NAME)
 

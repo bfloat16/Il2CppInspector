@@ -3,7 +3,7 @@ import itertools
 from pathlib import Path
 import types
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -16,9 +16,10 @@ exec(compile(shared, "shared_base.py", "exec"), BASE)
 
 
 class Backend:
-    def __init__(self, enabled, fake):
+    def __init__(self, enabled, fake, boundaries_only=False):
         self.apply_structures = enabled
         self.supports_fake_string_segment = fake
+        self.function_boundaries_only = boundaries_only
         self.calls = []
 
     def __getattr__(self, name):
@@ -67,6 +68,44 @@ def target_classes(name, header_path="il2cpp.h", **globals):
 
 
 class ScriptResourcesTests(unittest.TestCase):
+    def test_function_boundaries_only_skips_all_annotations_and_plugin_metadata(self):
+        for enabled, fake, legacy in itertools.product((False, True), repeat=3):
+            with self.subTest(enabled=enabled, fake=fake, legacy=legacy):
+                backend = Backend(enabled, fake, boundaries_only=True)
+                status = Mock(spec=BASE["BaseStatusHandler"])
+                data = metadata(legacy)
+                data["functionAddresses"] = ["0x1010", "0x0000", "0x1000"]
+                BASE["ScriptContext"](backend, status).process_metadata(data)
+                self.assertEqual(backend.calls, [
+                    ("define_function", (0x1000, 0x1010)),
+                    ("define_function", (0x1010, None)),
+                ])
+                status.update_step.assert_called_once_with("Processing function boundaries", 3)
+                self.assertEqual(status.update_progress.call_count, 3)
+
+        backend = Backend(True, True, boundaries_only=True)
+        BASE["ScriptContext"](backend, Mock(spec=BASE["BaseStatusHandler"])).process_metadata({"functionAddresses": []})
+        self.assertEqual(backend.calls, [])
+
+    def test_ida_function_boundaries_only_creates_functions_with_pdata_without_importing_types(self):
+        ida = Mock(INFFL_AUTO=1)
+        ida.inf_get_genflags.return_value = 3
+        typeinfo, clang, segment, functions = Mock(), Mock(), Mock(), Mock()
+        segment.get_segm_by_name.return_value = object()
+        namespace = target_classes("IDA", ida_ida=ida, ida_typeinf=typeinfo, ida_srclang=clang,
+                                   ida_segment=segment, ida_funcs=functions, ida_bytes=Mock(), ida_ua=Mock(),
+                                   IDACLANG_AVAILABLE=True, FOLDERS_AVAILABLE=True)
+        backend = namespace["IDADisassemblerInterface"](Mock(spec=BASE["BaseStatusHandler"]))
+        backend.function_boundaries_only = True
+        backend.on_start()
+        typeinfo.del_til.assert_not_called()
+        typeinfo.idc_parse_types.assert_not_called()
+        clang.parse_decls_with_parser.assert_not_called()
+        backend.define_function(0x1000, 0x1010)
+        functions.add_func.assert_called_once_with(0x1000, 0x1010)
+        backend.on_finish()
+        self.assertEqual(ida.inf_set_genflags.call_args_list, [call(2), call(3)])
+
     def test_method_info_without_method_body_preserves_annotations_and_skips_reference(self):
         for enabled, method_address in itertools.product((False, True), (None, "0x00000000", "0x1010")):
             with self.subTest(enabled=enabled, method_address=method_address):
@@ -226,15 +265,16 @@ class ScriptResourcesTests(unittest.TestCase):
         self.assertEqual(backend._get_data_type("struct Type **"), ("pointer", ("pointer", "loaded-type")))
 
     def test_binary_ninja_skips_header_with_types_enabled_or_disabled(self):
-        for apply_types in (False, True):
-            with self.subTest(apply_types=apply_types):
+        for apply_types, boundaries_only in itertools.product((False, True), repeat=2):
+            with self.subTest(apply_types=apply_types, boundaries_only=boundaries_only):
                 view = Mock(address_size=8, endianness="little")
                 parser = Mock()
                 namespace = target_classes("BinaryNinja", bv=view, Endianness=types.SimpleNamespace(LittleEndian="little"), open=Mock(side_effect=AssertionError("Header was opened")),
                                            TypeParser=parser, Symbol=lambda *args: args, SymbolType=types.SimpleNamespace(DataSymbol="data"))
                 backend = namespace["BinaryNinjaDisassemblerInterface"](Mock(spec=BASE["BaseStatusHandler"]))
                 backend.apply_structures = apply_types
-                backend.import_type_header = False
+                backend.function_boundaries_only = boundaries_only
+                backend.import_type_header = boundaries_only
                 backend.on_start()
                 parser.default.parse_types_from_source.assert_not_called()
                 view.define_user_types.assert_not_called()
@@ -249,15 +289,16 @@ class ScriptResourcesTests(unittest.TestCase):
                 view.commit_undo_actions.assert_called_once()
 
     def test_ghidra_skips_header_check_with_types_enabled_or_disabled(self):
-        for apply_types in (False, True):
-            with self.subTest(apply_types=apply_types):
+        for apply_types, boundaries_only in itertools.product((False, True), repeat=2):
+            with self.subTest(apply_types=apply_types, boundaries_only=boundaries_only):
                 program = Mock()
                 program.getExecutableFormat.return_value = "Portable Executable"
                 get_types = Mock(side_effect=AssertionError("Types were queried"))
                 namespace = target_classes("Ghidra", currentProgram=program, getDataTypes=get_types, setAnalysisOption=Mock())
                 backend = namespace["GhidraDisassemblerInterface"].__new__(namespace["GhidraDisassemblerInterface"])
                 backend.apply_structures = apply_types
-                backend.import_type_header = False
+                backend.function_boundaries_only = boundaries_only
+                backend.import_type_header = boundaries_only
                 backend.on_start()
                 get_types.assert_not_called()
 

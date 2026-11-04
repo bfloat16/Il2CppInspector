@@ -550,6 +550,7 @@ Disassembler targets with Debug omit type headers; debug symbol arrays in JSON a
                 ProgressBar.Run("Generating DummyDlls", progress => new AssemblyShims(model) { ProgressCallback = progress }.Write(dllOut));
 
                 var streamExports = il2cpp.Metadata.GamePlugin?.StreamExports == true;
+                /*
                 if (streamExports)
                 {
                     string csOut = Path.Combine(output, "dump.cs");
@@ -560,6 +561,7 @@ Disassembler targets with Debug omit type headers; debug symbol arrays in JSON a
                     string csOut = Path.Combine(output, "CS");
                     ProgressBar.Run($"Generating C# stubs -> {csOut}", () => new CSharpCodeStubs(model).WriteFilesByClassTree(csOut, false));
                 }
+                */
 
                 if (options.Targets.Count > 0 || streamExports)
                 {

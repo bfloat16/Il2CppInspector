@@ -30,6 +30,8 @@ class BaseStatusHandler(abc.ABC):
 
 class BaseDisassemblerInterface(abc.ABC):
     supports_fake_string_segment: bool = True
+    # Set True to define function boundaries only, without importing types or applying annotations.
+    function_boundaries_only: bool = False
     apply_structures: bool = True
     # Set False to reuse loaded types while still applying all metadata types.
     import_type_header: bool = True
@@ -200,6 +202,9 @@ class ScriptContext:
 
             self._backend.define_function(start, end)
             self._status.update_progress()
+
+        if self._backend.function_boundaries_only:
+            return
 
         # Method definitions
         self._status.update_step(

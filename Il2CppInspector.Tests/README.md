@@ -4,6 +4,11 @@ Tests mirror production modules under `Common/` and `CLI/`. Every game plugin ru
 `Program.cs` selects a test mode, `TestAssert` supplies shared assertions and `TestEnvironment` locates repository fixtures and runs external tools.
 Real input files are supplied locally.
 
+Generated disassembler scripts expose `function_boundaries_only = False` in `BaseDisassemblerInterface`.
+Set it to `True` to create functions from JSON `functionAddresses` without importing headers or applying names, types, comments, strings or plugin metadata.
+IDA also creates function boundaries in this mode when `.pdata` is present. Binary Ninja and Ghidra use their existing function creation behavior to infer function ends.
+Scripts generated alongside Debug targets have empty function arrays, so this mode requires the JSON from a disassembler target generated without Debug.
+
 ```bash
 dotnet run --project Il2CppInspector.Tests -c Release -- --plugins
 dotnet run --project Il2CppInspector.Tests -c Release -- --game <GameId> '<sample Native directory>' ['<output directory>']
