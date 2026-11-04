@@ -22,6 +22,10 @@ internal static class GameSampleTests
             "YuanShen.exe",
             "types=88902 methods=733442 fields=440172 params=548400 literals=86108 typeRefs=683568 methodSpecs=570843 usages=378720 attributes=74864 Il2CppClass=0xD8 Il2CppClass.static_fields=0x78 Il2CppClass.vtable_count=0xBE MethodInfo=0x38 MethodInfo.flags=0x28 Il2CppCodeRegistration=0xA8 Il2CppMetadataRegistration=0x108"
         ),
+        ["Genshin_CN_Windows_7.2.0"] = (
+            "YuanShen.exe",
+            "types=89746 methods=741021 fields=445462 params=555919 literals=87252 typeRefs=690935 methodSpecs=581626 usages=383821 attributes=75885 Il2CppClass=0xD8 Il2CppClass.static_fields=0x38 Il2CppClass.vtable_count=0xBE MethodInfo=0x38 MethodInfo.flags=0x2C Il2CppCodeRegistration=0xA8 Il2CppMetadataRegistration=0x100"
+        ),
         ["HSR_CN_Windows_4.6.51"] = ("GameAssembly.dll", null),
         ["HSR_OS_Windows_4.6.0"] = ("GameAssembly.dll", null),
         ["LAD_CN_Android_6.0.0"] = (
