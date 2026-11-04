@@ -14,7 +14,7 @@ dotnet Il2CppInspector.CLI/bin/Release/net10.0/Il2CppInspector.dll --game NAME_R
 | Game | Supported ID |
 | --- | --- |
 | BH3 | `BH3_CN_Windows_9.1.0` |
-| Genshin | `Genshin_CN_Windows_7.1.0` |
+| Genshin | `Genshin_CN_Windows_7.1.0`, `Genshin_CN_Windows_7.2.0` |
 | HSR | `HSR_OS_Windows_4.6.0`, `HSR_CN_Windows_4.6.51` |
 | ZZZ | `ZZZ_CN_Windows_3.2.0`, `ZZZ_CN_Windows_3.3.0` |
 | Endfield | `Endfield_CN_Android_x.x.x`, `Endfield_CN_Windows_1.6.3` |
