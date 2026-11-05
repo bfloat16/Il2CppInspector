@@ -42,6 +42,7 @@
 | Endfield | `Endfield_CN_Android_x.x.x`、`Endfield_CN_Windows_1.6.3` |
 | TOT | `TOT_CN_Android_6.1.0`、`TOT_OS_Android_5.8.1` |
 | 恋与深空 | `LAD_CN_Android_6.0.0` |
+| 逆水寒 | `NSH_OS_Windows_20260731072817UTC` |
 
 ## 3. 模块规范
 
@@ -65,7 +66,7 @@
 
 ### 3.3 `Il2CppInspector.Plugin/<GameId>` 与 `Shared/<family>`
 
-- `GameId` 格式为 `NAME_REGION_PLATFORM_VERSION`，与插件目录名完全一致；`x.x.x` 表示支持多个游戏版本。
+- `GameId` 格式为 `NAME_REGION_PLATFORM_VERSION`，与插件目录名完全一致；版本可以是数字版本号或构建时间戳，`x.x.x` 表示支持多个游戏版本。
 - 插件实现公开、无参构造的 `GamePlugin` 子类。`Matches` 必须能区分同一游戏的不同版本。
 - 插件只负责解码、规范化记录和经二进制验证的运行时布局差异；反射模型、声明生成、依赖排序和所有导出复用 Common，不另写 DLL、头文件或 JSON 输出器。
 - 加密或重排的记录先规范化为 stock 记录：仅需规范化元数据、后续走 stock 管线的插件直接构造 `Metadata`；需要自定义运行时布局的插件通过 `Metadata.CreateForPlugin` 挂接 `GameMetadataAdapter`。
@@ -183,6 +184,7 @@ csharpier check .
 dotnet build Il2CppInspector.slnx -c Release
 # 不需要本地游戏文件的测试
 dotnet run --project Il2CppInspector.Tests -c Release --no-build -- --plugins
+dotnet run --project Il2CppInspector.Tests -c Release --no-build -- --serialization
 dotnet run --project Il2CppInspector.Tests -c Release --no-build -- --progress
 dotnet run --project Il2CppInspector.Tests -c Release --no-build -- --cli-targets Il2CppInspector.CLI/bin/Release/net10.0/Il2CppInspector.dll
 dotnet run --project Il2CppInspector.Tests -c Release --no-build -- --cpp-layout

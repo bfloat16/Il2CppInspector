@@ -1,43 +1,24 @@
 # Integration Tests
 
-Tests mirror production modules under `Common/` and `CLI/`. Every game plugin runs the same `--plugins` and `--game` checks.
-`Program.cs` selects a test mode, `TestAssert` supplies shared assertions and `TestEnvironment` locates repository fixtures and runs external tools.
-Real input files are supplied locally.
-
-Generated disassembler scripts expose `function_boundaries_only = False` in `BaseDisassemblerInterface`.
-Set it to `True` to create functions from JSON `functionAddresses` without importing headers or applying names, types, comments, strings or plugin metadata.
-IDA also creates function boundaries in this mode when `.pdata` is present. Binary Ninja and Ghidra use their existing function creation behavior to infer function ends.
-Scripts generated alongside Debug targets have empty function arrays, so this mode requires the JSON from a disassembler target generated without Debug.
-
-`-t IDA` also generates an `_t.py` terminal variant. The script resource tests exercise sequential resume (including UTF-8 string segment offsets), q polling, checkpoint identity and database-save ordering without requiring IDA or tqdm.
+`Program.cs` dispatches test modes across `Common/`, `CLI/`, `Plugin/` and `VersionedSerialization/`.
 
 ```bash
 dotnet run --project Il2CppInspector.Tests -c Release -- --plugins
+dotnet run --project Il2CppInspector.Tests -c Release -- --serialization
 dotnet run --project Il2CppInspector.Tests -c Release -- --game <GameId> '<sample Native directory>' ['<output directory>']
-dotnet run --project Il2CppInspector.Tests -c Release -- --cpp-layout clang
+dotnet run --project Il2CppInspector.Tests -c Release -- --cpp-layout [clang]
 dotnet run --project Il2CppInspector.Tests -c Release -- --stock '<Unity player directory>'
 dotnet run --project Il2CppInspector.Tests -c Release -- --plugin-cli '<CLI DLL>' '<isolated directory>'
 dotnet run --project Il2CppInspector.Tests -c Release -- --cli-targets '<CLI DLL>'
 dotnet run --project Il2CppInspector.Tests -c Release -- --progress
-dotnet run --project Il2CppInspector.Tests -c Release -- --pdb-fixture '<output directory>' llvm-pdbutil '<IDA idat executable>'
-dotnet run --project Il2CppInspector.Tests -c Release -- --dwarf-fixture '<output directory>' readelf gdb '<IDA idat executable>' llvm-symbolizer
-dotnet run --project Il2CppInspector.Tests -c Release -- --dwarf-globals '<Android sample directory>' '<output directory>' '<IDA idat executable>'
-python Il2CppInspector.Tests/Common/Outputs/ScriptResourcesTests.py
+dotnet run --project Il2CppInspector.Tests -c Release -- --pdb-fixture '<output directory>' [llvm-pdbutil] ['<IDA idat executable>']
+dotnet run --project Il2CppInspector.Tests -c Release -- --dwarf-fixture '<output directory>' [readelf] [gdb] ['<IDA idat executable>'] [llvm-symbolizer]
+dotnet run --project Il2CppInspector.Tests -c Release -- --dwarf-globals '<Android sample directory>' '<output directory>' ['<IDA idat executable>']
+python -I Il2CppInspector.Tests/Common/Outputs/ScriptResourcesTests.py
 ```
 
-## Native Fixtures
-
-External validators are optional positional arguments; omit them to run serialization checks alone.
-PDB fixtures cover LLVM record decoding and IDA function signatures, bitfields, enum widths and applied globals.
-DWARF fixtures cover four architectures, ranged compilation units, references, debuglink CRCs and consumer address/type lookup.
-IDA fixtures require clang, lld and llvm-objcopy on PATH and modify only temporary databases.
-`--cpp-layout clang` independently verifies Unity header sizes on ARM, ARM64, x86 Linux and x64 Windows.
-`--dwarf-globals` checks every known global in an Android directory containing `libil2cpp.so` and `global-metadata.dat`, without supplementary type application.
-`--progress` also accepts a binary, metadata file and temporary DummyDll output directory for real progress checks.
-
-## Adding Tests
-
-Keep shared behavior under `Common/` and workflows under `CLI/`. A new game adds one `Samples` row in `Plugin/GameSampleTests.cs`; a missing baseline makes `--game` print the measured values.
-Reuse expensive decoded models and cover independent failure modes rather than duplicating formatting assertions.
-`--game` expects a directory containing `global-metadata.dat`, the binary named in `Samples` and any plugin startup metadata.
-It also checks that concrete value layouts include the object header, so zero instance sizes cannot silently become incomplete native declarations.
+- `--plugins` verifies case-insensitive selection, truncated/foreign metadata rejection and `Samples` registration for every installed plugin.
+- `--serialization` verifies versioned value/reference array construction and field boundaries across versions.
+- `--game` checks metadata matching, concrete value-type header sizes, decoded table/layout baselines (`Plugin/GameSampleTests.cs`), and optional DummyDll reference resolution (stage NSH `common.dat` as `global-metadata.dat`).
+- `--cpp-layout`, `--pdb-fixture`, `--dwarf-fixture` and `--dwarf-globals` run standalone checks by default and invoke external validators (`clang`, `lld`, `llvm-objcopy`, `llvm-pdbutil`, `readelf`, `gdb`, `llvm-symbolizer`, `idat`) when supplied.
+- `ScriptResourcesTests.py` tests disassembler script templates, `function_boundaries_only` mode and `_t.py` terminal checkpoint/resume without requiring IDA or `tqdm`.
