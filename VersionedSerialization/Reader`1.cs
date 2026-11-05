@@ -91,7 +91,9 @@ public ref struct Reader<TReader>(TReader impl, ReaderConfig config = default)
         where T : IReadable, new()
     {
         var array = GC.AllocateUninitializedArray<T>((int)count);
-        ReadVersionedObject(array, in version);
+        // Versioned reads leave excluded members untouched; each element must start as a new object.
+        for (var i = 0; i < array.Length; i++)
+            array[i] = ReadVersionedObject<T>(in version);
         return ImmutableCollectionsMarshal.AsImmutableArray(array);
     }
 

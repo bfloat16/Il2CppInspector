@@ -11,6 +11,9 @@ namespace Il2CppInspector.Tests
                 case "--plugins":
                     Common.Plugins.GamePluginsTests.Run();
                     break;
+                case "--serialization":
+                    Serialization.ReaderTests.Run();
+                    break;
                 case "--cpp-layout":
                     Common.Cpp.CppTypeTests.Run(Optional(args, 1));
                     break;
@@ -40,7 +43,9 @@ namespace Il2CppInspector.Tests
                     break;
                 default:
                     throw new ArgumentException(
-                        "Usage: dotnet run --project Il2CppInspector.Tests -c Release -- <mode> [arguments]; modes are listed in README.md."
+                        "Usage: dotnet run --project Il2CppInspector.Tests -c Release -- <mode> [arguments]; "
+                            + "modes: --plugins, --serialization, --cpp-layout, --progress, --cli-targets, --plugin-cli, --stock, "
+                            + "--pdb-fixture, --dwarf-fixture, --dwarf-globals, --game. See README.md for arguments."
                     );
             }
         }
