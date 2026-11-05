@@ -22,6 +22,7 @@ internal sealed partial class GenshinMorax : MoraxAdapter
 
     public override int VTableSlotSize => 8;
     private const int Payload = 0x210;
+    private const int DefaultDataSlot = 0x128;
     private readonly byte[] global;
     private readonly byte[] startup;
     private readonly Dictionary<int, int> slots;

@@ -200,11 +200,13 @@ internal sealed partial class GenshinMorax
             throw new InvalidDataException("Layout group out of range.");
         var o = Base(0x14C) + group * 12;
         var native = Image.ReadMappedUInt16(Image.ReadMappedUInt64(MetadataRegistrationAddress + 0x68) + (ulong)group * 2);
+        // 0x15A4D7164..0x15A4D7199 copies descriptor +0 to class.instance_size (+0xB4)
+        // and +4 to class.static_fields_size (+0xB6); +2 remains thread-static size.
         return new()
         {
-            InstanceSize = U16(global, o + 4),
+            InstanceSize = U16(global, o),
             NativeSize = native == 0xFFFF ? -1 : native,
-            StaticFieldsSize = U16(global, o),
+            StaticFieldsSize = U16(global, o + 4),
             ThreadStaticFieldsSize = global[o + 2],
         };
     }
@@ -235,7 +237,7 @@ internal sealed partial class GenshinMorax
         if (((U16(global, Base(0x64) + index * 70 + 0x32) ^ 0x7BF1) & 0x100) == 0)
             return 0;
         var lo = 0;
-        var hi = (Slot(0x130) / 8);
+        var hi = Slot(0x130) / 8;
         while (lo < hi)
         {
             var mid = lo + (hi - lo) / 2;
@@ -244,9 +246,9 @@ internal sealed partial class GenshinMorax
             else
                 hi = mid;
         }
-        if (lo >= (Slot(0x130) / 8) || I32(global, Base(0xC) + lo * 8) != index)
+        if (lo >= Slot(0x130) / 8 || I32(global, Base(0xC) + lo * 8) != index)
             throw new InvalidDataException("Missing extra vtable layout.");
-        return (global[Base(0xC) + lo * 8 + 7] ^ 0x27);
+        return global[Base(0xC) + lo * 8 + 7] ^ 0x27;
     }
 
     private void ReadUsages(int typeCount, int specCount)

@@ -8,7 +8,7 @@ internal sealed partial class GenshinMorax
     {
         if (dataIndex < 0)
             return (0, null);
-        var offset = checked(Base(0x128) + dataIndex);
+        var offset = checked(Base(DefaultDataSlot) + dataIndex);
         var type = binary.TypeReferences[typeIndex];
         if (type.Type == Il2CppTypeEnum.IL2CPP_TYPE_VALUETYPE && Metadata.Types[type.Data.KlassIndex].Bitfield.EnumType)
             type = binary.TypeReferences[Metadata.Types[type.Data.KlassIndex].ElementTypeIndex];

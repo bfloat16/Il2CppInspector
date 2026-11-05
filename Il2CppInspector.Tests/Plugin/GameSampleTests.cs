@@ -77,6 +77,15 @@ internal static class GameSampleTests
         var package = Inspector.LoadFromFile(Path.Combine(directory, binary), metadataPath, new LoadOptions { Game = gameId }).Single();
         var model = new TypeModel(package);
         var app = new AppModel(model, false).Build(plugin.DefaultUnityVersion);
+        var objectHeaderSize = package.BinaryImage.Bits / 8 * 2;
+        var invalidValueLayouts = model
+            .TypesByDefinitionIndex.Where(t => t.IsValueType && !t.ContainsGenericParameters && t.Sizes.InstanceSize < objectHeaderSize)
+            .Select(t => t.FullName)
+            .ToArray();
+        Check(
+            invalidValueLayouts.Length == 0,
+            $"{gameId} concrete value layouts include the object header {string.Join(", ", invalidValueLayouts.Take(10))}".TrimEnd()
+        );
         var measured = string.Join(
             " ",
             new[]
@@ -113,7 +122,7 @@ internal static class GameSampleTests
         return value is { } v ? $"0x{v:X}" : "none";
     }
 
-    // Mono.Cecil 0.11.6 matches AnimeStudio, which loads DummyDll without search directories.
+    // Load DummyDll with Mono.Cecil without search directories to verify standalone assembly resolution.
     private static void VerifyAssemblyReferences(string directory)
     {
         using var resolver = new RegisteredAssemblyResolver();

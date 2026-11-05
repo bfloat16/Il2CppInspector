@@ -1,6 +1,6 @@
 namespace Il2CppInspector;
 
-// Python/Capstone evidence: class 0x15A4D6B60, fields 0x14051C480,
+// Class constructor 0x15A4D6B60, fields 0x14051C480,
 // properties 0x14051EE90, events 0x14051E9C0, registration 0x1402F8450.
 internal static class GenshinRuntimeHeaders
 {

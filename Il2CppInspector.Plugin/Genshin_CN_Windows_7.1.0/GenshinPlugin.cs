@@ -7,7 +7,7 @@ namespace Il2CppInspector.Plugin.Genshin;
 
 public sealed class GenshinPlugin : MoraxPlugin
 {
-    public override string GameId => "Genshin_CN_Windows_7.1.0";
+    public override string GameId => GenshinBuild.GameId;
 
     private protected override Il2CppInspector Load(IFileFormatStream image, byte[] global, byte[] startup, EventHandler<string> status) =>
         GenshinMorax.Load(image, global, startup, status, this);

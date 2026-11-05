@@ -7,7 +7,7 @@ using static Il2CppInspector.MoraxReader;
 
 namespace Il2CppInspector;
 
-/// <summary>Static C# adapter for the Python-verified Genshin 7.2.0 Windows MORAX build.</summary>
+/// <summary>Metadata and binary adapter for the Genshin 7.2.0 Windows MORAX build.</summary>
 internal sealed partial class GenshinMorax : MoraxAdapter
 {
     public override string StorageBase(uint tag) =>
