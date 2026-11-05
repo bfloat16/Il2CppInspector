@@ -1,9 +1,13 @@
 import ast
 import itertools
+import io
+import json
 from pathlib import Path
+import tempfile
+import time
 import types
 import unittest
-from unittest.mock import Mock, call
+from unittest.mock import Mock, call, patch
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -67,7 +71,162 @@ def target_classes(name, header_path="il2cpp.h", **globals):
     return namespace
 
 
+class ProgressBar:
+    def __init__(self, total=None, **options):
+        self.total = total
+        self.n = 0
+        self.start_t = time.time()
+
+    def reset(self, total):
+        self.total, self.n = total, 0
+
+    def set_description_str(self, *args, **kwargs):
+        pass
+
+    def set_postfix_str(self, *args, **kwargs):
+        pass
+
+    def refresh(self):
+        pass
+
+    def close(self):
+        pass
+
+    @staticmethod
+    def format_interval(seconds):
+        return str(int(seconds))
+
+
+def terminal_classes(**globals):
+    namespace = target_classes("IDA", **globals)
+    tree = ast.parse((SCRIPTS / "IDA_terminal.py").read_text())
+    tree.body = [node for node in tree.body if not isinstance(node, (ast.Import, ast.ImportFrom, ast.Expr))]
+    namespace.update(time=time, tqdm=ProgressBar, Path=Path, json=json, tempfile=tempfile,
+                     print=lambda *args, **kwargs: None)
+    exec(compile(tree, "IDA_terminal.py", "exec"), namespace)
+    return namespace
+
+
 class ScriptResourcesTests(unittest.TestCase):
+    def test_terminal_resume_at_every_item_preserves_metadata_and_utf8_offsets(self):
+        ns = terminal_classes()
+        for legacy, fake, enabled, boundaries_only in (
+            (False, True, True, False), (False, False, True, False),
+            (True, True, True, False), (True, False, False, False),
+            (False, True, True, True),
+        ):
+            data = metadata(legacy)
+            for key in data:
+                data[key] = data[key] * 2
+            if not legacy:
+                data["stringLiterals"][0] = {**data["stringLiterals"][0], "string": "测试"}
+
+            def make_backend():
+                backend = Backend(enabled, fake, boundaries_only)
+                def write_string(address, value):
+                    backend.calls.append(("write_string", (address, value)))
+                    return len(value.encode("utf-8")) + 1
+                backend.write_string = write_string
+                return backend
+
+            counter, backend = ns["CountingStatusHandler"](), make_backend()
+            ns["CountingScriptContext"](backend, counter).process_metadata(data)
+            self.assertEqual(backend.calls, [], "Counting must not modify the database")
+            total = sum(count for _, count in counter.plan)
+
+            def execute(backend, resume=None, stop=None):
+                status = ns["TerminalStatusHandler"](io.StringIO(), resume)
+                status.keys = None
+                status.initialize()
+                status.set_plan(counter.plan)
+                update = status.update_progress
+                def advance(progress=1):
+                    update(progress)
+                    if status.total_bar.n == stop:
+                        raise ns["ImportCancelled"]()
+                status.update_progress = advance
+                context = ns["TerminalScriptContext"](backend, status)
+                if stop is None:
+                    context.process_metadata(data)
+                    self.assertEqual(status.total_bar.n, total)
+                else:
+                    with self.assertRaises(ns["ImportCancelled"]):
+                        context.process_metadata(data)
+                status.shutdown()
+                return status
+
+            baseline = make_backend()
+            execute(baseline)
+            # Cache/segment setup is intentionally repeated on resuming a partial stage.
+            def operations(backend):
+                return [entry for entry in backend.calls if entry[0] not in ("cache_function_types", "create_fake_segment")]
+            for stop in range(1, total + 1):
+                with self.subTest(legacy=legacy, fake=fake, enabled=enabled, boundaries_only=boundaries_only, stop=stop):
+                    backend = make_backend()
+                    paused = execute(backend, stop=stop)
+                    execute(backend, (paused.stage, paused.index))
+                    self.assertEqual(operations(backend), operations(baseline))
+
+    def test_terminal_completed_header_is_skipped_without_double_counting(self):
+        ns = terminal_classes()
+        status = ns["TerminalStatusHandler"](io.StringIO(), (0, 1))
+        status.keys = None
+        status.initialize()
+        backend = ns["TerminalDisassemblerInterface"](status)
+        status.update_step("Processing Types", 1)
+        with patch.object(ns["IDADisassemblerInterface"], "import_type_definitions") as parse:
+            backend.import_type_definitions()
+        status.update_progress()
+        parse.assert_not_called()
+        self.assertEqual((status.index, status.total_bar.n), (1, 1))
+        status.shutdown()
+
+    def test_terminal_q_consumes_extended_keys_and_raises_without_enter(self):
+        ns = terminal_classes()
+        status = ns["TerminalStatusHandler"](io.StringIO())
+        status.keys = Mock()
+        status.keys.kbhit.side_effect = [True, True]
+        status.keys.getwch.side_effect = [chr(224), "K", "Q"]
+        with self.assertRaises(ns["ImportCancelled"]):
+            status.check_cancelled()
+        self.assertEqual(status.keys.getwch.call_count, 3)
+
+    def test_terminal_checkpoint_is_committed_after_database_and_matches_its_marker(self):
+        import os
+        import uuid
+        node = Mock()
+        node.supset.return_value = True
+        ns = terminal_classes(ida_auto=Mock(), ida_ida=Mock(), ida_loader=Mock())
+        ns.update(os=os, uuid=uuid)
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "il2cpp_t.progress.json"
+            database = Path(directory) / "test.i64"
+            identity = {"database": os.path.normcase(str(database.resolve()))}
+            checkpoint.write_text("previous")
+            ns["ida_loader"].get_path.return_value = str(database)
+            def save(*args):
+                self.assertEqual(checkpoint.read_text(), "previous")
+                return True
+            ns["ida_loader"].save_database.side_effect = save
+            # Pausing while replaying skipped stages must retain the later resume pointer.
+            status = types.SimpleNamespace(stage=1, index=2, resume_stage=5, resume_index=7)
+            self.assertTrue(ns["_save_checkpoint"](checkpoint, identity, status, node))
+            record = json.loads(checkpoint.read_text())
+            self.assertEqual((record["stage"], record["index"]), (5, 7))
+            self.assertFalse(any(isinstance(value, list) for value in record.values()))
+            node.supstr.return_value = node.supset.call_args.args[1]
+            self.assertEqual(ns["_load_checkpoint"](checkpoint, identity, node), (5, 7))
+            node.supstr.return_value = "another-database"
+            with self.assertRaisesRegex(ValueError, "saved database"):
+                ns["_load_checkpoint"](checkpoint, identity, node)
+            with self.assertRaisesRegex(ValueError, "input files"):
+                ns["_load_checkpoint"](checkpoint, {"database": "different"}, node)
+            ns["ida_loader"].save_database.side_effect = None
+            ns["ida_loader"].save_database.return_value = False
+            before = checkpoint.read_bytes()
+            self.assertFalse(ns["_save_checkpoint"](checkpoint, identity, status, node))
+            self.assertEqual(checkpoint.read_bytes(), before)
+
     def test_function_boundaries_only_skips_all_annotations_and_plugin_metadata(self):
         for enabled, fake, legacy in itertools.product((False, True), repeat=3):
             with self.subTest(enabled=enabled, fake=fake, legacy=legacy):

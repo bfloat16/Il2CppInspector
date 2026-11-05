@@ -373,6 +373,7 @@ Options:
   -o, --output <dir>        Output directory (default: output)
   -t, --target <t>          Output target: IDA, BinaryNinja, Ghidra, Debug
                             Repeat to select multiple targets: -t IDA -t Debug
+                            IDA also writes an _t.py script for idat (tqdm, q, resume)
                             --script-target remains an alias
                             Debug: PE -> PDB (x64); ELF/Mach-O -> DWARF
                             DWARF supports little-endian x86/x64/ARM/ARM64 images
@@ -386,8 +387,8 @@ Options:
 
 Output structure:
   <output>/DummyDll/        .NET assembly shim DLLs
-  <output>/CS/              C# type definitions (tree layout)
   <output>/il2cpp.py        Python script (one script target)
+  <output>/il2cpp_t.py      IDA terminal script with checkpoint/resume
   <output>/il2cpp-<t>.py    Python scripts (multiple script targets)
   <output>/il2cpp.h         Shared C++ type header for script targets
   <output>/il2cpp.json      Shared JSON metadata for script targets
@@ -550,18 +551,6 @@ Disassembler targets with Debug omit type headers; debug symbol arrays in JSON a
                 ProgressBar.Run("Generating DummyDlls", progress => new AssemblyShims(model) { ProgressCallback = progress }.Write(dllOut));
 
                 var streamExports = il2cpp.Metadata.GamePlugin?.StreamExports == true;
-                /*
-                if (streamExports)
-                {
-                    string csOut = Path.Combine(output, "dump.cs");
-                    ProgressBar.Run($"Generating C# stubs -> {csOut}", () => new CSharpCodeStubs(model).WriteSingleFile(csOut));
-                }
-                else
-                {
-                    string csOut = Path.Combine(output, "CS");
-                    ProgressBar.Run($"Generating C# stubs -> {csOut}", () => new CSharpCodeStubs(model).WriteFilesByClassTree(csOut, false));
-                }
-                */
 
                 if (options.Targets.Count > 0 || streamExports)
                 {

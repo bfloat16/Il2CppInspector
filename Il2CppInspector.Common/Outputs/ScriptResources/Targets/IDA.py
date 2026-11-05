@@ -19,7 +19,6 @@ if ida_pro.IDA_SDK_VERSION > 770:
 
     IDACLANG_AVAILABLE = True
     FOLDERS_AVAILABLE = True
-    print("IDACLANG available")
 else:
     IDACLANG_AVAILABLE = False
     FOLDERS_AVAILABLE = False
@@ -56,7 +55,6 @@ class IDADisassemblerInterface(BaseDisassemblerInterface):
     _cached_genflags: int
     _skip_function_creation: bool
     _is_32_bit: bool
-    _fake_segments_base: int
 
     def __init__(self, status: BaseStatusHandler):
         self._status = status
@@ -67,7 +65,6 @@ class IDADisassemblerInterface(BaseDisassemblerInterface):
         self._cached_genflags = 0
         self._skip_function_creation = False
         self._is_32_bit = False
-        self._fake_segments_base = 0
 
     def _get_type(self, type: str):
         if type not in self._type_cache:
@@ -96,28 +93,9 @@ class IDADisassemblerInterface(BaseDisassemblerInterface):
         ida_ida.inf_set_demnames(ida_ida.DEMNAM_GCC3 | ida_ida.DEMNAM_NAME)
 
         if self.apply_structures and self.import_type_header and "%TYPE_HEADER_RELATIVE_PATH%":
-            # Unload type libraries we know to cause issues - like the c++ linux one
-            PROBLEMATIC_LINUX_TYPELIBS = [f"gnulnx_{x}" for x in ["x86", "x64", "arm", "arm64"]]
-            PROBLEMATIC_WINDOWS_TYPELIBS = ["_".join(x) for x in itertools.product(["mssdk64", "mssdk"], ["2000", "nt", "vista", "win10", "win7", "win8", "win81", "ws03", "xp"])]
-            PROBLEMATIC_TYPELIBS = PROBLEMATIC_LINUX_TYPELIBS + PROBLEMATIC_WINDOWS_TYPELIBS
-
-            for lib in PROBLEMATIC_TYPELIBS:
-                ida_typeinf.del_til(lib)
-
-            self._status.update_step("Processing Types")
-            header_path = os.path.join(
-                self.get_script_directory(), "%TYPE_HEADER_RELATIVE_PATH%"
-            )
-            if IDACLANG_AVAILABLE:
-                ida_srclang.set_parser_argv(
-                    "clang", "-target %IDACLANG_TARGET% -x c++ -fms-extensions -D_IDACLANG_=1"
-                )  # -target required for 8.3+
-                ida_srclang.parse_decls_with_parser("clang", None, header_path, True)
-            else:
-                original_macros = ida_typeinf.get_c_macros()
-                ida_typeinf.set_c_macros(original_macros + ";_IDA_=1")
-                ida_typeinf.idc_parse_types(header_path, ida_typeinf.PT_FILE)
-                ida_typeinf.set_c_macros(original_macros)
+            self._status.update_step("Processing Types", 1)
+            self.import_type_definitions()
+            self._status.update_progress()
 
         # Skip make_function on Windows GameAssembly.dll files due to them predefining all functions through pdata which makes the method very slow
         self._skip_function_creation = (
@@ -132,6 +110,31 @@ class IDADisassemblerInterface(BaseDisassemblerInterface):
             )
 
         self._is_32_bit = ida_ida.inf_is_32bit_exactly()
+
+    def import_type_definitions(self):
+        # Unload type libraries we know to cause issues - like the c++ linux one
+        PROBLEMATIC_LINUX_TYPELIBS = [f"gnulnx_{x}" for x in ["x86", "x64", "arm", "arm64"]]
+        PROBLEMATIC_WINDOWS_TYPELIBS = ["_".join(x) for x in itertools.product(["mssdk64", "mssdk"], ["2000", "nt", "vista", "win10", "win7", "win8", "win81", "ws03", "xp"])]
+        PROBLEMATIC_TYPELIBS = PROBLEMATIC_LINUX_TYPELIBS + PROBLEMATIC_WINDOWS_TYPELIBS
+
+        for lib in PROBLEMATIC_TYPELIBS:
+            ida_typeinf.del_til(lib)
+
+        header_path = os.path.join(
+            self.get_script_directory(), "%TYPE_HEADER_RELATIVE_PATH%"
+        )
+        if IDACLANG_AVAILABLE:
+            ida_srclang.set_parser_argv(
+                "clang", "-target %IDACLANG_TARGET% -x c++ -fms-extensions -D_IDACLANG_=1"
+            )  # -target required for 8.3+
+            ida_srclang.parse_decls_with_parser("clang", None, header_path, True)
+        else:
+            original_macros = ida_typeinf.get_c_macros()
+            ida_typeinf.set_c_macros(original_macros + ";_IDA_=1")
+            try:
+                ida_typeinf.idc_parse_types(header_path, ida_typeinf.PT_FILE)
+            finally:
+                ida_typeinf.set_c_macros(original_macros)
 
     def on_finish(self):
         ida_ida.inf_set_genflags(self._cached_genflags)
@@ -306,7 +309,8 @@ Elapsed: {step_time} ({total_time})
         ida_kernwin.hide_wait_box()
 
 
-status = IDAStatusHandler()
-backend = IDADisassemblerInterface(status)
-context = ScriptContext(backend, status)
-context.process()
+if "%IDA_TERMINAL%" != "True":
+    status = IDAStatusHandler()
+    backend = IDADisassemblerInterface(status)
+    context = ScriptContext(backend, status)
+    context.process()

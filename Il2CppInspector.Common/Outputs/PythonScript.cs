@@ -8,11 +8,9 @@ using Il2CppInspector.Reflection;
 
 namespace Il2CppInspector.Outputs
 {
-    public class PythonScript
+    public class PythonScript(AppModel model)
     {
-        private readonly AppModel model;
-
-        public PythonScript(AppModel model) => this.model = model;
+        private readonly AppModel model = model;
 
         // Get list of available script targets
         public static IEnumerable<string> GetAvailableTargets()
@@ -61,15 +59,27 @@ namespace Il2CppInspector.Outputs
             var baseScript = ResourceHelper.GetText($"{ns}.shared_base.py");
             var impl = ResourceHelper.GetText($"{ns}.Targets.{target}.py");
 
-            var script = string.Join("\n", baseScript, impl)
-                .Replace("%SCRIPTFILENAME%", Path.GetFileName(outputFile))
-                .Replace("%TYPE_HEADER_RELATIVE_PATH%", typeHeaderRelativePath.ToEscapedString())
-                .Replace("%JSON_METADATA_RELATIVE_PATH%", jsonMetadataRelativePath.ToEscapedString())
-                .Replace("%TARGET_UNITY_VERSION%", model.UnityHeaders.ToString())
-                .Replace("%IDACLANG_TARGET%", ClangTarget(model.Image.Format, model.Image.Arch));
-            script = script.Replace("        # %GAME_METADATA_PROCESSOR%", model.Package.Metadata.GamePlugin?.PythonMetadataProcessor ?? "");
+            File.WriteAllText(outputFile, renderScript(outputFile, terminal: false));
+            if (target == "IDA")
+            {
+                var terminalOutput = Path.Combine(Path.GetDirectoryName(outputFile), Path.GetFileNameWithoutExtension(outputFile) + "_t.py");
+                File.WriteAllText(terminalOutput, renderScript(terminalOutput, terminal: true));
+            }
 
-            File.WriteAllText(outputFile, script);
+            string renderScript(string filename, bool terminal)
+            {
+                var script = string.Join("\n", baseScript, impl);
+                if (terminal)
+                    script += "\n" + ResourceHelper.GetText($"{ns}.IDA_terminal.py");
+                return script
+                    .Replace("%SCRIPTFILENAME%", Path.GetFileName(filename))
+                    .Replace("%TYPE_HEADER_RELATIVE_PATH%", typeHeaderRelativePath.ToEscapedString())
+                    .Replace("%JSON_METADATA_RELATIVE_PATH%", jsonMetadataRelativePath.ToEscapedString())
+                    .Replace("%TARGET_UNITY_VERSION%", model.UnityHeaders.ToString())
+                    .Replace("%IDACLANG_TARGET%", ClangTarget(model.Image.Format, model.Image.Arch))
+                    .Replace("%IDA_TERMINAL%", terminal ? "True" : "False")
+                    .Replace("        # %GAME_METADATA_PROCESSOR%", model.Package.Metadata.GamePlugin?.PythonMetadataProcessor ?? "");
+            }
         }
 
         private static string ClangTarget(string format, string arch)
@@ -89,8 +99,8 @@ namespace Il2CppInspector.Outputs
             return cpu + "-" + platform;
         }
 
-        private string getRelativePath(string from, string to) =>
-            Path.GetRelativePath(Path.GetDirectoryName(Path.GetFullPath(from))!, Path.GetDirectoryName(Path.GetFullPath(to))!)
+        private static string getRelativePath(string from, string to) =>
+            Path.GetRelativePath(Path.GetDirectoryName(Path.GetFullPath(from)), Path.GetDirectoryName(Path.GetFullPath(to)))
             + '/'
             // We do not use Path.DirectorySeparatorChar here as scripts might be generated on windows then ran on linux,
             // and / is cross-compatible

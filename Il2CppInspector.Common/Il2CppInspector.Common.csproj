@@ -34,6 +34,7 @@
     />
     <EmbeddedResource Include="Outputs\ScriptResources\Targets\Ghidra.py" LogicalName="Il2CppInspector.Outputs.ScriptResources.Targets.Ghidra.py" />
     <EmbeddedResource Include="Outputs\ScriptResources\Targets\IDA.py" LogicalName="Il2CppInspector.Outputs.ScriptResources.Targets.IDA.py" />
+    <EmbeddedResource Include="Outputs\ScriptResources\IDA_terminal.py" LogicalName="Il2CppInspector.Outputs.ScriptResources.IDA_terminal.py" />
   </ItemGroup>
 
   <ItemGroup>

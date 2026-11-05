@@ -185,6 +185,15 @@ class ScriptContext:
         self._backend.set_data_name(addr, definition["name"])
         self._backend.set_data_comment(addr, definition["value"])
 
+    def iter_items(self, items):
+        return items
+
+    def should_process_step(self):
+        return True
+
+    def skipped_items(self):
+        return 0
+
     def process_metadata(self, metadata: dict):
         # Function boundaries
         function_addresses = metadata["functionAddresses"]
@@ -192,7 +201,7 @@ class ScriptContext:
         count = len(function_addresses)
 
         self._status.update_step("Processing function boundaries", count)
-        for i in range(count):
+        for i in self.iter_items(range(count)):
             start = self.from_hex(function_addresses[i])
             if start == 0:
                 self._status.update_progress()
@@ -210,11 +219,11 @@ class ScriptContext:
         self._status.update_step(
             "Processing method definitions", len(metadata["methodDefinitions"])
         )
-        if self._backend.apply_structures:
+        if self._backend.apply_structures and self.should_process_step():
             self._backend.cache_function_types(
                 [x["signature"] for x in metadata["methodDefinitions"]]
             )
-        for d in metadata["methodDefinitions"]:
+        for d in self.iter_items(metadata["methodDefinitions"]):
             self.define_il_method(d)
             self._status.update_progress()
 
@@ -223,11 +232,11 @@ class ScriptContext:
             "Processing constructed generic methods",
             len(metadata["constructedGenericMethods"]),
         )
-        if self._backend.apply_structures:
+        if self._backend.apply_structures and self.should_process_step():
             self._backend.cache_function_types(
                 [x["signature"] for x in metadata["constructedGenericMethods"]]
             )
-        for d in metadata["constructedGenericMethods"]:
+        for d in self.iter_items(metadata["constructedGenericMethods"]):
             self.define_il_method(d)
             self._status.update_progress()
 
@@ -236,11 +245,11 @@ class ScriptContext:
             "Processing custom attributes generators",
             len(metadata["customAttributesGenerators"]),
         )
-        if self._backend.apply_structures:
+        if self._backend.apply_structures and self.should_process_step():
             self._backend.cache_function_types(
                 [x["signature"] for x in metadata["customAttributesGenerators"]]
             )
-        for d in metadata["customAttributesGenerators"]:
+        for d in self.iter_items(metadata["customAttributesGenerators"]):
             self.define_cpp_function(d)
             self._status.update_progress()
 
@@ -248,11 +257,11 @@ class ScriptContext:
         self._status.update_step(
             "Processing Method.Invoke thunks", len(metadata["methodInvokers"])
         )
-        if self._backend.apply_structures:
+        if self._backend.apply_structures and self.should_process_step():
             self._backend.cache_function_types(
                 [x["signature"] for x in metadata["methodInvokers"]]
             )
-        for d in metadata["methodInvokers"]:
+        for d in self.iter_items(metadata["methodInvokers"]):
             self.define_cpp_function(d)
             self._status.update_progress()
 
@@ -262,7 +271,7 @@ class ScriptContext:
                 "Processing string literals (V19+)", len(metadata["stringLiterals"])
             )
 
-            if self._backend.supports_fake_string_segment:
+            if self._backend.supports_fake_string_segment and self.should_process_step():
                 total_string_length = 0
                 for d in metadata["stringLiterals"]:
                     total_string_length += len(d["string"].encode("utf-8")) + 1
@@ -274,8 +283,11 @@ class ScriptContext:
                     ".fake_strings", aligned_length
                 )
 
-                current_string_address = segment_base
-                for d in metadata["stringLiterals"]:
+                current_string_address = segment_base + sum(
+                    len(metadata["stringLiterals"][i]["string"].encode("utf-8")) + 1
+                    for i in range(self.skipped_items())
+                )
+                for d in self.iter_items(metadata["stringLiterals"]):
                     # NOTE: This, for some reason, prevents IDA from inlining the constant strings
                     # on x64 only (!). As this is not strictly required, we just disable it in general.
                     # If this turns out to still be desired with the fake strings, we can disable this
@@ -293,26 +305,27 @@ class ScriptContext:
                     current_string_address += written_string_length
                     self._status.update_progress()
             else:
-                for d in metadata["stringLiterals"]:
+                for d in self.iter_items(metadata["stringLiterals"]):
                     self.define_string(d)
                     self._status.update_progress()
 
         # String literals for version < 19
         elif metadata["stringLiterals"] and self._backend.apply_structures:
-            self._status.update_step("Processing string literals (pre-V19)")
-            litDecl = "enum StringLiteralIndex {\n"
-            for d in metadata["stringLiterals"]:
-                litDecl += "  " + d["name"] + ",\n"
-            litDecl += "};\n"
-
-            self._backend.import_c_typedef(litDecl)
+            self._status.update_step("Processing string literals (pre-V19)", 1)
+            if self.should_process_step():
+                litDecl = "enum StringLiteralIndex {\n"
+                for d in metadata["stringLiterals"]:
+                    litDecl += "  " + d["name"] + ",\n"
+                litDecl += "};\n"
+                self._backend.import_c_typedef(litDecl)
+                self._status.update_progress()
 
         # Il2CppClass (TypeInfo) pointers
         self._status.update_step(
             "Processing Il2CppClass (TypeInfo) pointers",
             len(metadata["typeInfoPointers"]),
         )
-        for d in metadata["typeInfoPointers"]:
+        for d in self.iter_items(metadata["typeInfoPointers"]):
             self.define_field_from_json(d)
             self._status.update_progress()
 
@@ -322,7 +335,7 @@ class ScriptContext:
         self._status.update_step(
             "Processing Il2CppType (TypeRef) pointers", len(metadata["typeRefPointers"])
         )
-        for d in metadata["typeRefPointers"]:
+        for d in self.iter_items(metadata["typeRefPointers"]):
             self.define_field(
                 d["virtualAddress"], d["name"], r"struct Il2CppType *", d["dotNetType"]
             )
@@ -332,7 +345,7 @@ class ScriptContext:
         self._status.update_step(
             "Processing MethodInfo pointers", len(metadata["methodInfoPointers"])
         )
-        for d in metadata["methodInfoPointers"]:
+        for d in self.iter_items(metadata["methodInfoPointers"]):
             self.define_il_method_info(d)
             self._status.update_progress()
 
@@ -340,7 +353,7 @@ class ScriptContext:
         self._status.update_step(
             "Processing FieldInfo pointers", len(metadata["fields"])
         )
-        for d in metadata["fields"]:
+        for d in self.iter_items(metadata["fields"]):
             self.define_field_with_value(d)
             self._status.update_progress()
 
@@ -348,7 +361,7 @@ class ScriptContext:
         self._status.update_step(
             "Processing FieldRva pointers", len(metadata["fieldRvas"])
         )
-        for d in metadata["fieldRvas"]:
+        for d in self.iter_items(metadata["fieldRvas"]):
             self.define_field_with_value(d)
             self._status.update_progress()
 
@@ -356,31 +369,35 @@ class ScriptContext:
         self._status.update_step(
             "Processing IL2CPP type metadata", len(metadata["typeMetadata"])
         )
-        for d in metadata["typeMetadata"]:
+        for d in self.iter_items(metadata["typeMetadata"]):
             self.define_field(d["virtualAddress"], d["name"], d["type"])
+            self._status.update_progress()
 
         # IL2CPP function metadata
         self._status.update_step(
             "Processing IL2CPP function metadata", len(metadata["functionMetadata"])
         )
-        for d in metadata["functionMetadata"]:
+        for d in self.iter_items(metadata["functionMetadata"]):
             self.define_cpp_function(d)
+            self._status.update_progress()
 
         # IL2CPP array metadata
         self._status.update_step(
             "Processing IL2CPP array metadata", len(metadata["arrayMetadata"])
         )
-        for d in metadata["arrayMetadata"]:
+        for d in self.iter_items(metadata["arrayMetadata"]):
             self.define_array(d)
+            self._status.update_progress()
 
         # IL2CPP API functions
         self._status.update_step(
             "Processing IL2CPP API functions", len(metadata["apis"])
         )
-        if self._backend.apply_structures:
+        if self._backend.apply_structures and self.should_process_step():
             self._backend.cache_function_types([x["signature"] for x in metadata["apis"]])
-        for d in metadata["apis"]:
+        for d in self.iter_items(metadata["apis"]):
             self.define_cpp_function(d)
+            self._status.update_progress()
 
     def process(self):
         self._status.initialize()
