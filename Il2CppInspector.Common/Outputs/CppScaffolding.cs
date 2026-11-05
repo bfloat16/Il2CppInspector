@@ -228,66 +228,67 @@ namespace Il2CppInspector.Outputs
                 }
             }
 
-            // Write application type definition addresses to il2cpp-types-ptr.h
-            var il2cppTypeInfoFile = Path.Combine(srcDataPath, "il2cpp-types-ptr.h");
-
-            using var fs3 = new FileStream(il2cppTypeInfoFile, FileMode.Create);
-            _writer = new StreamWriter(fs3, Encoding.ASCII);
-
-            using (_writer)
-            {
-                writeHeader();
-                writeSectionHeader("IL2CPP application-specific type definition addresses");
-
-                foreach (
-                    var type in (_model.Package.Metadata.HasGameAdapter ? Enumerable.Empty<AppType>() : _model.Types.Values).Where(t =>
-                        t.TypeClassAddress != 0xffffffff_ffffffff
-                    )
-                )
-                {
-                    writeCode($"DO_TYPEDEF(0x{type.TypeClassAddress - _model.Package.BinaryImage.ImageBase:X8}, {type.Name});");
-                }
-            }
-
-            // Write method pointers and signatures to il2cpp-functions.h
-            var methodFile = Path.Combine(srcDataPath, "il2cpp-functions.h");
-
-            using var fs4 = new FileStream(methodFile, FileMode.Create);
-            _writer = new StreamWriter(fs4, Encoding.ASCII);
-
-            using (_writer)
-            {
-                writeHeader();
-                writeSectionHeader("IL2CPP application-specific method definition addresses and signatures");
-
-                writeCode("using namespace app;");
-                writeLine("");
-
-                foreach (var method in _model.Package.Metadata.HasGameAdapter ? Enumerable.Empty<AppMethod>() : _model.Methods.Values)
-                {
-                    if (method.HasCompiledCode)
-                    {
-                        var arguments = string.Join(
-                            ", ",
-                            method.CppFnPtrType.Arguments.Select(a => a.Type.Name + " " + (a.Name == "this" ? "__this" : a.Name))
-                        );
-
-                        writeCode(
-                            $"DO_APP_FUNC(0x{method.MethodCodeAddress - _model.Package.BinaryImage.ImageBase:X8}, {method.CppFnPtrType.ReturnType.Name}, "
-                                + $"{method.CppFnPtrType.Name}, ({arguments}));"
-                        );
-                    }
-
-                    if (method.HasMethodInfo)
-                    {
-                        writeCode(
-                            $"DO_APP_FUNC_METHODINFO(0x{method.MethodInfoPtrAddress - _model.Package.BinaryImage.ImageBase:X8}, {method.CppFnPtrType.Name}__MethodInfo);"
-                        );
-                    }
-                }
-            }
             if (_model.Package.Metadata.HasGameAdapter)
-                WriteGameApplicationPointers(srcDataPath);
+            {
+                WriteApplicationPointers(srcDataPath);
+            }
+            else
+            {
+                // Write application type definition addresses to il2cpp-types-ptr.h
+                var il2cppTypeInfoFile = Path.Combine(srcDataPath, "il2cpp-types-ptr.h");
+
+                using var fs3 = new FileStream(il2cppTypeInfoFile, FileMode.Create);
+                _writer = new StreamWriter(fs3, Encoding.ASCII);
+
+                using (_writer)
+                {
+                    writeHeader();
+                    writeSectionHeader("IL2CPP application-specific type definition addresses");
+
+                    foreach (var type in _model.Types.Values.Where(t => t.TypeClassAddress != 0xffffffff_ffffffff))
+                    {
+                        writeCode($"DO_TYPEDEF(0x{type.TypeClassAddress - _model.Package.BinaryImage.ImageBase:X8}, {type.Name});");
+                    }
+                }
+
+                // Write method pointers and signatures to il2cpp-functions.h
+                var methodFile = Path.Combine(srcDataPath, "il2cpp-functions.h");
+
+                using var fs4 = new FileStream(methodFile, FileMode.Create);
+                _writer = new StreamWriter(fs4, Encoding.ASCII);
+
+                using (_writer)
+                {
+                    writeHeader();
+                    writeSectionHeader("IL2CPP application-specific method definition addresses and signatures");
+
+                    writeCode("using namespace app;");
+                    writeLine("");
+
+                    foreach (var method in _model.Methods.Values)
+                    {
+                        if (method.HasCompiledCode)
+                        {
+                            var arguments = string.Join(
+                                ", ",
+                                method.CppFnPtrType.Arguments.Select(a => a.Type.Name + " " + (a.Name == "this" ? "__this" : a.Name))
+                            );
+
+                            writeCode(
+                                $"DO_APP_FUNC(0x{method.MethodCodeAddress - _model.Package.BinaryImage.ImageBase:X8}, {method.CppFnPtrType.ReturnType.Name}, "
+                                    + $"{method.CppFnPtrType.Name}, ({arguments}));"
+                            );
+                        }
+
+                        if (method.HasMethodInfo)
+                        {
+                            writeCode(
+                                $"DO_APP_FUNC_METHODINFO(0x{method.MethodInfoPtrAddress - _model.Package.BinaryImage.ImageBase:X8}, {method.CppFnPtrType.Name}__MethodInfo);"
+                            );
+                        }
+                    }
+                }
+            }
 
             // Write metadata version
             var versionFile = Path.Combine(srcDataPath, "il2cpp-metadata-version.h");
@@ -360,8 +361,6 @@ namespace Il2CppInspector.Outputs
 
             WriteIfNotExists(Path.Combine(projectPath, solutionFile), sln);
         }
-
-        internal void WriteGameApplicationPointers(string path) => WriteApplicationPointers(path);
 
         internal void WriteApplicationPointers(string path)
         {

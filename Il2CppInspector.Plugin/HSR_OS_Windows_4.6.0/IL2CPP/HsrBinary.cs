@@ -6,15 +6,15 @@ namespace Il2CppInspector;
 
 internal sealed class HsrBinary
 {
-    private readonly HsrMorax adapter;
-    internal IFileFormatStream Image => adapter.Image;
+    private readonly HsrMorax _adapter;
+    internal IFileFormatStream Image => _adapter.Image;
     internal HsrHeader Header { get; }
-    private ulong CodeRegistrationAddress => adapter.CodeRegistrationAddress;
-    private ulong MetadataRegistrationAddress => adapter.MetadataRegistrationAddress;
-    internal ulong UsageAddress => adapter.UsageAddress;
-    private readonly Section[] sections;
-    private readonly EventHandler<string> status;
-    private HsrMetadata metadata;
+    private ulong CodeRegistrationAddress => _adapter.CodeRegistrationAddress;
+    private ulong MetadataRegistrationAddress => _adapter.MetadataRegistrationAddress;
+    internal ulong UsageAddress => _adapter.UsageAddress;
+    private readonly Section[] _sections;
+    private readonly EventHandler<string> _status;
+    private HsrMetadata _metadata;
 
     internal IReadOnlyList<Il2CppType> Types => types;
     internal IReadOnlyList<Il2CppGenericInst> Instances => instances;
@@ -23,9 +23,9 @@ internal sealed class HsrBinary
 
     internal HsrBinary(HsrMorax adapter, ulong header, EventHandler<string> status)
     {
-        this.adapter = adapter;
-        this.status = status;
-        sections = Image.GetSections().Where(s => s.VirtualLength > 0).ToArray();
+        _adapter = adapter;
+        _status = status;
+        _sections = Image.GetSections().Where(s => s.VirtualLength > 0).ToArray();
         Header = new HsrHeader(Image.ReadMappedBytes(header, 0x200), DiscoverPayloadOffset());
     }
 
@@ -40,9 +40,9 @@ internal sealed class HsrBinary
 
     internal Il2CppBinary Load(HsrMetadata metadata, HsrUsages usages)
     {
-        this.metadata = metadata;
-        var binary = new Il2CppBinaryX64(Image, status);
-        status?.Invoke(this, "Decoding HSR type references and generic instances");
+        _metadata = metadata;
+        var binary = new Il2CppBinaryX64(Image, _status);
+        _status?.Invoke(this, "Decoding HSR type references and generic instances");
         typesAddress = Image.ReadMappedUInt64(MetadataRegistrationAddress + 0x80);
         nativeSizesAddress = Image.ReadMappedUInt64(MetadataRegistrationAddress + 0x40);
         var probe = Image.ReadMappedBytes(typesAddress, 256);
@@ -156,11 +156,11 @@ internal sealed class HsrBinary
             {
                 var fi = metadata.Definitions[i].FieldIndex + local;
                 rawFieldOffsets[fi] = group < 0 ? 0 : LayoutRawFieldOffset(group, local);
-                // The source decoder uses the low 24 bits for every storage region.
+                // Field offsets use the low 24 bits across all storage regions.
                 offsets[fi] = rawFieldOffsets[fi] & 0xFFFFFF;
             }
         }
-        adapter.AttachTables(
+        _adapter.Attach(
             binary,
             metadata.Model,
             [.. types],
@@ -189,7 +189,7 @@ internal sealed class HsrBinary
             binary.CodeRegistration.CustomAttributeGenerators,
             metadata.AttributeRangeCount
         );
-        if (binary.CustomAttributeGenerators.Any(address => !adapter.IsCode(address)))
+        if (binary.CustomAttributeGenerators.Any(address => !_adapter.IsCode(address)))
             throw new InvalidDataException("HSR custom attribute generator outside executable sections.");
         binary.MethodInvokePointers = Image.ReadMappedUWordArray(binary.CodeRegistration.InvokerPointers, invokerCount);
         BuildModules(binary, invokerCount);
@@ -207,7 +207,7 @@ internal sealed class HsrBinary
                 throw new InvalidDataException("HSR generic method pointer outside image.");
             binary.GenericMethodPointers.TryAdd(specs[entry.Spec], va);
         }
-        status?.Invoke(
+        _status?.Invoke(
             this,
             $"HSR: {types.Count} {typeStride}-byte type references, {instances.Count} generic instances, {specs.Length} method specs."
         );
@@ -263,17 +263,17 @@ internal sealed class HsrBinary
     {
         // HSR uses a global method table. Module views preserve stock v24.5 lookup behavior.
         var pointersAddress = Image.ReadMappedUInt64(CodeRegistrationAddress + 0x40);
-        var pointers = Image.ReadMappedUWordArray(pointersAddress, metadata.Methods.Length);
-        var invokers = metadata.ReadGlobal(Header.InvokersOffset, metadata.Methods.Length, 2, (d, _) => Index16(U16(d, 0)));
+        var pointers = Image.ReadMappedUWordArray(pointersAddress, _metadata.Methods.Length);
+        var invokers = _metadata.ReadGlobal(Header.InvokersOffset, _metadata.Methods.Length, 2, (d, _) => Index16(U16(d, 0)));
         if (invokers.Any(i => i >= invokerCount))
             throw new InvalidDataException("HSR method invoker index outside registered table.");
-        foreach (var image in metadata.Model.Images)
+        foreach (var image in _metadata.Model.Images)
         {
             var first = int.MaxValue;
             var last = 0;
             for (var ti = (int)image.TypeStart; ti < image.TypeStart + image.TypeCount; ti++)
             {
-                var t = metadata.Definitions[ti];
+                var t = _metadata.Definitions[ti];
                 if (t.MethodCount == 0)
                     continue;
                 first = Math.Min(first, t.MethodIndex);
@@ -289,27 +289,27 @@ internal sealed class HsrBinary
                 MethodPointerCount = (uint)(last - first),
                 MethodPointers = pointersAddress + (ulong)first * 8,
             };
-            var name = metadata.Model.Strings[image.NameIndex];
+            var name = _metadata.Model.Strings[image.NameIndex];
             binary.Modules.Add(name, module);
             binary.ModuleMethodPointers.Add(module, pointers[first..last]);
             binary.MethodInvokerIndices.Add(module, invokers[first..last]);
-            metadata.NormalizeMethodTokens(image, first, last);
+            _metadata.NormalizeMethodTokens(image, first, last);
         }
     }
 
-    internal int DefinitionLayoutGroup(int definition) => I32(metadata.Global, checked(metadata.Base(Header.FieldMapOffset) + definition * 4));
+    internal int DefinitionLayoutGroup(int definition) => I32(_metadata.Global, checked(_metadata.Base(Header.FieldMapOffset) + definition * 4));
 
     internal Il2CppTypeDefinitionSizes LayoutSizes(int group)
     {
-        var o = checked(metadata.Base(Header.FieldGroupsOffset) + group * 12);
-        CheckRange(metadata.Global, o, 12);
+        var o = checked(_metadata.Base(Header.FieldGroupsOffset) + group * 12);
+        CheckRange(_metadata.Global, o, 12);
         // RVA 0x208E1AAD reads the u16 native size by layout group; 0x208E1E07 copies sizes.
         var native = Image.ReadMappedUInt16(nativeSizesAddress + checked((ulong)group * 2));
         return new()
         {
-            InstanceSize = U16(metadata.Global, o + 2),
-            StaticFieldsSize = U16(metadata.Global, o + 4),
-            ThreadStaticFieldsSize = metadata.Global[o],
+            InstanceSize = U16(_metadata.Global, o + 2),
+            StaticFieldsSize = U16(_metadata.Global, o + 4),
+            ThreadStaticFieldsSize = _metadata.Global[o],
             NativeSize = native == ushort.MaxValue ? -1 : native,
         };
     }
@@ -318,7 +318,7 @@ internal sealed class HsrBinary
     {
         if (group < 0)
             return 1;
-        var value = metadata.Global[checked(metadata.Base(Header.FieldGroupsOffset) + group * 12 + 6)];
+        var value = _metadata.Global[checked(_metadata.Base(Header.FieldGroupsOffset) + group * 12 + 6)];
         if (value is not (1 or 2 or 4 or 8 or 16))
             throw new InvalidDataException($"Invalid HSR layout alignment {value} in group {group}.");
         return value;
@@ -326,22 +326,19 @@ internal sealed class HsrBinary
 
     private uint LayoutRawFieldOffset(int group, int local)
     {
-        var start = U32(metadata.Global, checked(metadata.Base(Header.FieldGroupsOffset) + group * 12 + 8));
-        return U32(metadata.Global, checked(metadata.Base(Header.FieldOffsetsOffset) + (int)(start + local) * 4));
+        var start = U32(_metadata.Global, checked(_metadata.Base(Header.FieldGroupsOffset) + group * 12 + 8));
+        return U32(_metadata.Global, checked(_metadata.Base(Header.FieldOffsetsOffset) + (int)(start + local) * 4));
     }
 
     internal uint LayoutFieldOffset(int group, int local) => LayoutRawFieldOffset(group, local) & 0xFFFFFF;
 
     internal int FieldStorageTag(Reflection.FieldInfo field) => (int)(rawFieldOffsets[field.Index] >> 24);
 
-    internal Reflection.TypeInfo ResolveGenericType(Reflection.TypeModel model, Il2CppType type) =>
-        HsrGenerics.ResolveType(metadata, this, model, type);
-
     private uint DiscoverPayloadOffset()
     {
         // Pattern: lea rcx,[rip+...]; call ...; mov rsi,rax; lea rcx,[rip+...].
         // Only accept the verified initializer sequence leading to add rsi,imm32.
-        foreach (var section in sections.Where(s => !s.IsBSS && s.ImageLength >= 64))
+        foreach (var section in _sections.Where(s => !s.IsBSS && s.ImageLength >= 64))
         {
             var bytes = Image.ReadBytes(section.ImageStart, section.ImageLength);
             for (var i = 0; i <= bytes.Length - 64; i++)
@@ -373,5 +370,5 @@ internal sealed class HsrBinary
     }
 
     internal bool Contains(ulong address, ulong length) =>
-        address != 0 && sections.Any(s => address >= s.VirtualStart && address <= s.VirtualEnd && length <= s.VirtualEnd - address + 1);
+        address != 0 && _sections.Any(s => address >= s.VirtualStart && address <= s.VirtualEnd && length <= s.VirtualEnd - address + 1);
 }

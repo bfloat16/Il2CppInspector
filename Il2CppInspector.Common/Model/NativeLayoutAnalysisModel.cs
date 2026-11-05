@@ -28,14 +28,14 @@ namespace Il2CppInspector.Model
             model.BuildMethodsFromMetadata(AddMethod);
             methodsBuilt = true;
 
-            AppMethod AddMethod(MethodBase method, int definition, int spec, string group)
+            AppMethod AddMethod(MethodBase method, string methodGroup)
             {
                 if (model.AnalysisMethods.ContainsKey(method))
                 {
                     return model.AnalysisMethods[method];
                 }
 
-                this.group = group;
+                group = methodGroup;
                 var complete = true;
                 CppType Convert(TypeInfo type)
                 {

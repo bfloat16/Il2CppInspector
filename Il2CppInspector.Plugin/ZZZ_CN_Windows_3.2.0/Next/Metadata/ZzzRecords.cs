@@ -1,4 +1,4 @@
-// ZZZ 3.2.0 Windows record layouts, ported from ZZZ-MORAX's IDA-verified readers.
+// ZZZ 3.2.0 Windows record layouts.
 using System.Reflection;
 using static Il2CppInspector.MoraxReader;
 

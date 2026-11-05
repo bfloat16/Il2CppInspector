@@ -374,8 +374,7 @@ namespace Il2CppInspector.Plugin.LAD
             if ((uint)typeIndex >= il2CppBinary.TypeReferences.Length || (uint)dataIndex >= SectionSize(LadBuild.SlotDefaultValueData))
                 throw new InvalidDataException("LAD default value contains an invalid type or data index.");
 
-            var address = checked(defaultValueDataOffset + dataIndex);
-            var offset = address;
+            var offset = checked(defaultValueDataOffset + dataIndex);
             var kind = il2CppBinary.TypeReferences[typeIndex].Type;
             object value = kind switch
             {
@@ -394,7 +393,7 @@ namespace Il2CppInspector.Plugin.LAD
                 Il2CppTypeEnum.IL2CPP_TYPE_STRING => DecodeDefaultString(offset),
                 _ => null,
             };
-            return ((ulong)address, value);
+            return ((ulong)offset, value);
         }
 
         private ulong ReadU64(int offset) => BitConverter.ToUInt64(data, offset);

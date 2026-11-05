@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Il2CppInspector.Next.BinaryMetadata;
 using Il2CppInspector.Plugins;
 
@@ -26,17 +25,6 @@ internal sealed class HsrMorax : MoraxAdapter
         var binary = adapter.binary.Load(adapter.metadata, adapter.usages);
         return new Il2CppInspector(binary, adapter.metadata.Model);
     }
-
-    internal void AttachTables(
-        Il2CppBinary binary,
-        Metadata model,
-        ImmutableArray<Il2CppType> types,
-        Dictionary<ulong, int> typeAddresses,
-        ImmutableArray<Il2CppGenericInst> instances,
-        ImmutableArray<Il2CppMethodSpec> specs,
-        ImmutableArray<uint> fieldOffsets,
-        ImmutableArray<Il2CppTypeDefinitionSizes> sizes
-    ) => Attach(binary, model, types, typeAddresses, instances, specs, fieldOffsets, sizes);
 
     private bool IsRegistration(ulong[] targets, int metadataLength)
     {
@@ -70,7 +58,8 @@ internal sealed class HsrMorax : MoraxAdapter
 
     internal override int LayoutAlignment(int group) => binary.LayoutAlignment(group);
 
-    public override Reflection.TypeInfo ResolveGenericType(Reflection.TypeModel model, Il2CppType type) => binary.ResolveGenericType(model, type);
+    public override Reflection.TypeInfo ResolveGenericType(Reflection.TypeModel model, Il2CppType type) =>
+        HsrGenerics.ResolveType(metadata, binary, model, type);
 
     public override (ulong Address, object Value) DecodeDefault(int typeIndex, int dataIndex, Il2CppBinary binary) =>
         HsrDefaults.Decode(metadata, typeIndex, dataIndex, binary);

@@ -1,6 +1,5 @@
 using Il2CppInspector.Cpp.UnityHeaders;
 using Il2CppInspector.Model;
-using Il2CppInspector.Outputs;
 using Il2CppInspector.Reflection;
 
 namespace Il2CppInspector.Plugins
@@ -12,7 +11,7 @@ namespace Il2CppInspector.Plugins
         public virtual bool StreamExports => false;
         public virtual UnityVersion DefaultUnityVersion => null;
         public virtual string PythonMetadataProcessor => "";
-        public abstract string RegistrationSignature { get; }
+        public virtual string RegistrationSignature => null;
 
         public abstract bool Matches(ReadOnlySpan<byte> metadata);
         public abstract Il2CppInspector Load(
@@ -22,20 +21,16 @@ namespace Il2CppInspector.Plugins
             LoadOptions options,
             EventHandler<string> status
         );
-        public abstract UnityHeaders GetHeaders();
-        public abstract IGameTypeLayouts CreateTypeLayouts(TypeModel model);
-        public abstract GameNativeModel CreateNativeModel(TypeModel model);
-        public abstract IGameAnalysisModel CreateAnalysisModel(AppModel model);
 
-        public virtual void WriteAssemblies(TypeModel model, string path, bool suppressMetadata, EventHandler<string> status) =>
-            new AssemblyShims(model) { SuppressMetadata = suppressMetadata }.Write(path, status);
+        public virtual UnityHeaders GetHeaders() => throw new NotSupportedException($"{GameId} uses the stock IL2CPP pipeline.");
 
-        public virtual void WriteHeader(AppModel model, string path, bool betterArraySize) =>
-            new CppScaffolding(model, betterArraySize).WriteTypes(path);
+        public virtual IGameTypeLayouts CreateTypeLayouts(TypeModel model) =>
+            throw new NotSupportedException($"{GameId} uses the stock IL2CPP pipeline.");
 
-        public virtual void WriteJson(AppModel model, string path, bool allowComments, bool supplementDebugInfo = false) =>
-            new JSONMetadata(model) { AllowComments = allowComments, SupplementDebugInfo = supplementDebugInfo }.Write(path);
+        public virtual GameNativeModel CreateNativeModel(TypeModel model) =>
+            throw new NotSupportedException($"{GameId} uses the stock IL2CPP pipeline.");
 
-        public virtual void WriteApplicationPointers(AppModel model, string path) => new CppScaffolding(model).WriteApplicationPointers(path);
+        public virtual IGameAnalysisModel CreateAnalysisModel(AppModel model) =>
+            throw new NotSupportedException($"{GameId} uses the stock IL2CPP pipeline.");
     }
 }

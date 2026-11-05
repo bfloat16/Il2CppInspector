@@ -14,8 +14,8 @@ internal sealed class HsrMetadata
     internal Metadata Model { get; }
     internal HsrHeader Header { get; }
     internal byte[] Global { get; }
-    private readonly byte[] startup;
-    private readonly EventHandler<string> status;
+    private readonly byte[] _startup;
+    private readonly EventHandler<string> _status;
 
     internal Il2CppTypeDefinition[] Definitions => definitions;
     internal Il2CppMethodDefinition[] Methods => methods;
@@ -25,11 +25,11 @@ internal sealed class HsrMetadata
     internal HsrMetadata(byte[] global, byte[] startup, HsrHeader header, Plugins.GameMetadataAdapter adapter, EventHandler<string> status)
     {
         Header = header;
-        this.startup = startup;
-        this.status = status;
+        _startup = startup;
+        _status = status;
         Model = Metadata.CreateForPlugin(global, adapter, MetadataVersions.V245, status);
         Global = Model.GetBuffer();
-        status?.Invoke(this, $"Decoding {adapter.Plugin.GameId} metadata (payload +0x{header.PayloadOffset:X})");
+        _status?.Invoke(this, $"Decoding {adapter.Plugin.GameId} metadata (payload +0x{header.PayloadOffset:X})");
         ReadMetadata();
     }
 
@@ -39,7 +39,7 @@ internal sealed class HsrMetadata
         Records(Global, Base(offset), count, stride, read);
 
     internal ImmutableArray<T> ReadStartup<T>(uint offset, int count, int stride, RecordReader<T> read) =>
-        Records(startup, checked((int)offset), count, stride, read);
+        Records(_startup, checked((int)offset), count, stride, read);
 
     private Il2CppTypeDefinition[] definitions;
     private Il2CppMethodDefinition[] methods;
@@ -159,7 +159,7 @@ internal sealed class HsrMetadata
             Intern(property.NameIndex);
         foreach (var ev in Model.Events)
             Intern(ev.NameIndex);
-        status?.Invoke(this, $"HSR: {Model.Images.Length} images, {definitions.Length} types, {methods.Length} methods, {fields.Length} fields.");
+        _status?.Invoke(this, $"HSR: {Model.Images.Length} images, {definitions.Length} types, {methods.Length} methods, {fields.Length} fields.");
     }
 
     private readonly Dictionary<int, int> declaringDefinitions = [];
@@ -216,7 +216,7 @@ internal sealed class HsrMetadata
         Model.AttributeTypeIndices = ReadGlobal(Header.AttributeTypesOffset, typeCount, 4, (d, _) => I32(d, 0));
         if (Model.AttributeTypeIndices.Any(i => i < 0))
             throw new InvalidDataException("HSR custom attribute type index is negative.");
-        status?.Invoke(this, $"HSR: {count} custom attribute ranges, {typeCount} attribute type references.");
+        _status?.Invoke(this, $"HSR: {count} custom attribute ranges, {typeCount} attribute type references.");
     }
 
     internal void ResolveEnumElementTypes(IReadOnlyList<Il2CppType> types)

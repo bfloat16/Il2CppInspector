@@ -19,7 +19,6 @@ internal sealed partial class ZzzMorax
             "void *"
         ));
     internal uint[] RawFieldOffsets { get; private set; }
-    internal Dictionary<int, ulong> GenericAdjustorThunks { get; } = [];
 
     internal (int Definition, int Instance) GenericClass(ulong ordinal)
     {
@@ -292,7 +291,6 @@ internal sealed partial class ZzzMorax
 
         var genericVa = Image.ReadMappedUInt64(CodeRegistrationAddress + 0x70);
         var genericCount = Image.ReadMappedUInt32(CodeRegistrationAddress + 0x5C) ^ 0x5E455406u;
-        var adjustorsVa = Image.ReadMappedUInt64(CodeRegistrationAddress);
         for (var i = 0; i < Slot(0x178) / 16; i++)
         {
             var o = Base(0x050) + i * 16;
@@ -304,14 +302,7 @@ internal sealed partial class ZzzMorax
             }
 
             var spec = specs[(int)specIndex];
-            var adjustor = U32(global, o);
             var pointer = Image.ReadMappedUInt64(genericVa + pointerIndex * 8UL);
-            var thunk = adjustor == uint.MaxValue ? 0 : Image.ReadMappedUInt64(adjustorsVa + adjustor * 8UL);
-            if (IsCode(thunk))
-            {
-                GenericAdjustorThunks.TryAdd((int)specIndex, thunk);
-            }
-
             if (IsCode(pointer))
             {
                 binary.GenericMethodPointers.TryAdd(spec, pointer);

@@ -319,7 +319,7 @@ namespace Il2CppInspector.Model
 
             // Both native-layout adapters and stock layouts use the same method/usage traversal.
             BuildMethodsFromMetadata(
-                (method, definition, spec, methodGroup) =>
+                (method, methodGroup) =>
                 {
                     if (AnalysisMethods.ContainsKey(method))
                         return AnalysisMethods[method];
@@ -423,23 +423,22 @@ namespace Il2CppInspector.Model
             return this;
         }
 
-        internal void BuildMethodsFromMetadata(Func<MethodBase, int, int, string, AppMethod> add)
+        internal void BuildMethodsFromMetadata(Func<MethodBase, string, AppMethod> add)
         {
             foreach (var method in TypeModel.MethodsByDefinitionIndex.Where(m => m.VirtualAddress.HasValue))
-                add(method, method.Index, -1, "types_from_methods");
+                add(method, "types_from_methods");
             for (var i = 0; i < Package.MethodSpecs.Length; i++)
             {
                 var spec = Package.MethodSpecs[i];
                 if (!Package.GenericMethodPointers.ContainsKey(spec))
                     continue;
-                add(TypeModel.GetGenericMethod(spec), spec.MethodDefinitionIndex, i, "types_from_generic_methods");
+                add(TypeModel.GetGenericMethod(spec), "types_from_generic_methods");
             }
             foreach (var usage in Package.MetadataUsages ?? [])
                 if (usage.Type is MetadataUsageType.MethodDef or MetadataUsageType.MethodRef)
                 {
                     var method = TypeModel.GetMetadataUsageMethod(usage);
-                    var spec = usage.Type == MetadataUsageType.MethodRef ? usage.SourceIndex : -1;
-                    add(method, method.Index, spec, "types_from_usages").MethodInfoPtrAddress = usage.VirtualAddress;
+                    add(method, "types_from_usages").MethodInfoPtrAddress = usage.VirtualAddress;
                 }
         }
 

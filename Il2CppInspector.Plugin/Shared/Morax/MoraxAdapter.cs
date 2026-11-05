@@ -61,7 +61,7 @@ internal abstract class MoraxAdapter : GameMetadataAdapter
         };
 
     /// <summary>Installs the normalized tables; callers then set the build-specific registration records.</summary>
-    private protected void Attach(
+    internal void Attach(
         Il2CppBinary binary,
         Metadata metadata,
         ImmutableArray<Il2CppType> types,

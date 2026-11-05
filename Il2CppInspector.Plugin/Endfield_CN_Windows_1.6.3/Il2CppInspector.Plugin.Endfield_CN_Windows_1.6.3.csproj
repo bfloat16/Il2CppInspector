@@ -4,9 +4,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <EnableDynamicLoading>true</EnableDynamicLoading>
-    <RootNamespace>Il2CppInspector.Plugin.Endfield.Windows</RootNamespace>
+    <RootNamespace>Il2CppInspector.Plugin.Endfield</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../Il2CppInspector.Common/Il2CppInspector.Common.csproj" />
+    <Compile Include="../Endfield_CN_Android_x.x.x/EndfieldPlugin.cs" Link="EndfieldPlugin.cs" />
   </ItemGroup>
 </Project>

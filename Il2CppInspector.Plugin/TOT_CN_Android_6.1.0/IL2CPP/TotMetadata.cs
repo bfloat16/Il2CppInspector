@@ -4,473 +4,396 @@ using System.Text;
 using Il2CppInspector.Next;
 using Il2CppInspector.Next.BinaryMetadata;
 using Il2CppInspector.Next.Metadata;
-using Il2CppInspector.Reflection;
+using Il2CppInspector.Plugins;
 using VersionedSerialization;
 
-namespace Il2CppInspector
+namespace Il2CppInspector.Plugin.TOT;
+
+/// <summary>
+/// Reads decrypted TOT metadata: stock v24.1 records behind a permuted 0x158-byte header. Sections are
+/// (offset, size) pairs at non-stock slots, about 23 slots hold inner-layer key material, and the
+/// stringLiteral index table stores {dataIndex, length}. TotBuild supplies the per-build offsets.
+/// </summary>
+internal sealed class TotMetadata : GameMetadataAdapter
 {
-    /// <summary>
-    /// Reads decrypted TOT metadata: stock v24.1 records behind a permuted 0x158-byte header. Sections are
-    /// (offset, size) pairs at non-stock slots, about 23 slots hold inner-layer key material, and the
-    /// stringLiteral index table stores {dataIndex, length}. TotBuild supplies the per-build offsets.
-    /// </summary>
-    internal sealed partial class TotMetadata : Plugins.GameMetadataAdapter
+    // Header slot of each section's (offset, size) pair; slot 0x24 is a single u32.
+    // Identified but not read: 0x58 (unresolved), 0x98 fieldMarshaledSizes, 0xA0 referencedAssemblies,
+    // 0xD0 exportedTypeDefinitions.
+    private const int SlotStringLiteralCount = 0x24;
+    private const int SlotGenericContainers = 0x28;
+    private const int SlotNestedTypes = 0x30;
+    private const int SlotInterfaces = 0x38;
+    private const int SlotVTableMethods = 0x40;
+    private const int SlotInterfaceOffsets = 0x48;
+    private const int SlotTypeDefinitions = 0x50;
+    private const int SlotImages = 0x70;
+    private const int SlotAssemblies = 0x78;
+    private const int SlotFields = 0x80;
+    private const int SlotGenericParameters = 0x88;
+    private const int SlotDefaultValueData = 0x90;
+    private const int SlotAttributesInfo = 0xA8;
+    private const int SlotAttributeTypes = 0xB0;
+    private const int SlotParameters = 0xE0;
+    private const int SlotGenericParameterConstraints = 0xE8;
+    private const int SlotMetadataUsagePairs = 0xF8;
+    private const int SlotFieldRefs = 0x110;
+    private const int SlotEvents = 0x118;
+    private const int SlotProperties = 0x120;
+    private const int SlotMethods = 0x128;
+    private const int SlotParameterDefaultValues = 0x130;
+    private const int SlotFieldDefaultValues = 0x138;
+    private const int SlotMetadataUsageLists = 0x150;
+
+    // The names table offset is hard-coded in libunity's string getter.
+    private const int StringTableOffset = TotBuild.StringTableOffset;
+
+    internal readonly Metadata Metadata;
+    private readonly byte[] data;
+    private readonly List<MetadataUsage> usages = [];
+
+    internal TotMetadata(byte[] decrypted, EventHandler<string> status, GamePlugin plugin)
+        : base(plugin)
     {
-        // Header slot of each section's (offset, size) pair; slot 0x24 is a single u32.
-        // Identified but not read: 0x58 (unresolved), 0x98 fieldMarshaledSizes, 0xA0 referencedAssemblies,
-        // 0xD0 exportedTypeDefinitions.
-        private const int SlotStringLiteralCount = 0x24;
-        private const int SlotGenericContainers = 0x28;
-        private const int SlotNestedTypes = 0x30;
-        private const int SlotInterfaces = 0x38;
-        private const int SlotVTableMethods = 0x40;
-        private const int SlotInterfaceOffsets = 0x48;
-        private const int SlotTypeDefinitions = 0x50;
-        private const int SlotImages = 0x70;
-        private const int SlotAssemblies = 0x78;
-        private const int SlotFields = 0x80;
-        private const int SlotGenericParameters = 0x88;
-        private const int SlotDefaultValueData = 0x90;
-        private const int SlotAttributesInfo = 0xA8;
-        private const int SlotAttributeTypes = 0xB0;
-        private const int SlotParameters = 0xE0;
-        private const int SlotGenericParameterConstraints = 0xE8;
-        private const int SlotMetadataUsagePairs = 0xF8;
-        private const int SlotFieldRefs = 0x110;
-        private const int SlotEvents = 0x118;
-        private const int SlotProperties = 0x120;
-        private const int SlotMethods = 0x128;
-        private const int SlotParameterDefaultValues = 0x130;
-        private const int SlotFieldDefaultValues = 0x138;
-        private const int SlotMetadataUsageLists = 0x150;
+        data = decrypted;
+        Metadata = Metadata.CreateForPlugin(decrypted, this, MetadataVersions.V241, status);
+        status?.Invoke(this, $"Decoding {TotBuild.GameId} metadata in C#");
+        ReadMetadata();
+    }
 
-        // The names table offset is hard-coded in libunity's string getter.
-        private const int StringTableOffset = TotBuild.StringTableOffset;
+    private int SectionOffset(int slot) => TotRecords.I32(data, slot);
 
-        internal readonly Metadata Metadata;
-        private readonly byte[] data;
-        private readonly List<MetadataUsage> usages = [];
-        private Il2CppBinary binary;
+    private int SectionSize(int slot) => TotRecords.I32(data, slot + 4);
 
-        internal TotMetadata(byte[] decrypted, EventHandler<string> status, Plugins.GamePlugin plugin)
-            : base(plugin)
+    private int SectionCount(int slot, int stride) => SectionSize(slot) / stride;
+
+    private static ImmutableArray<T> Records<T>(byte[] bytes, int offset, int count, int stride, Func<ReadOnlySpan<byte>, T> read)
+    {
+        if (offset < 0 || count < 0 || offset > bytes.Length - (long)count * stride)
         {
-            data = decrypted;
-            Metadata = Metadata.CreateForPlugin(decrypted, this, MetadataVersions.V241, status);
-            status?.Invoke(this, $"Decoding {TotBuild.GameId} metadata in C#");
-            ReadMetadata();
+            throw new InvalidDataException($"TOT metadata table outside input: offset 0x{offset:X}, count {count}.");
         }
 
-        private int SectionOffset(int slot) => TotRecords.I32(data, slot);
-
-        private int SectionSize(int slot) => TotRecords.I32(data, slot + 4);
-
-        private int SectionCount(int slot, int stride) => SectionSize(slot) / stride;
-
-        private static ImmutableArray<T> Records<T>(byte[] bytes, int offset, int count, int stride, Func<ReadOnlySpan<byte>, T> read)
+        var result = new T[count];
+        for (var i = 0; i < count; i++)
         {
-            if (offset < 0 || count < 0 || offset > bytes.Length - (long)count * stride)
+            result[i] = read(bytes.AsSpan(offset + i * stride, stride));
+        }
+
+        return ImmutableCollectionsMarshal.AsImmutableArray(result);
+    }
+
+    private void ReadMetadata()
+    {
+        Metadata.Images = Records(data, SectionOffset(SlotImages), SectionCount(SlotImages, 40), 40, TotRecords.ReadImageDefinition);
+        Metadata.Assemblies = Records(data, SectionOffset(SlotAssemblies), SectionCount(SlotAssemblies, 64), 64, TotRecords.ReadAssemblyDefinition);
+        Metadata.Types = Records(
+            data,
+            SectionOffset(SlotTypeDefinitions),
+            SectionCount(SlotTypeDefinitions, 100),
+            100,
+            TotRecords.ReadTypeDefinition
+        );
+        Metadata.Methods = Records(data, SectionOffset(SlotMethods), SectionCount(SlotMethods, 52), 52, TotRecords.ReadMethodDefinition);
+        Metadata.Fields = Records(data, SectionOffset(SlotFields), SectionCount(SlotFields, 12), 12, TotRecords.ReadFieldDefinition);
+        Metadata.Params = Records(data, SectionOffset(SlotParameters), SectionCount(SlotParameters, 12), 12, TotRecords.ReadParameterDefinition);
+        Metadata.Properties = Records(data, SectionOffset(SlotProperties), SectionCount(SlotProperties, 20), 20, TotRecords.ReadPropertyDefinition);
+        Metadata.Events = Records(data, SectionOffset(SlotEvents), SectionCount(SlotEvents, 24), 24, TotRecords.ReadEventDefinition);
+        Metadata.GenericContainers = Records(
+            data,
+            SectionOffset(SlotGenericContainers),
+            SectionCount(SlotGenericContainers, 16),
+            16,
+            TotRecords.ReadGenericContainer
+        );
+        Metadata.GenericParameters = Records(
+            data,
+            SectionOffset(SlotGenericParameters),
+            SectionCount(SlotGenericParameters, 16),
+            16,
+            TotRecords.ReadGenericParameter
+        );
+        Metadata.InterfaceOffsets = Records(
+            data,
+            SectionOffset(SlotInterfaceOffsets),
+            SectionCount(SlotInterfaceOffsets, 8),
+            8,
+            TotRecords.ReadInterfaceOffset
+        );
+        Metadata.FieldRefs = Records(data, SectionOffset(SlotFieldRefs), SectionCount(SlotFieldRefs, 8), 8, TotRecords.ReadFieldRef);
+        Metadata.FieldDefaultValues = Records(
+            data,
+            SectionOffset(SlotFieldDefaultValues),
+            SectionCount(SlotFieldDefaultValues, 12),
+            12,
+            TotRecords.ReadFieldDefaultValue
+        );
+        Metadata.ParameterDefaultValues = Records(
+            data,
+            SectionOffset(SlotParameterDefaultValues),
+            SectionCount(SlotParameterDefaultValues, 12),
+            12,
+            TotRecords.ReadParameterDefaultValue
+        );
+        Metadata.AttributeTypeRanges = Records(
+            data,
+            SectionOffset(SlotAttributesInfo),
+            SectionCount(SlotAttributesInfo, 12),
+            12,
+            TotRecords.ReadCustomAttributeTypeRange
+        );
+        // MetadataUsageList/Pair have read-only properties; their v24.1 layout is stock.
+        Metadata.MetadataUsageLists = Reader.ReadVersionedObjectArray<Il2CppMetadataUsageList>(
+            data,
+            SectionCount(SlotMetadataUsageLists, 8),
+            MetadataVersions.V241,
+            SectionOffset(SlotMetadataUsageLists)
+        );
+        Metadata.MetadataUsagePairs = Reader.ReadVersionedObjectArray<Il2CppMetadataUsagePair>(
+            data,
+            SectionCount(SlotMetadataUsagePairs, 8),
+            MetadataVersions.V241,
+            SectionOffset(SlotMetadataUsagePairs)
+        );
+
+        Metadata.InterfaceUsageIndices = Records(
+            data,
+            SectionOffset(SlotInterfaces),
+            SectionCount(SlotInterfaces, 4),
+            4,
+            d => new TypeIndex(TotRecords.I32(d, 0))
+        );
+        Metadata.NestedTypeIndices = Records(data, SectionOffset(SlotNestedTypes), SectionCount(SlotNestedTypes, 4), 4, d => TotRecords.I32(d, 0));
+        Metadata.AttributeTypeIndices = Records(
+            data,
+            SectionOffset(SlotAttributeTypes),
+            SectionCount(SlotAttributeTypes, 4),
+            4,
+            d => TotRecords.I32(d, 0)
+        );
+        Metadata.GenericConstraintIndices = Records(
+            data,
+            SectionOffset(SlotGenericParameterConstraints),
+            SectionCount(SlotGenericParameterConstraints, 4),
+            4,
+            d => new TypeIndex(TotRecords.I32(d, 0))
+        );
+        Metadata.VTableMethodIndices = Records(
+            data,
+            SectionOffset(SlotVTableMethods),
+            SectionCount(SlotVTableMethods, 4),
+            4,
+            d => TotRecords.U32(d, 0)
+        );
+
+        // The stock pipeline does not use these sections.
+        Metadata.AttributeDataRanges = [];
+        Metadata.TypeInlineArrays = [];
+
+        ReadLiterals();
+        InternStrings();
+        ReadAssemblyPublicKeys();
+    }
+
+    /// <summary>
+    /// PublicKeyIndex points at raw bytes instead of a v24.1 escaped-hex string, so each assembly's 8-byte
+    /// public key token stands in; the assembly shims only need a stable blob per assembly.
+    /// </summary>
+    private void ReadAssemblyPublicKeys()
+    {
+        foreach (var assembly in Metadata.Assemblies)
+        {
+            if ((assembly.Aname.Flags & System.Reflection.AssemblyNameFlags.PublicKey) != 0)
             {
-                throw new InvalidDataException($"TOT metadata table outside input: offset 0x{offset:X}, count {count}.");
+                Metadata.AssemblyPublicKeys[assembly.Aname.PublicKeyIndex] = [.. assembly.Aname.PublicKeyToken];
             }
+        }
+    }
 
-            var result = new T[count];
-            for (var i = 0; i < count; i++)
-            {
-                result[i] = read(bytes.AsSpan(offset + i * stride, stride));
-            }
-
-            return ImmutableCollectionsMarshal.AsImmutableArray(result);
+    /// <summary>
+    /// stringLiteralData is at 0x158 and already decrypted by L2; the index table stores {dataIndex, length}.
+    /// </summary>
+    private void ReadLiterals()
+    {
+        // Slot 0x24 stores the index table's byte size, not the literal count.
+        var count = TotRecords.U32(data, SlotStringLiteralCount) / 8;
+        var indexOffset = TotMetadataDecryptor.LiteralIndexOffset;
+        if (indexOffset + (long)count * 8 > data.Length)
+        {
+            throw new InvalidDataException("TOT stringLiteral index table is out of range.");
         }
 
-        private void ReadMetadata()
+        var literals = new string[count];
+        for (var i = 0; i < count; i++)
         {
-            Metadata.Images = Records(data, SectionOffset(SlotImages), SectionCount(SlotImages, 40), 40, TotRecords.ReadImageDefinition);
-            Metadata.Assemblies = Records(
-                data,
-                SectionOffset(SlotAssemblies),
-                SectionCount(SlotAssemblies, 64),
-                64,
-                TotRecords.ReadAssemblyDefinition
-            );
-            Metadata.Types = Records(
-                data,
-                SectionOffset(SlotTypeDefinitions),
-                SectionCount(SlotTypeDefinitions, 100),
-                100,
-                TotRecords.ReadTypeDefinition
-            );
-            Metadata.Methods = Records(data, SectionOffset(SlotMethods), SectionCount(SlotMethods, 52), 52, TotRecords.ReadMethodDefinition);
-            Metadata.Fields = Records(data, SectionOffset(SlotFields), SectionCount(SlotFields, 12), 12, TotRecords.ReadFieldDefinition);
-            Metadata.Params = Records(data, SectionOffset(SlotParameters), SectionCount(SlotParameters, 12), 12, TotRecords.ReadParameterDefinition);
-            Metadata.Properties = Records(
-                data,
-                SectionOffset(SlotProperties),
-                SectionCount(SlotProperties, 20),
-                20,
-                TotRecords.ReadPropertyDefinition
-            );
-            Metadata.Events = Records(data, SectionOffset(SlotEvents), SectionCount(SlotEvents, 24), 24, TotRecords.ReadEventDefinition);
-            Metadata.GenericContainers = Records(
-                data,
-                SectionOffset(SlotGenericContainers),
-                SectionCount(SlotGenericContainers, 16),
-                16,
-                TotRecords.ReadGenericContainer
-            );
-            Metadata.GenericParameters = Records(
-                data,
-                SectionOffset(SlotGenericParameters),
-                SectionCount(SlotGenericParameters, 16),
-                16,
-                TotRecords.ReadGenericParameter
-            );
-            Metadata.InterfaceOffsets = Records(
-                data,
-                SectionOffset(SlotInterfaceOffsets),
-                SectionCount(SlotInterfaceOffsets, 8),
-                8,
-                TotRecords.ReadInterfaceOffset
-            );
-            Metadata.FieldRefs = Records(data, SectionOffset(SlotFieldRefs), SectionCount(SlotFieldRefs, 8), 8, TotRecords.ReadFieldRef);
-            Metadata.FieldDefaultValues = Records(
-                data,
-                SectionOffset(SlotFieldDefaultValues),
-                SectionCount(SlotFieldDefaultValues, 12),
-                12,
-                TotRecords.ReadFieldDefaultValue
-            );
-            Metadata.ParameterDefaultValues = Records(
-                data,
-                SectionOffset(SlotParameterDefaultValues),
-                SectionCount(SlotParameterDefaultValues, 12),
-                12,
-                TotRecords.ReadParameterDefaultValue
-            );
-            Metadata.AttributeTypeRanges = Records(
-                data,
-                SectionOffset(SlotAttributesInfo),
-                SectionCount(SlotAttributesInfo, 12),
-                12,
-                TotRecords.ReadCustomAttributeTypeRange
-            );
-            // MetadataUsageList/Pair have read-only properties; their v24.1 layout is stock.
-            Metadata.MetadataUsageLists = Reader.ReadVersionedObjectArray<Il2CppMetadataUsageList>(
-                data,
-                SectionCount(SlotMetadataUsageLists, 8),
-                MetadataVersions.V241,
-                SectionOffset(SlotMetadataUsageLists)
-            );
-            Metadata.MetadataUsagePairs = Reader.ReadVersionedObjectArray<Il2CppMetadataUsagePair>(
-                data,
-                SectionCount(SlotMetadataUsagePairs, 8),
-                MetadataVersions.V241,
-                SectionOffset(SlotMetadataUsagePairs)
-            );
-
-            Metadata.InterfaceUsageIndices = Records(
-                data,
-                SectionOffset(SlotInterfaces),
-                SectionCount(SlotInterfaces, 4),
-                4,
-                d => new TypeIndex(TotRecords.I32(d, 0))
-            );
-            Metadata.NestedTypeIndices = Records(
-                data,
-                SectionOffset(SlotNestedTypes),
-                SectionCount(SlotNestedTypes, 4),
-                4,
-                d => TotRecords.I32(d, 0)
-            );
-            Metadata.AttributeTypeIndices = Records(
-                data,
-                SectionOffset(SlotAttributeTypes),
-                SectionCount(SlotAttributeTypes, 4),
-                4,
-                d => TotRecords.I32(d, 0)
-            );
-            Metadata.GenericConstraintIndices = Records(
-                data,
-                SectionOffset(SlotGenericParameterConstraints),
-                SectionCount(SlotGenericParameterConstraints, 4),
-                4,
-                d => new TypeIndex(TotRecords.I32(d, 0))
-            );
-            Metadata.VTableMethodIndices = Records(
-                data,
-                SectionOffset(SlotVTableMethods),
-                SectionCount(SlotVTableMethods, 4),
-                4,
-                d => TotRecords.U32(d, 0)
-            );
-
-            // The stock pipeline does not use these sections.
-            Metadata.AttributeDataRanges = [];
-            Metadata.TypeInlineArrays = [];
-
-            ReadLiterals();
-            InternStrings();
-            ReadAssemblyPublicKeys();
+            var dataIndex = TotRecords.I32(data, indexOffset + i * 8);
+            var length = TotRecords.I32(data, indexOffset + i * 8 + 4);
+            literals[i] = Encoding.UTF8.GetString(data, TotMetadataDecryptor.LiteralDataOffset + dataIndex, length);
         }
 
-        /// <summary>
-        /// PublicKeyIndex points at raw bytes instead of a v24.1 escaped-hex string, so each assembly's 8-byte
-        /// public key token stands in; the assembly shims only need a stable blob per assembly.
-        /// </summary>
-        private void ReadAssemblyPublicKeys()
+        Metadata.StringLiterals = literals;
+    }
+
+    private void InternStrings()
+    {
+        void Intern(int index)
         {
-            foreach (var assembly in Metadata.Assemblies)
+            if (!Metadata.Strings.ContainsKey(index))
             {
-                if ((assembly.Aname.Flags & System.Reflection.AssemblyNameFlags.PublicKey) == 0)
-                {
-                    continue;
-                }
-
-                var token = new byte[8];
-                for (var i = 0; i < 8; i++)
-                {
-                    token[i] = assembly.Aname.PublicKeyToken[i];
-                }
-
-                Metadata.AssemblyPublicKeys[assembly.Aname.PublicKeyIndex] = token;
+                Metadata.Strings.Add(index, DecodeString(index));
             }
         }
 
-        /// <summary>
-        /// stringLiteralData is at 0x158 and already decrypted by L2; the index table stores {dataIndex, length}.
-        /// </summary>
-        private void ReadLiterals()
+        foreach (var t in Metadata.Types)
         {
-            // Slot 0x24 stores the index table's byte size, not the literal count.
-            var count = TotRecords.U32(data, SlotStringLiteralCount) / 8;
-            var indexOffset = TotMetadataDecryptor.LiteralIndexOffset;
-            if (indexOffset + (long)count * 8 > data.Length)
-            {
-                throw new InvalidDataException("TOT stringLiteral index table is out of range.");
-            }
-
-            var literals = new string[count];
-            for (var i = 0; i < count; i++)
-            {
-                var dataIndex = TotRecords.I32(data, indexOffset + i * 8);
-                var length = TotRecords.I32(data, indexOffset + i * 8 + 4);
-                literals[i] = Encoding.UTF8.GetString(data, TotMetadataDecryptor.LiteralDataOffset + dataIndex, length);
-            }
-
-            Metadata.StringLiterals = literals;
+            Intern(t.NameIndex);
+            Intern(t.NamespaceIndex);
         }
 
-        private void InternStrings()
+        foreach (var f in Metadata.Fields)
         {
-            void Intern(int index)
-            {
-                if (!Metadata.Strings.ContainsKey(index))
-                {
-                    Metadata.Strings.Add(index, DecodeString(index));
-                }
-            }
-
-            foreach (var t in Metadata.Types)
-            {
-                Intern(t.NameIndex);
-                Intern(t.NamespaceIndex);
-            }
-
-            foreach (var f in Metadata.Fields)
-            {
-                Intern(f.NameIndex);
-            }
-
-            foreach (var m in Metadata.Methods)
-            {
-                Intern(m.NameIndex);
-            }
-
-            foreach (var p in Metadata.Params)
-            {
-                Intern(p.NameIndex);
-            }
-
-            foreach (var p in Metadata.Properties)
-            {
-                Intern(p.NameIndex);
-            }
-
-            foreach (var e in Metadata.Events)
-            {
-                Intern(e.NameIndex);
-            }
-
-            foreach (var g in Metadata.GenericParameters)
-            {
-                Intern(g.NameIndex);
-            }
-
-            foreach (var i in Metadata.Images)
-            {
-                Intern(i.NameIndex);
-            }
-
-            foreach (var a in Metadata.Assemblies)
-            {
-                Intern(a.Aname.NameIndex);
-                Intern(a.Aname.CultureIndex);
-            }
+            Intern(f.NameIndex);
         }
 
-        private string DecodeString(int index)
+        foreach (var m in Metadata.Methods)
         {
-            if (index < 0)
-            {
-                return "";
-            }
-
-            var start = StringTableOffset + index;
-            if (start < 0 || start >= data.Length)
-            {
-                return "";
-            }
-
-            var end = Array.IndexOf(data, (byte)0, start);
-            if (end < 0)
-            {
-                end = data.Length;
-            }
-
-            return Encoding.UTF8.GetString(data, start, end - start);
+            Intern(m.NameIndex);
         }
 
-        /// <summary>Called after the stock binary registration has been discovered.</summary>
-        internal void ReadBinary(Il2CppBinary il2CppBinary)
+        foreach (var p in Metadata.Params)
         {
-            binary = il2CppBinary;
-            BuildUsages();
+            Intern(p.NameIndex);
         }
 
-        /// <summary>
-        /// Destinations come from metadataUsagePairs and addresses from MetadataRegistration.metadataUsages, as in stock.
-        /// </summary>
-        private void BuildUsages()
+        foreach (var p in Metadata.Properties)
         {
-            if (Metadata.MetadataUsageLists.IsDefaultOrEmpty || binary?.MetadataRegistration == null)
-            {
-                return;
-            }
+            Intern(p.NameIndex);
+        }
 
-            var destinations = new Dictionary<uint, uint>();
-            foreach (var list in Metadata.MetadataUsageLists)
-            {
-                for (var i = 0; i < list.Count; i++)
-                {
-                    var pair = Metadata.MetadataUsagePairs[(int)(list.Start + i)];
-                    destinations.TryAdd(pair.DestinationIndex, pair.EncodedSourceIndex);
-                }
-            }
+        foreach (var e in Metadata.Events)
+        {
+            Intern(e.NameIndex);
+        }
 
-            if (destinations.Count == 0)
-            {
-                return;
-            }
+        foreach (var g in Metadata.GenericParameters)
+        {
+            Intern(g.NameIndex);
+        }
 
-            var count = (int)destinations.Keys.Max() + 1;
-            var addresses = binary.Image.ReadMappedUWordArray(binary.MetadataRegistration.MetadataUsages, count);
-            foreach (var (destination, encoded) in destinations)
+        foreach (var i in Metadata.Images)
+        {
+            Intern(i.NameIndex);
+        }
+
+        foreach (var a in Metadata.Assemblies)
+        {
+            Intern(a.Aname.NameIndex);
+            Intern(a.Aname.CultureIndex);
+        }
+    }
+
+    private string DecodeString(int index)
+    {
+        if (index < 0)
+        {
+            return "";
+        }
+
+        var start = StringTableOffset + index;
+        if (start < 0 || start >= data.Length)
+        {
+            throw new InvalidDataException($"TOT string offset 0x{start:X} is out of range.");
+        }
+
+        var end = Array.IndexOf(data, (byte)0, start);
+        if (end < 0)
+        {
+            end = data.Length;
+        }
+
+        return Encoding.UTF8.GetString(data, start, end - start);
+    }
+
+    /// <summary>
+    /// Destinations come from metadataUsagePairs and addresses from MetadataRegistration.metadataUsages, as in stock.
+    /// </summary>
+    internal void ReadBinary(Il2CppBinary binary)
+    {
+        if (Metadata.MetadataUsageLists.IsDefaultOrEmpty)
+        {
+            return;
+        }
+
+        var destinations = new Dictionary<uint, uint>();
+        foreach (var list in Metadata.MetadataUsageLists)
+        {
+            for (var i = 0; i < list.Count; i++)
             {
-                var usageType = (MetadataUsageType)((encoded & 0xE0000000) >> 29);
-                var sourceIndex = (int)(encoded & 0x1FFFFFFF);
-                usages.Add(new MetadataUsage(usageType, sourceIndex, addresses[destination]));
+                var pair = Metadata.MetadataUsagePairs[(int)(list.Start + i)];
+                destinations.TryAdd(pair.DestinationIndex, pair.EncodedSourceIndex);
             }
         }
 
-        public override List<MetadataUsage> Usages => usages;
-
-        public override int VTableSlotSize => 8;
-
-        public override Il2CppTypeDefinitionSizes LayoutSizes(int group) =>
-            binary != null && group >= 0 && group < binary.TypeDefinitionSizes.Length ? binary.TypeDefinitionSizes[group] : default;
-
-        public override uint LayoutFieldOffset(int group, int local) => 0;
-
-        public override string StorageBase(uint tag) => null;
-
-        public override int FieldStorageTag(FieldInfo field) => 0;
-
-        // Mirrors the stock (no-adapter) generic-instance resolution in TypeModel.resolveTypeReference.
-        public override TypeInfo ResolveGenericType(TypeModel model, Il2CppType type)
+        if (destinations.Count == 0)
         {
-            if (binary == null)
-            {
-                return null;
-            }
-
-            var generic = binary.Image.ReadMappedVersionedObject<Il2CppGenericClass>(type.Data.GenericClass);
-            var definition = model.TypesByDefinitionIndex[generic.TypeDefinitionIndex];
-            if (definition == null)
-            {
-                return null;
-            }
-
-            var instance = binary.Image.ReadMappedVersionedObject<Il2CppGenericInst>(generic.Context.ClassInst);
-            return definition.MakeGenericType(model.ResolveGenericArguments(instance));
+            return;
         }
 
-        public override int FieldRvaSize(Il2CppType type, Il2CppBinary il2CppBinary) =>
-            type.Type switch
-            {
-                Il2CppTypeEnum.IL2CPP_TYPE_BOOLEAN or Il2CppTypeEnum.IL2CPP_TYPE_I1 or Il2CppTypeEnum.IL2CPP_TYPE_U1 => 1,
-                Il2CppTypeEnum.IL2CPP_TYPE_CHAR or Il2CppTypeEnum.IL2CPP_TYPE_I2 or Il2CppTypeEnum.IL2CPP_TYPE_U2 => 2,
-                Il2CppTypeEnum.IL2CPP_TYPE_I4 or Il2CppTypeEnum.IL2CPP_TYPE_U4 or Il2CppTypeEnum.IL2CPP_TYPE_R4 => 4,
-                Il2CppTypeEnum.IL2CPP_TYPE_I8 or Il2CppTypeEnum.IL2CPP_TYPE_U8 or Il2CppTypeEnum.IL2CPP_TYPE_R8 => 8,
-                Il2CppTypeEnum.IL2CPP_TYPE_I or Il2CppTypeEnum.IL2CPP_TYPE_U => il2CppBinary.Image.Bits / 8,
-                Il2CppTypeEnum.IL2CPP_TYPE_VALUETYPE => checked((int)il2CppBinary.TypeDefinitionSizes[type.Data.KlassIndex].InstanceSize - 16),
-                _ => 0,
-            };
-
-        public override (ulong Address, object Value) DecodeDefault(int typeIndex, int dataIndex, Il2CppBinary il2CppBinary)
+        var count = (int)destinations.Keys.Max() + 1;
+        var addresses = binary.Image.ReadMappedUWordArray(binary.MetadataRegistration.MetadataUsages, count);
+        foreach (var (destination, encoded) in destinations)
         {
-            if (dataIndex < 0)
-            {
-                return (0, null);
-            }
+            var usageType = (MetadataUsageType)((encoded & 0xE0000000) >> 29);
+            var sourceIndex = (int)(encoded & 0x1FFFFFFF);
+            usages.Add(new MetadataUsage(usageType, sourceIndex, addresses[destination]));
+        }
+    }
 
-            var offset = checked(SectionOffset(SlotDefaultValueData) + dataIndex);
-            var kind = il2CppBinary.TypeReferences[typeIndex].Type;
-            object value = kind switch
-            {
-                Il2CppTypeEnum.IL2CPP_TYPE_BOOLEAN => data[offset] != 0,
-                Il2CppTypeEnum.IL2CPP_TYPE_I1 => unchecked((sbyte)data[offset]),
-                Il2CppTypeEnum.IL2CPP_TYPE_U1 => data[offset],
-                Il2CppTypeEnum.IL2CPP_TYPE_CHAR => (char)TotRecords.U16(data, offset),
-                Il2CppTypeEnum.IL2CPP_TYPE_I2 => TotRecords.I16(data, offset),
-                Il2CppTypeEnum.IL2CPP_TYPE_U2 => TotRecords.U16(data, offset),
-                Il2CppTypeEnum.IL2CPP_TYPE_I4 => TotRecords.I32(data, offset),
-                Il2CppTypeEnum.IL2CPP_TYPE_U4 => TotRecords.U32(data, offset),
-                Il2CppTypeEnum.IL2CPP_TYPE_I8 => unchecked((long)ReadU64(offset)),
-                Il2CppTypeEnum.IL2CPP_TYPE_U8 => ReadU64(offset),
-                Il2CppTypeEnum.IL2CPP_TYPE_R4 => BitConverter.Int32BitsToSingle(TotRecords.I32(data, offset)),
-                Il2CppTypeEnum.IL2CPP_TYPE_R8 => BitConverter.Int64BitsToDouble(unchecked((long)ReadU64(offset))),
-                Il2CppTypeEnum.IL2CPP_TYPE_STRING => DecodeDefaultString(offset),
-                _ => null,
-            };
-            return ((ulong)offset, value);
+    public override List<MetadataUsage> Usages => usages;
+
+    public override (ulong Address, object Value) DecodeDefault(int typeIndex, int dataIndex, Il2CppBinary il2CppBinary)
+    {
+        if (dataIndex < 0)
+        {
+            return (0, null);
         }
 
-        private ulong ReadU64(int offset) => BitConverter.ToUInt64(data, offset);
-
-        private string DecodeDefaultString(int offset)
+        var offset = checked(SectionOffset(SlotDefaultValueData) + dataIndex);
+        var kind = il2CppBinary.TypeReferences[typeIndex].Type;
+        object value = kind switch
         {
-            var length = TotRecords.I32(data, offset);
-            if (length == -1)
-            {
-                return null;
-            }
+            Il2CppTypeEnum.IL2CPP_TYPE_BOOLEAN => data[offset] != 0,
+            Il2CppTypeEnum.IL2CPP_TYPE_I1 => unchecked((sbyte)data[offset]),
+            Il2CppTypeEnum.IL2CPP_TYPE_U1 => data[offset],
+            Il2CppTypeEnum.IL2CPP_TYPE_CHAR => (char)TotRecords.U16(data, offset),
+            Il2CppTypeEnum.IL2CPP_TYPE_I2 => TotRecords.I16(data, offset),
+            Il2CppTypeEnum.IL2CPP_TYPE_U2 => TotRecords.U16(data, offset),
+            Il2CppTypeEnum.IL2CPP_TYPE_I4 => TotRecords.I32(data, offset),
+            Il2CppTypeEnum.IL2CPP_TYPE_U4 => TotRecords.U32(data, offset),
+            Il2CppTypeEnum.IL2CPP_TYPE_I8 => unchecked((long)ReadU64(offset)),
+            Il2CppTypeEnum.IL2CPP_TYPE_U8 => ReadU64(offset),
+            Il2CppTypeEnum.IL2CPP_TYPE_R4 => BitConverter.Int32BitsToSingle(TotRecords.I32(data, offset)),
+            Il2CppTypeEnum.IL2CPP_TYPE_R8 => BitConverter.Int64BitsToDouble(unchecked((long)ReadU64(offset))),
+            Il2CppTypeEnum.IL2CPP_TYPE_STRING => DecodeDefaultString(offset),
+            _ => null,
+        };
+        return ((ulong)offset, value);
+    }
 
-            if (length < 0 || length > 1 << 20 || offset + 4 + length > data.Length)
-            {
-                throw new InvalidDataException("Invalid TOT default string length.");
-            }
+    private ulong ReadU64(int offset) => BitConverter.ToUInt64(data, offset);
 
-            return Encoding.UTF8.GetString(data, offset + 4, length);
+    private string DecodeDefaultString(int offset)
+    {
+        var length = TotRecords.I32(data, offset);
+        if (length == -1)
+        {
+            return null;
         }
+
+        if (length < 0 || length > 1 << 20 || offset + 4 + length > data.Length)
+        {
+            throw new InvalidDataException("Invalid TOT default string length.");
+        }
+
+        return Encoding.UTF8.GetString(data, offset + 4, length);
     }
 }

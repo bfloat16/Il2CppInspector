@@ -6,7 +6,6 @@ internal sealed class HsrHeader
 {
     internal uint PayloadOffset { get; }
     internal uint ImageCount { get; }
-    internal uint AssemblyCount { get; }
     internal uint MethodCount { get; }
     internal uint GenericClassCount { get; }
     internal uint GenericMethodTableCount { get; }
@@ -48,7 +47,6 @@ internal sealed class HsrHeader
         {
             PayloadOffset = payload;
             ImageCount = (U32(data, 0x134) ^ 0x10210728u) / 40;
-            AssemblyCount = (uint)(I32(data, 0x178) >> 4) ^ 0x05CC1AE1u;
             MethodCount = (U32(data, 0x1F8) ^ 0x1608C2C8u) / 26;
             GenericClassCount = (uint)(I32(data, 0xBC) >> 3) ^ 0x079FC2ECu;
             GenericMethodTableCount = (U32(data, 0x1E4) ^ 0x720FEF70u) / 12;
