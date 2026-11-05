@@ -9,6 +9,8 @@ Set it to `True` to create functions from JSON `functionAddresses` without impor
 IDA also creates function boundaries in this mode when `.pdata` is present. Binary Ninja and Ghidra use their existing function creation behavior to infer function ends.
 Scripts generated alongside Debug targets have empty function arrays, so this mode requires the JSON from a disassembler target generated without Debug.
 
+`-t IDA` also generates an `_t.py` terminal variant. The script resource tests exercise sequential resume (including UTF-8 string segment offsets), q polling, checkpoint identity and database-save ordering without requiring IDA or tqdm.
+
 ```bash
 dotnet run --project Il2CppInspector.Tests -c Release -- --plugins
 dotnet run --project Il2CppInspector.Tests -c Release -- --game <GameId> '<sample Native directory>' ['<output directory>']
@@ -38,3 +40,4 @@ IDA fixtures require clang, lld and llvm-objcopy on PATH and modify only tempora
 Keep shared behavior under `Common/` and workflows under `CLI/`. A new game adds one `Samples` row in `Plugin/GameSampleTests.cs`; a missing baseline makes `--game` print the measured values.
 Reuse expensive decoded models and cover independent failure modes rather than duplicating formatting assertions.
 `--game` expects a directory containing `global-metadata.dat`, the binary named in `Samples` and any plugin startup metadata.
+It also checks that concrete value layouts include the object header, so zero instance sizes cannot silently become incomplete native declarations.

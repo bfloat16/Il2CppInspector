@@ -11,6 +11,8 @@ dotnet Il2CppInspector.CLI/bin/Release/net10.0/Il2CppInspector.dll --game NAME_R
 
 `--game` takes an exact ID, case-insensitively; version `x.x.x` means the plugin supports several game versions. Without `--game`, metadata detection selects the plugin. Ambiguous matches require `--game`, and unmatched metadata uses the stock loader.
 
+`-t IDA` writes both `il2cpp.py` for the GUI and `il2cpp_t.py` for idat. With multiple disassembler targets the terminal script is named `il2cpp-IDA_t.py`. The terminal version requires `tqdm` in IDA's Python environment, shows current/total progress, and accepts `q` without Enter to save a compressed database and close. Its adjacent `.progress.json` stores the next stage/item and is updated only after a successful database save. Reopen that saved database with the same terminal script to resume; deleting the JSON starts the import again. Header parsing and JSON loading are synchronous, so `q` takes effect when those calls return. Normal completion also saves and closes; save failure leaves the database open, and a failed primary save attempts a recovery database under the system temporary directory.
+
 | Game | Supported ID |
 | --- | --- |
 | BH3 | `BH3_CN_Windows_9.1.0` |
@@ -31,6 +33,8 @@ dotnet Il2CppInspector.CLI/bin/Release/net10.0/Il2CppInspector.dll --game NAME_R
 6. Add a row to `Samples` in `Il2CppInspector.Tests/Plugin/GameSampleTests.cs`.
 
 MORAX games (BH3, Genshin, HSR, ZZZ) build on `Shared/Morax/` (`MoraxPlugin`, `MoraxAdapter`, `MoraxNativeModel`, `MoraxReader` and the runtime-cache script), imported through `Shared/Morax/Morax.props`. Their directories hold only keys, offsets, record readers and verified layout differences.
+
+Genshin 7.2.0 links its plugin entry, default-value reader and native model from 7.1.0. Layout descriptors remain build-specific: in 7.2.0, `0x15A4D716E` copies descriptor `+0` to `Il2CppClass.instance_size`, while `0x15A4D7199` copies `+4` to `static_fields_size`. These offsets must not be inherited from the other MORAX builds.
 
 A version that shares source with another links the files from that version's directory instead of copying them (see `TOT_OS_Android_5.8.1`, `ZZZ_CN_Windows_3.3.0` and `HSR_CN_Windows_4.6.51`).
 
