@@ -1,12 +1,16 @@
 import ast
+import contextlib
 import itertools
 import io
 import json
+import os
 from pathlib import Path
 import tempfile
 import time
+import traceback
 import types
 import unittest
+import uuid
 from unittest.mock import Mock, call, patch
 
 
@@ -98,12 +102,17 @@ class ProgressBar:
     def format_interval(seconds):
         return str(int(seconds))
 
+    @staticmethod
+    def write(message, file):
+        file.write(message + "\n")
+
 
 def terminal_classes(**globals):
     namespace = target_classes("IDA", **globals)
     tree = ast.parse((SCRIPTS / "IDA_terminal.py").read_text())
-    tree.body = [node for node in tree.body if not isinstance(node, (ast.Import, ast.ImportFrom, ast.Expr))]
-    namespace.update(time=time, tqdm=ProgressBar, Path=Path, json=json, tempfile=tempfile,
+    tree.body = [node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.ClassDef))]
+    namespace.update(time=time, tqdm=ProgressBar, Path=Path, json=json, os=os, uuid=uuid,
+                     contextlib=contextlib, traceback=traceback,
                      print=lambda *args, **kwargs: None)
     exec(compile(tree, "IDA_terminal.py", "exec"), namespace)
     return namespace
@@ -194,25 +203,38 @@ class ScriptResourcesTests(unittest.TestCase):
         self.assertEqual(status.keys.getwch.call_count, 3)
 
     def test_terminal_checkpoint_is_committed_after_database_and_matches_its_marker(self):
-        import os
-        import uuid
         node = Mock()
         node.supset.return_value = True
-        ns = terminal_classes(ida_auto=Mock(), ida_ida=Mock(), ida_loader=Mock())
-        ns.update(os=os, uuid=uuid)
+        auto = Mock(spec=["enable_auto"])
+        auto.enable_auto.return_value = True
+        ida = Mock(IDB_COMPRESSED=2, spec=["IDB_COMPRESSED", "inf_set_pack_mode"])
+        ida.inf_set_pack_mode.return_value = 1
+        loader = Mock(DBFL_BAK=4, PATH_TYPE_IDB=1,
+                      spec=["DBFL_BAK", "PATH_TYPE_IDB", "get_path", "save_database"])
+        segment, nalt = Mock(), Mock()
+        segment.get_segm_qty.return_value = 1
+        nalt.get_imagebase.return_value = 0x180000000
+        nalt.retrieve_input_file_sha256.return_value = b"input"
+        ns = terminal_classes(ida_auto=auto, ida_ida=ida, ida_loader=loader, ida_segment=segment, ida_nalt=nalt)
         with tempfile.TemporaryDirectory() as directory:
             checkpoint = Path(directory) / "il2cpp_t.progress.json"
             database = Path(directory) / "test.i64"
-            identity = {"database": os.path.normcase(str(database.resolve()))}
+            identity = dict(database=os.path.normcase(str(database.resolve())), imagebase=0x180000000, input_sha256=b"input".hex())
             checkpoint.write_text("previous")
             ns["ida_loader"].get_path.return_value = str(database)
             def save(*args):
                 self.assertEqual(checkpoint.read_text(), "previous")
+                self.assertEqual(args, (str(database), 4), "Live saves must not inherit KILL/TEMP or compact open components")
+                self.assertEqual(auto.enable_auto.call_args, call(False))
+                self.assertEqual(ida.inf_set_pack_mode.call_args, call(2))
                 return True
             ns["ida_loader"].save_database.side_effect = save
             # Pausing while replaying skipped stages must retain the later resume pointer.
             status = types.SimpleNamespace(stage=1, index=2, resume_stage=5, resume_index=7)
             self.assertTrue(ns["_save_checkpoint"](checkpoint, identity, status, node))
+            self.assertEqual(auto.enable_auto.call_args_list, [call(False), call(True)])
+            self.assertEqual(ida.inf_set_pack_mode.call_args_list, [call(2), call(1)])
+
             record = json.loads(checkpoint.read_text())
             self.assertEqual((record["stage"], record["index"]), (5, 7))
             self.assertFalse(any(isinstance(value, list) for value in record.values()))
@@ -226,8 +248,108 @@ class ScriptResourcesTests(unittest.TestCase):
             ns["ida_loader"].save_database.side_effect = None
             ns["ida_loader"].save_database.return_value = False
             before = checkpoint.read_bytes()
+            auto.reset_mock()
+            ida.reset_mock()
             self.assertFalse(ns["_save_checkpoint"](checkpoint, identity, status, node))
             self.assertEqual(checkpoint.read_bytes(), before)
+            self.assertEqual(auto.enable_auto.call_args_list, [call(False), call(True)])
+            self.assertEqual(ida.inf_set_pack_mode.call_args_list, [call(2), call(1)])
+
+            ns["ida_loader"].save_database.side_effect = OSError("Cannot write database")
+            auto.reset_mock()
+            ida.reset_mock()
+            with self.assertRaisesRegex(OSError, "Cannot write database"):
+                ns["_save_checkpoint"](checkpoint, identity, status, node)
+            self.assertEqual(checkpoint.read_bytes(), before)
+            self.assertEqual(auto.enable_auto.call_args_list, [call(False), call(True)])
+            self.assertEqual(ida.inf_set_pack_mode.call_args_list, [call(2), call(1)])
+
+            # A kernel/database reset during import must never overwrite the input database.
+            ns["ida_loader"].save_database.reset_mock()
+            node.reset_mock()
+            auto.reset_mock()
+            for field in ("segments", "imagebase", "input", "path"):
+                with self.subTest(changed=field):
+                    segment.get_segm_qty.return_value = 0 if field == "segments" else 1
+                    nalt.get_imagebase.return_value = 0 if field == "imagebase" else 0x180000000
+                    nalt.retrieve_input_file_sha256.return_value = b"" if field == "input" else b"input"
+                    loader.get_path.return_value = str(database.with_name("other.i64") if field == "path" else database)
+                    with self.assertRaisesRegex(ValueError, "active database changed"):
+                        ns["_save_checkpoint"](checkpoint, identity, status, node)
+                    self.assertEqual(checkpoint.read_bytes(), before)
+                    ns["ida_loader"].save_database.assert_not_called()
+                    node.supset.assert_not_called()
+                    auto.enable_auto.assert_not_called()
+
+    def test_terminal_q_unwinds_import_before_exit_and_failed_save_keeps_database_open(self):
+        import sys
+        for saved in (True, False):
+            with self.subTest(saved=saved), tempfile.TemporaryDirectory() as directory:
+                events = []
+                out = io.StringIO()
+                segment = Mock()
+                segment.get_segm_qty.return_value = 1
+                ns = terminal_classes(ida_netnode=Mock(), ida_pro=Mock(), ida_segment=segment)
+                ns["__file__"] = str(Path(directory) / "il2cpp_t.py")
+                Path(directory, "%JSON_METADATA_RELATIVE_PATH%").write_text(json.dumps({"addressMap": metadata()}))
+                status = ns["TerminalStatusHandler"](out)
+                def cancel():
+                    if status.stage == 1 and status.index == 1:
+                        raise ns["ImportCancelled"]("Paused by q.")
+                status.check_cancelled = cancel
+                backend = Backend(False, False)
+                backend.get_script_directory = lambda: directory
+                backend.on_start = lambda: events.append("start")
+                backend.on_finish = lambda: events.append("finish")
+                ns.update(_pick_stream=lambda: out, TerminalStatusHandler=lambda out: status,
+                          TerminalDisassemblerInterface=lambda status: backend,
+                          _checkpoint_identity=lambda backend: ({}, False), _load_checkpoint=lambda *args: None)
+                def save(*args):
+                    self.assertEqual(events, ["start", "finish"])
+                    self.assertEqual((status.stage, status.index), (1, 1))
+                    events.append("save")
+                    return saved
+                ns["_save_checkpoint"] = save
+                stdout, stderr = sys.stdout, sys.stderr
+                def exit_ida(code):
+                    self.assertIs(sys.stdout, stdout)
+                    self.assertIs(sys.stderr, stderr)
+                    self.assertEqual(events, ["start", "finish", "save"])
+                    self.assertEqual(code, 0)
+                ns["ida_pro"].qexit.side_effect = exit_ida
+                # Execute the generated entry point, including the SDK shutdown call.
+                entry = ast.parse((SCRIPTS / "IDA_terminal.py").read_text())
+                entry.body = entry.body[-2:]
+                exec(compile(entry, "IDA_terminal.py", "exec"), ns)
+                self.assertEqual(backend.calls, [
+                    ("define_function", (0x1000, 0x1010)),
+                    ("define_function", (0x1010, None)),
+                    ("set_function_name", (0x1000, "method")),
+                    ("set_function_comment", (0x1000, "Method()")),
+                    ("add_function_to_group", (0x1000, "Assembly/Type")),
+                ])
+                if saved:
+                    ns["ida_pro"].qexit.assert_called_once_with(0)
+                else:
+                    ns["ida_pro"].qexit.assert_not_called()
+
+    def test_terminal_empty_database_is_rejected_before_import_or_save(self):
+        segment = Mock()
+        segment.get_segm_qty.return_value = 0
+        ns = terminal_classes(ida_segment=segment, ida_netnode=Mock(), ida_pro=Mock())
+        ns["__file__"] = "il2cpp_t.py"
+        out = io.StringIO()
+        ns["_pick_stream"] = lambda: out
+        ns["_checkpoint_identity"] = Mock()
+        ns["_save_checkpoint"] = Mock()
+        with patch.object(ns["TerminalDisassemblerInterface"], "on_start") as start:
+            self.assertIsNone(ns["run_terminal"]())
+        self.assertIn("empty database", out.getvalue())
+        start.assert_not_called()
+        ns["ida_netnode"].netnode.assert_not_called()
+        ns["_checkpoint_identity"].assert_not_called()
+        ns["_save_checkpoint"].assert_not_called()
+        ns["ida_pro"].qexit.assert_not_called()
 
     def test_function_boundaries_only_skips_all_annotations_and_plugin_metadata(self):
         for enabled, fake, legacy in itertools.product((False, True), repeat=3):

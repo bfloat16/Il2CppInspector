@@ -2,7 +2,6 @@
 import contextlib
 import hashlib
 import sys
-import tempfile
 import time
 import traceback
 import uuid
@@ -11,7 +10,6 @@ from pathlib import Path
 import ida_auto
 import ida_loader
 import ida_netnode
-import idc
 from tqdm import tqdm
 
 
@@ -268,22 +266,30 @@ def _load_checkpoint(path, identity, node):
 
 
 def _save_checkpoint(path, identity, status, node):
-    ida_auto.enable_auto(False)
-    ida_ida.inf_set_pack_mode(2)
-    commit = uuid.uuid4().hex
-    if not node.supset(0, commit):
-        raise RuntimeError("Cannot write checkpoint marker to the database.")
     destination = Path(ida_loader.get_path(ida_loader.PATH_TYPE_IDB))
-    print(f"Saving compressed database: {destination}")
-    if not ida_loader.save_database(str(destination), 0):
-        recovery = Path(tempfile.mkdtemp(prefix="il2cpp-recovery-")) / destination.name
-        print(f"Save failed; trying recovery database: {recovery}")
-        if not ida_loader.save_database(str(recovery), 0):
+    if (
+        ida_segment.get_segm_qty() == 0
+        or os.path.normcase(str(destination.resolve())) != identity["database"]
+        or ida_nalt.get_imagebase() != identity["imagebase"]
+        or (ida_nalt.retrieve_input_file_sha256() or b"").hex() != identity["input_sha256"]
+    ):
+        raise ValueError("The active database changed during import; refusing to overwrite the database or checkpoint.")
+    # SDK save_database: flags=0 inherits DBFL_KILL/DBFL_TEMP. A live save must
+    # keep the unpacked database available for subsequent kernel/plugin cleanup.
+    # DBFL_BAK requests a backup of the previous packed database before overwriting it.
+    auto_enabled = ida_auto.enable_auto(False)
+    pack_mode = ida_ida.inf_set_pack_mode(ida_ida.IDB_COMPRESSED)
+    try:
+        commit = uuid.uuid4().hex
+        if not node.supset(0, commit):
+            raise RuntimeError("Cannot write checkpoint marker to the database.")
+        print(f"Saving compressed database: {destination}")
+        if not ida_loader.save_database(str(destination), ida_loader.DBFL_BAK):
             print("Save failed. Database remains open; the checkpoint JSON was not advanced.")
             return False
-        destination = recovery
-        ida_loader.set_path(ida_loader.PATH_TYPE_IDB, str(destination))
-    identity["database"] = os.path.normcase(str(destination.resolve()))
+    finally:
+        ida_ida.inf_set_pack_mode(pack_mode)
+        ida_auto.enable_auto(auto_enabled)
     stage, index = max(0, status.stage), status.index
     if status.stage < status.resume_stage:
         stage, index = status.resume_stage, status.resume_index
@@ -312,10 +318,14 @@ def run_terminal():
         backend = TerminalDisassemblerInterface(status)
         context = TerminalScriptContext(backend, status)
         checkpoint = Path(__file__).with_suffix(".progress.json")
-        node = ida_netnode.netnode("$ il2cpp terminal checkpoint", 0, True)
         # Reject incompatible checkpoints before touching types or functions.
         try:
+            if ida_segment.get_segm_qty() == 0:
+                raise ValueError(
+                    "Cannot import into an empty database. Open the binary or its existing database before running the script; do not use -t."
+                )
             identity, imports_header = _checkpoint_identity(backend)
+            node = ida_netnode.netnode("$ il2cpp terminal checkpoint", 0, True)
             resume = _load_checkpoint(checkpoint, identity, node)
         except Exception:
             traceback.print_exc(file=out)
@@ -365,7 +375,11 @@ def run_terminal():
             saved = False
         writer.flush()
         if saved:
-            idc.qexit(exit_code)
+            return exit_code
 
 
-run_terminal()
+# qexit shuts down the UI, kernel and IDAPython. Unwind the import frames and
+# restore stdout/stderr before invoking it, including on the q cancellation path.
+exit_code = run_terminal()
+if exit_code is not None:
+    ida_pro.qexit(exit_code)
