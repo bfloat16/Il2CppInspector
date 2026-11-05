@@ -379,7 +379,7 @@ Options:
                             DWARF supports little-endian x86/x64/ARM/ARM64 images
       --startup-metadata <f> Plugin startup metadata (auto-detected beside metadata)
       --game <id>           Game plugin: NAME_REGION_PLATFORM_VERSION
-                            e.g. Endfield_CN_Android_x.x.x, ZZZ_CN_Windows_3.2.0
+                            e.g. Endfield_CN_Android_x.x.x, NSH_OS_Windows_20260731072817UTC
                             Auto-detect when omitted
       --unity-version <v>   Unity version override (e.g. 2021.3.0f1)
       --image-base <hex>    Image base address for ELF memory dumps (hex)

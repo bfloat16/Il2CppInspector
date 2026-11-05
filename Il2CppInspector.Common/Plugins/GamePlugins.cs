@@ -12,12 +12,7 @@ namespace Il2CppInspector.Plugins
         public static GamePlugin Get(string gameId)
         {
             var parts = gameId?.Split('_');
-            if (
-                parts == null
-                || parts.Length != 4
-                || parts.Any(string.IsNullOrWhiteSpace)
-                || (!string.Equals(parts[3], "x.x.x", StringComparison.OrdinalIgnoreCase) && !Version.TryParse(parts[3], out _))
-            )
+            if (parts == null || parts.Length != 4 || parts.Any(string.IsNullOrWhiteSpace))
             {
                 throw new ArgumentException($"Available games: {string.Join(", ", Installed.Select(p => p.GameId))}");
             }
@@ -40,22 +35,23 @@ namespace Il2CppInspector.Plugins
 
                 return selected;
             }
-            GamePlugin match = null;
+            List<GamePlugin> matches = [];
             foreach (var plugin in Installed)
             {
-                if (!plugin.Matches(metadata))
+                if (plugin.Matches(metadata))
                 {
-                    continue;
+                    matches.Add(plugin);
                 }
-
-                if (match != null)
-                {
-                    throw new InvalidOperationException("Multiple game plugins match this metadata; specify --game with an installed game ID.");
-                }
-
-                match = plugin;
             }
-            return match;
+
+            return matches.Count switch
+            {
+                0 => null,
+                1 => matches[0],
+                _ => throw new InvalidOperationException(
+                    $"Multiple game plugins match this metadata ({string.Join(", ", matches.Select(static p => p.GameId))}); specify --game <GameId>."
+                ),
+            };
         }
 
         private static IReadOnlyList<GamePlugin> Discover()

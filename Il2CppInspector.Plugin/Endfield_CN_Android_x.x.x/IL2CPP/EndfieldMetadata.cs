@@ -78,9 +78,6 @@ internal static class EndfieldMetadata
 
     public static byte[] Fix(ReadOnlySpan<byte> data)
     {
-        if (!Matches(data))
-            throw new InvalidDataException("Endfield_CN_Android_x.x.x requires decoded v29 metadata with a 0x108-byte header.");
-
         // Rebuild the two Windows Runtime entries.
         for (var i = 0; i < SectionCount; i++)
         {

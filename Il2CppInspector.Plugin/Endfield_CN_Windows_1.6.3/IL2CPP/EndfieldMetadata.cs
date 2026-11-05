@@ -75,9 +75,6 @@ internal static class EndfieldMetadata
 
     public static byte[] Fix(ReadOnlySpan<byte> data)
     {
-        if (!Matches(data))
-            throw new InvalidDataException("Endfield_CN_Windows_1.6.3 requires decoded v29 metadata with a 0x110-byte header.");
-
         for (var i = 0; i < SectionCount; i++)
         {
             var (offset, size) = ReadSection(data, i);

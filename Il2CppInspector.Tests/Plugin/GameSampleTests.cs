@@ -36,6 +36,10 @@ internal static class GameSampleTests
             "libil2cpp.so",
             "types=45515 methods=314124 fields=179776 params=402106 literals=62223 typeRefs=125923 methodSpecs=112354 usages=225701 attributes=0 Il2CppClass=0x320 Il2CppClass.static_fields=0xB0 Il2CppClass.vtable_count=0x10E MethodInfo=0x58 MethodInfo.flags=0x4C Il2CppCodeRegistration=0x78 Il2CppMetadataRegistration=0x80"
         ),
+        ["NSH_OS_Windows_20260731072817UTC"] = (
+            "GameAssembly.dll",
+            "types=21150 methods=191262 fields=160453 params=221674 literals=40372 typeRefs=60090 methodSpecs=182246 usages=148709 attributes=79763 Il2CppClass=0x338 Il2CppClass.static_fields=0xB8 Il2CppClass.vtable_count=0x126 MethodInfo=0x50 MethodInfo.flags=0x44 Il2CppCodeRegistration=0x78 Il2CppMetadataRegistration=0x80"
+        ),
         ["TOT_CN_Android_6.1.0"] = (
             "libil2cpp.so",
             "types=29323 methods=227533 fields=228394 params=212861 literals=36670 typeRefs=219071 methodSpecs=155450 usages=169795 attributes=67986 Il2CppClass=0x328 Il2CppClass.static_fields=0xB8 Il2CppClass.vtable_count=0x11A MethodInfo=0x50 MethodInfo.flags=0x44 Il2CppCodeRegistration=0x80 Il2CppMetadataRegistration=0x80"
