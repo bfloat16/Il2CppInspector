@@ -23,13 +23,9 @@ public sealed class ArknightsPlugin : GamePlugin
         if (image.Arch != "x64")
             throw new InvalidDataException("Arknights_CN_Windows_2.7.91 requires an x64 GameAssembly.dll.");
 
-        var il2cppBinary = Il2CppBinary.LoadKnownRegistrationStructs(
-            image,
-            decoded,
-            ArknightsBuild.CodeRegistrationAddress,
-            ArknightsBuild.MetadataRegistrationAddress,
-            status
-        );
+        var il2cppBinary =
+            Il2CppBinary.Load(image, decoded, status)
+            ?? throw new InvalidDataException("Could not locate the Arknights_CN_Windows_2.7.91 IL2CPP registration structures in the binary.");
 
         return new Il2CppInspector(il2cppBinary, decoded);
     }
