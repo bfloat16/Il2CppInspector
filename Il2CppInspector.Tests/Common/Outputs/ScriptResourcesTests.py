@@ -12,6 +12,7 @@ from unittest.mock import Mock, call, patch
 
 ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = ROOT / "Il2CppInspector.Common/Outputs/ScriptResources"
+BADADDR = (1 << 64) - 1
 shared = (SCRIPTS / "shared_base.py").read_text(encoding="utf-8-sig")
 processor = (ROOT / "Il2CppInspector.Plugin/Shared/Morax/RuntimeCaches.py").read_text()
 shared = shared.replace("        # %GAME_METADATA_PROCESSOR%", processor)
@@ -66,7 +67,8 @@ def target_classes(name, header_path="il2cpp.h", **globals):
     tree = ast.parse(source.replace("%TYPE_HEADER_RELATIVE_PATH%", header_path))
     body = [ast.ImportFrom(module="__future__", names=[ast.alias(name="annotations")], level=0)]
     body += [node for node in tree.body if isinstance(node, ast.ClassDef) and node.name.endswith(("DisassemblerInterface", "StatusHandler"))]
-    namespace = {**BASE, "itertools": itertools, **globals}
+    namespace = {**BASE, "itertools": itertools,
+                 "ida_idaapi": types.SimpleNamespace(BADADDR=BADADDR), **globals}
     exec(compile(ast.fix_missing_locations(ast.Module(body=body, type_ignores=[])), name, "exec"), namespace)
     return namespace
 
@@ -250,7 +252,7 @@ class ScriptResourcesTests(unittest.TestCase):
         ida = Mock(INFFL_AUTO=1)
         ida.inf_get_genflags.return_value = 3
         typeinfo, clang, segment, functions = Mock(), Mock(), Mock(), Mock()
-        segment.get_segm_by_name.return_value = object()
+        segment.get_segment_ea_by_name.return_value = 0
         namespace = target_classes("IDA", ida_ida=ida, ida_typeinf=typeinfo, ida_srclang=clang,
                                    ida_segment=segment, ida_funcs=functions, ida_bytes=Mock(), ida_ua=Mock(),
                                    IDACLANG_AVAILABLE=True, FOLDERS_AVAILABLE=True)
@@ -264,6 +266,71 @@ class ScriptResourcesTests(unittest.TestCase):
         functions.add_func.assert_called_once_with(0x1000, 0x1010)
         backend.on_finish()
         self.assertEqual(ida.inf_set_genflags.call_args_list, [call(2), call(3)])
+
+    def test_ida_function_comments_resolve_function_start_and_skip_missing_functions(self):
+        for start in (0, 0x1000, BADADDR):
+            with self.subTest(start=start):
+                functions = Mock(spec=["get_func_start", "set_func_cmt_ea"])
+                functions.get_func_start.return_value = start
+                ns = target_classes("IDA", ida_funcs=functions)
+                backend = ns["IDADisassemblerInterface"](Mock())
+                backend.set_function_comment(0x1010, "Function signature")
+                functions.get_func_start.assert_called_once_with(0x1010)
+                if start == BADADDR:
+                    functions.set_func_cmt_ea.assert_not_called()
+                else:
+                    functions.set_func_cmt_ea.assert_called_once_with(start, "Function signature", True)
+
+    def test_ida_pdata_lookup_handles_address_zero_and_missing_segments(self):
+        for address in (0, BADADDR):
+            with self.subTest(address=address):
+                ida = Mock(INFFL_AUTO=1, DEMNAM_GCC3=1, DEMNAM_NAME=2)
+                ida.inf_get_genflags.return_value = 1
+                segment = Mock(spec=["get_segment_ea_by_name"])
+                segment.get_segment_ea_by_name.return_value = address
+                functions = Mock(spec=["add_func"])
+                ns = target_classes("IDA", ida_ida=ida, ida_segment=segment,
+                                    ida_funcs=functions, ida_bytes=Mock(), ida_ua=Mock(),
+                                    FOLDERS_AVAILABLE=False)
+                backend = ns["IDADisassemblerInterface"](Mock())
+                backend.apply_structures = False
+                backend.on_start()
+                backend.define_function(0x1000, 0x1010)
+                segment.get_segment_ea_by_name.assert_called_once_with(".pdata")
+                if address == BADADDR:
+                    functions.add_func.assert_called_once_with(0x1000, 0x1010)
+                else:
+                    functions.add_func.assert_not_called()
+
+    def test_terminal_string_segment_creation_and_resume_use_address_api(self):
+        for is_32_bit in (False, True):
+            with self.subTest(is_32_bit=is_32_bit):
+                info = Mock(spec=["start_ea", "end_ea", "set_perm"])
+                info.start_ea, info.end_ea = 0x8000, 0x8100
+                segment = Mock(spec=["get_segment_ea_by_name", "segment_info_t",
+                                     "get_segment_info", "add_segm", "set_segment_addressing",
+                                     "set_segment_info", "SEGPERM_READ"], SEGPERM_READ=4)
+                segment.segment_info_t.return_value = info
+                segment.get_segment_info.return_value = True
+                segment.get_segment_ea_by_name.return_value = BADADDR
+                ida = Mock()
+                ida.inf_get_max_ea.return_value = 0x8000
+                ns = terminal_classes(ida_ida=ida, ida_segment=segment)
+                backend = ns["TerminalDisassemblerInterface"](Mock())
+                backend._is_32_bit = is_32_bit
+                self.assertEqual(backend.create_fake_segment(".strings", 0x100), 0x8000)
+                segment.add_segm.assert_called_once_with(0, 0x8000, 0x8100, ".strings", "DATA")
+                segment.set_segment_addressing.assert_called_once_with(0x8000, 1 if is_32_bit else 2)
+                info.set_perm.assert_called_once_with(4)
+                segment.set_segment_info.assert_called_once_with(info)
+                segment.get_segment_ea_by_name.return_value = 0x8000
+                self.assertEqual(backend.create_fake_segment(".strings", 0x100), 0x8000)
+                self.assertEqual(segment.add_segm.call_count, 1)
+                with self.assertRaisesRegex(ValueError, "smaller"):
+                    backend.create_fake_segment(".strings", 0x101)
+                segment.get_segment_info.return_value = False
+                with self.assertRaisesRegex(RuntimeError, "existing string segment"):
+                    backend.create_fake_segment(".strings", 0x100)
 
     def test_method_info_without_method_body_preserves_annotations_and_skips_reference(self):
         for enabled, method_address in itertools.product((False, True), (None, "0x00000000", "0x1010")):
@@ -360,7 +427,7 @@ class ScriptResourcesTests(unittest.TestCase):
         ida = Mock(INFFL_AUTO=1, DEMNAM_GCC3=1, DEMNAM_NAME=2)
         ida.inf_get_genflags.return_value = 1
         typeinfo, clang, segment = Mock(), Mock(), Mock()
-        segment.get_segm_by_name.return_value = None
+        segment.get_segment_ea_by_name.return_value = BADADDR
         namespace = target_classes("IDA", ida_ida=ida, ida_typeinf=typeinfo, ida_srclang=clang,
                                    ida_segment=segment, IDACLANG_AVAILABLE=True, FOLDERS_AVAILABLE=False)
         backend = namespace["IDADisassemblerInterface"](Mock(spec=BASE["BaseStatusHandler"]))
@@ -381,7 +448,7 @@ class ScriptResourcesTests(unittest.TestCase):
                 typeinfo, clang, segment = Mock(), Mock(), Mock()
                 typeinfo.get_c_macros.return_value = "original"
                 typeinfo.idc_parse_decl.return_value = (0, b"type", b"fields")
-                segment.get_segm_by_name.return_value = None
+                segment.get_segment_ea_by_name.return_value = BADADDR
                 namespace = target_classes("IDA", header_path=header, ida_ida=ida, ida_typeinf=typeinfo, ida_srclang=clang,
                                            ida_segment=segment, IDACLANG_AVAILABLE=use_clang, FOLDERS_AVAILABLE=False,
                                            DEFAULT_TIL=None, TINFO_DEFINITE=1, __file__=str(SCRIPTS / "fixture.py"))

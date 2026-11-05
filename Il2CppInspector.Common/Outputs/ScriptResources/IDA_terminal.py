@@ -85,8 +85,9 @@ class TerminalStatusHandler(BaseStatusHandler):
 
     def initialize(self):
         options = dict(
-            ncols=150, leave=True, mininterval=0.1, file=self.out,
-            bar_format="{bar}| {desc} {percentage:3.0f}% {postfix}",
+            ncols=150, ascii=True, leave=True, mininterval=0.1, file=self.out,
+            # Pad and cap both text fields so the two bars have identical lengths.
+            bar_format="{bar}| {desc:40.40} {percentage:3.0f}% {postfix:54.54}",
         )
         self.stage_bar = tqdm(total=0, desc="Initializing", position=0, **options)
         self.total_bar = tqdm(total=None, desc="Total", position=1, **options)
@@ -195,11 +196,14 @@ class TerminalDisassemblerInterface(IDADisassemblerInterface):
 
     def create_fake_segment(self, name, size):
         # Resume into the saved segment instead of appending a second copy.
-        segment = ida_segment.get_segm_by_name(name)
-        if segment is not None:
+        start = ida_segment.get_segment_ea_by_name(name)
+        if start != ida_idaapi.BADADDR:
+            segment = ida_segment.segment_info_t()
+            if not ida_segment.get_segment_info(segment, start):
+                raise RuntimeError("Cannot read the existing string segment.")
             if segment.end_ea - segment.start_ea < size:
                 raise ValueError("Existing string segment is smaller than the import requires.")
-            return segment.start_ea
+            return start
         return super().create_fake_segment(name, size)
 
 

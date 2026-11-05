@@ -99,7 +99,7 @@ class IDADisassemblerInterface(BaseDisassemblerInterface):
 
         # Skip make_function on Windows GameAssembly.dll files due to them predefining all functions through pdata which makes the method very slow
         self._skip_function_creation = (
-            ida_segment.get_segm_by_name(".pdata") is not None
+            ida_segment.get_segment_ea_by_name(".pdata") != ida_idaapi.BADADDR
         )
         if self._skip_function_creation:
             print(".pdata section found, skipping function boundaries")
@@ -191,11 +191,9 @@ class IDADisassemblerInterface(BaseDisassemblerInterface):
         ida_bytes.set_cmt(address, cmt, False)
 
     def set_function_comment(self, address: int, cmt: str):
-        func = ida_funcs.get_func(address)
-        if func is None:
-            return
-
-        ida_funcs.set_func_cmt(func, cmt, True)
+        start = ida_funcs.get_func_start(address)
+        if start != ida_idaapi.BADADDR:
+            ida_funcs.set_func_cmt_ea(start, cmt, True)
 
     def set_data_name(self, address: int, name: str):
         ida_name.set_name(
@@ -231,10 +229,12 @@ class IDADisassemblerInterface(BaseDisassemblerInterface):
         end = start + size
 
         ida_segment.add_segm(0, start, end, name, "DATA")
-        segment = ida_segment.get_segm_by_name(name)
-        segment.bitness = 1 if self._is_32_bit else 2
-        segment.perm = ida_segment.SEGPERM_READ
-        segment.update()
+        ida_segment.set_segment_addressing(start, 1 if self._is_32_bit else 2)
+        segment = ida_segment.segment_info_t()
+        if not ida_segment.get_segment_info(segment, start):
+            raise RuntimeError("Cannot read the new string segment.")
+        segment.set_perm(ida_segment.SEGPERM_READ)
+        ida_segment.set_segment_info(segment)
 
         return start
 
