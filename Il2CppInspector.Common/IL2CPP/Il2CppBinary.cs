@@ -171,6 +171,22 @@ namespace Il2CppInspector
             return null;
         }
 
+    // Plugins with binary-verified registration addresses need metadata attached before initialization.
+    internal static Il2CppBinary LoadKnownRegistrationStructs(
+        IFileFormatStream stream,
+        Metadata metadata,
+        ulong codeRegistration,
+        ulong metadataRegistration,
+        EventHandler<string> statusCallback = null
+    )
+    {
+        var instance = LoadImpl(stream, statusCallback);
+        instance.Metadata = metadata;
+        instance.Image.Version = metadata.Version;
+        instance.TryPrepareMetadata(codeRegistration, metadataRegistration);
+        return instance;
+    }
+
         // Save binary to file, overwriting if necessary
         public void SaveToFile(string pathname)
         {

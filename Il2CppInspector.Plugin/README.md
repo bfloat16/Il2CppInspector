@@ -15,6 +15,7 @@ dotnet Il2CppInspector.CLI/bin/Release/net10.0/Il2CppInspector.dll --game NAME_R
 
 | Game | Supported ID |
 | --- | --- |
+| Arknights | `Arknights_CN_Windows_2.7.91` |
 | BH3 | `BH3_CN_Windows_9.1.0` |
 | Genshin | `Genshin_CN_Windows_7.1.0`, `Genshin_CN_Windows_7.2.0` |
 | HSR | `HSR_OS_Windows_4.6.0`, `HSR_CN_Windows_4.6.51` |

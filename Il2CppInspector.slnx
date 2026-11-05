@@ -9,6 +9,9 @@
   <Folder Name="/Plugins/Shared/">
     <File Path="Il2CppInspector.Plugin/Shared/Morax/Morax.props" />
   </Folder>
+  <Folder Name="/Plugins/Arknights/">
+    <Project Path="Il2CppInspector.Plugin/Arknights_CN_Windows_2.7.91/Il2CppInspector.Plugin.Arknights_CN_Windows_2.7.91.csproj" />
+  </Folder>
   <Folder Name="/Plugins/BH3/">
     <Project Path="Il2CppInspector.Plugin/BH3_CN_Windows_9.1.0/Il2CppInspector.Plugin.BH3_CN_Windows_9.1.0.csproj" />
   </Folder>
